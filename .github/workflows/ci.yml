@@ -94,6 +94,7 @@ jobs:
         run: |
           cd zephyr-workspace
           cd .. 
+          cd .. 
           pwd
           ls
           ccache -z
