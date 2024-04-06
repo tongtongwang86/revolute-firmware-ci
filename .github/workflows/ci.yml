@@ -108,4 +108,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
-          path: zephyr-workspace/build/zephyr/zephyr.elf
+          path: zephyr-workspace/build/zephyr/zephyr.uf2
