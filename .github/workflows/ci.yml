@@ -93,7 +93,6 @@ jobs:
       - name: 🔨 Build Project
         run: |
           cd zephyr-workspace
-          cd nrfconnect-ci-app
           pwd
           ls
           ccache -z
