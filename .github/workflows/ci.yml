@@ -93,6 +93,7 @@ jobs:
       - name: 🔨 Build Project
         run: |
           cd zephyr-workspace
+          pwd
           ccache -z
           west build \
               --board revolutewireless \
