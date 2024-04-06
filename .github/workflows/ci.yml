@@ -93,8 +93,7 @@ jobs:
       - name: 🔨 Build Project
         run: |
           cd zephyr-workspace
-          cd .. 
-          cd .. 
+          cd nrfconnect-ci-app
           pwd
           ls
           ccache -z
@@ -102,7 +101,7 @@ jobs:
               --board revolutewireless \
               --pristine=always nrfconnect-ci-app \
               -- \
-              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci" \
+              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/nrfconnect-ci-app" \
               -DCONFIG_MEMFAULT_NCS_PROJECT_KEY=\"1234\"
           ccache -sv
 
