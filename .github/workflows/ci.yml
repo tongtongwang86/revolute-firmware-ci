@@ -94,6 +94,7 @@ jobs:
         run: |
           cd zephyr-workspace
           pwd
+          ls
           ccache -z
           west build \
               --board revolutewireless \
