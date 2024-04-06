@@ -107,5 +107,5 @@ jobs:
       - name: 📦 Save Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts
+          name: Artifact
           path: zephyr-workspace/build/zephyr/zephyr.uf2
