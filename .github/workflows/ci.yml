@@ -93,6 +93,7 @@ jobs:
       - name: 🔨 Build Project
         run: |
           cd zephyr-workspace
+          cd .. 
           pwd
           ls
           ccache -z
