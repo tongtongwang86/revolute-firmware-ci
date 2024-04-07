@@ -50,7 +50,6 @@ int main(void) {
 #endif
 
 
-
   /* Poll if the DTR flag was set */
   while (!dtr) {
     uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
@@ -75,11 +74,14 @@ if (ret < 0) {
     return;
 }
 
+ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
+	if (ret < 0) {
+		return -1;
+	}
 
 
 
-
-  ret = gpio_pin_interrupt_configure_dt(&button, GPIO_ACTIVE_LOW);
+  ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
 if (ret < 0) {
   LOG_ERR("set pin as interrupt failed");
 	return -1;
