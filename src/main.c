@@ -60,12 +60,7 @@ static struct gpio_callback button_cb_data;
 int main(void) {
 
   const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
-  const struct device *const bq27 = DEVICE_DT_GET_ONE(ti_bq274xx);
-
-  if (!device_is_ready(bq27)) {
-		printk("Device %s is not ready\n", bq27->name);
-		return 0;
-	}
+  
 
   uint32_t dtr = 0;
 
@@ -86,6 +81,13 @@ int main(void) {
     /* Give CPU resources to low priority threads. */
     k_sleep(K_MSEC(100));
   }
+
+  const struct device *const bq27 = DEVICE_DT_GET_ONE(ti_bq274xx);
+
+  if (!device_is_ready(bq27)) {
+		printk("Device %s is not ready\n", bq27->name);
+		return 0;
+	}
 
 
 
