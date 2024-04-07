@@ -81,6 +81,6 @@ if (ret < 0) {
     //  if (ret < 0) {
     //     return;
     // }
-    // k_sleep(K_SECONDS(1));
+    k_sleep(K_MSEC(100));
   }
 }
