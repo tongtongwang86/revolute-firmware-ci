@@ -14,12 +14,15 @@
 
 
 #define SW0_NODE	DT_ALIAS(sw0) 
+static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
+
+
 #define LED0_NODE DT_ALIAS(led0)
+static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+
 
 LOG_MODULE_REGISTER(Rev,LOG_LEVEL_DBG);
 
-static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
-static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
 BUILD_ASSERT(DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_console), zephyr_cdc_acm_uart),
              "Console device is not ACM CDC UART device");
@@ -57,7 +60,8 @@ if (ret < 0) {
   const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
   uint32_t dtr = 0;
 
-
+gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin)); 	
+	gpio_add_callback(button.port, &button_cb_data);
 
   /* Poll if the DTR flag was set */
   while (!dtr) {
@@ -66,8 +70,7 @@ if (ret < 0) {
     k_sleep(K_MSEC(100));
   }
 
-    gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin)); 	
-	gpio_add_callback(button.port, &button_cb_data);
+    
 
 
   while (1) {
