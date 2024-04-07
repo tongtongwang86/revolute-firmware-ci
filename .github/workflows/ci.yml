@@ -104,5 +104,5 @@ jobs:
       - name: 📦 Save Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Artifact
+          name: Firmware
           path: zephyr-workspace/build/zephyr/zephyr.uf2

@@ -11,7 +11,7 @@
 #include <zephyr/usb/usbd.h>
 #include <zephyr/logging/log.h>
 
-LOG_MODULE_REGISTER(Revolute,LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(Rev,LOG_LEVEL_DBG);
 
 BUILD_ASSERT(DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_console), zephyr_cdc_acm_uart),
              "Console device is not ACM CDC UART device");
