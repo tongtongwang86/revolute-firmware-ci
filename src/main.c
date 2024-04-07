@@ -24,7 +24,12 @@ static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 BUILD_ASSERT(DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_console), zephyr_cdc_acm_uart),
              "Console device is not ACM CDC UART device");
 
+void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
+{
+    gpio_pin_toggle_dt(&led);
+}
 
+static struct gpio_callback button_cb_data;
 
 int main(void) {
 
@@ -44,7 +49,7 @@ if (ret < 0) {
     return;
 }
 
-ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
+ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
 if (ret < 0) {
 	return -1;
 }
@@ -52,15 +57,7 @@ if (ret < 0) {
   const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
   uint32_t dtr = 0;
 
-#if defined(CONFIG_USB_DEVICE_STACK_NEXT)
-  if (enable_usb_device_next()) {
-    return 0;
-  }
-#else
-  if (usb_enable(NULL)) {
-    return 0;
-  }
-#endif
+
 
   /* Poll if the DTR flag was set */
   while (!dtr) {
@@ -69,18 +66,21 @@ if (ret < 0) {
     k_sleep(K_MSEC(100));
   }
 
+    gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin)); 	
+	gpio_add_callback(button.port, &button_cb_data);
+
+
   while (1) {
-    bool val = gpio_pin_get_dt(&button);
-    gpio_pin_set_dt(&led,val);
-    // printk("Hello World! %s\n", CONFIG_ARCH);
-    // LOG_INF("Exercise %d",2);   
-    // LOG_DBG("A log message in debug level");
-    // LOG_WRN("A log message in warning level!");
-    // LOG_ERR("A log message in Error level!");
+    // bool val = gpio_pin_get_dt(&button);
+    // gpio_pin_set_dt(&led,val);
+    printk("Hello World! %s\n", CONFIG_ARCH);
+    LOG_DBG("A log message in debug level");
+    LOG_WRN("A log message in warning level!");
+    LOG_ERR("A log message in Error level!");
     // ret = gpio_pin_toggle_dt(&led);
     //  if (ret < 0) {
     //     return;
     // }
-    k_sleep(K_MSEC(100));
+    k_sleep(K_MSEC(1000));
   }
 }
