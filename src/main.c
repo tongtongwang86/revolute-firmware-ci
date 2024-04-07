@@ -33,11 +33,20 @@ int main(void) {
 		return 0;
 	}
 
+  if (!device_is_ready(button.port)) {
+	return -1;
+}
+
 int ret;
 
 ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
 if (ret < 0) {
     return;
+}
+
+ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
+if (ret < 0) {
+	return -1;
 }
 
   const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
@@ -61,15 +70,17 @@ if (ret < 0) {
   }
 
   while (1) {
-    printk("Hello World! %s\n", CONFIG_ARCH);
-    LOG_INF("Exercise %d",2);   
-    LOG_DBG("A log message in debug level");
-    LOG_WRN("A log message in warning level!");
-    LOG_ERR("A log message in Error level!");
-    ret = gpio_pin_toggle_dt(&led);
-     if (ret < 0) {
-        return;
-    }
-    k_sleep(K_SECONDS(1));
+    bool val = gpio_pin_get_dt(&button);
+    gpio_pin_set_dt(&led,val);
+    // printk("Hello World! %s\n", CONFIG_ARCH);
+    // LOG_INF("Exercise %d",2);   
+    // LOG_DBG("A log message in debug level");
+    // LOG_WRN("A log message in warning level!");
+    // LOG_ERR("A log message in Error level!");
+    // ret = gpio_pin_toggle_dt(&led);
+    //  if (ret < 0) {
+    //     return;
+    // }
+    // k_sleep(K_SECONDS(1));
   }
 }
