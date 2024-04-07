@@ -60,8 +60,7 @@ if (ret < 0) {
   const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
   uint32_t dtr = 0;
 
-// gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin)); 	
-// 	gpio_add_callback(button.port, &button_cb_data);
+
 
   /* Poll if the DTR flag was set */
   while (!dtr) {
@@ -70,7 +69,14 @@ if (ret < 0) {
     k_sleep(K_MSEC(100));
   }
 
-    
+  ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
+if (ret < 0) {
+  LOG_ERR("set pin as interrupt failed");
+	return -1;
+}
+
+    gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin)); 	
+	gpio_add_callback(button.port, &button_cb_data);
 
 
   while (1) {
