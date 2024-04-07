@@ -52,10 +52,7 @@ if (ret < 0) {
     return;
 }
 
-ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
-if (ret < 0) {
-	return -1;
-}
+
 
   const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
   uint32_t dtr = 0;
