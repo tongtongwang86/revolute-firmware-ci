@@ -36,6 +36,19 @@ static struct gpio_callback button_cb_data;
 
 int main(void) {
 
+  const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
+  uint32_t dtr = 0;
+
+
+
+  /* Poll if the DTR flag was set */
+  while (!dtr) {
+    uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
+    /* Give CPU resources to low priority threads. */
+    k_sleep(K_MSEC(100));
+  }
+
+
 
   if (!gpio_is_ready_dt(&led)) {
 		return 0;
@@ -54,17 +67,7 @@ if (ret < 0) {
 
 
 
-  const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
-  uint32_t dtr = 0;
 
-
-
-  /* Poll if the DTR flag was set */
-  while (!dtr) {
-    uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
-    /* Give CPU resources to low priority threads. */
-    k_sleep(K_MSEC(100));
-  }
 
   ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
 if (ret < 0) {
