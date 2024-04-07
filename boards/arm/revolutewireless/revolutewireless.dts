@@ -158,7 +158,7 @@
 		reg = <0x36>;
 		status = "okay";
 	};
-	bq274xx: bq27441@55 {
+	fuelgauge: bq27441@55 {
 		compatible = "ti,bq274xx";
 		reg = <0x55>;
 		design-voltage = <3700>;
