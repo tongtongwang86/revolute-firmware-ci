@@ -9,6 +9,8 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/usb/usb_device.h>
 #include <zephyr/usb/usbd.h>
+#include <zephyr/logging/log.h>
+
 
 BUILD_ASSERT(DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_console), zephyr_cdc_acm_uart),
              "Console device is not ACM CDC UART device");
