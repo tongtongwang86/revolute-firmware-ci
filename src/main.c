@@ -79,7 +79,7 @@ if (ret < 0) {
 
 
 
-  ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
+  ret = gpio_pin_interrupt_configure_dt(&button, GPIO_ACTIVE_LOW);
 if (ret < 0) {
   LOG_ERR("set pin as interrupt failed");
 	return -1;
