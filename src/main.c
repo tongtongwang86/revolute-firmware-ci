@@ -60,8 +60,8 @@ if (ret < 0) {
   const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
   uint32_t dtr = 0;
 
-gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin)); 	
-	gpio_add_callback(button.port, &button_cb_data);
+// gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin)); 	
+// 	gpio_add_callback(button.port, &button_cb_data);
 
   /* Poll if the DTR flag was set */
   while (!dtr) {
