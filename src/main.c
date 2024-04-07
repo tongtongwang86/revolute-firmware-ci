@@ -30,6 +30,7 @@ BUILD_ASSERT(DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_console), zephyr_cdc_acm_uart),
 void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
     gpio_pin_toggle_dt(&led);
+    LOG_INF("toggled led");
 }
 
 static struct gpio_callback button_cb_data;
@@ -80,12 +81,15 @@ ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
 	}
 
 
-
   ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
+
 if (ret < 0) {
   LOG_ERR("set pin as interrupt failed");
 	return -1;
 }
+
+
+
 
     gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin)); 	
 	gpio_add_callback(button.port, &button_cb_data);
@@ -95,6 +99,7 @@ if (ret < 0) {
     // bool val = gpio_pin_get_dt(&button);
     // gpio_pin_set_dt(&led,val);
     printk("Hello World! %s\n", CONFIG_ARCH);
+    LOG_INF("A log message in info level");
     LOG_DBG("A log message in debug level");
     LOG_WRN("A log message in warning level!");
     LOG_ERR("A log message in Error level!");
