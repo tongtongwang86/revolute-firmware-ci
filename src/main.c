@@ -90,6 +90,11 @@ int main(void) {
 		printk("Device %s is not ready\n", bq27->name);
 		return 0;
 	}
+  
+  if (as == NULL || !device_is_ready(as)) {
+		printk("as5600 device tree not configured\n");
+		return;
+	}
 
 
 
