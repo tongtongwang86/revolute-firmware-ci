@@ -31,6 +31,7 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 {
     gpio_pin_toggle_dt(&led);
     LOG_INF("toggled led");
+    LOG_WRN("wrn led");
 }
 
 static struct gpio_callback button_cb_data;
