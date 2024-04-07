@@ -148,7 +148,7 @@ if (ret < 0) {
 	gpio_add_callback(button.port, &button_cb_data);
 
 
-printk("device is %p, name is %s\n", bq27, bq27->name);
+// printk("device is %p, name is %s\n", bq27, bq27->name);
 
 // int status = 0;
 // 	struct sensor_value voltage, current, state_of_charge,
