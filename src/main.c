@@ -94,6 +94,10 @@ int main(void) {
 
   while (1) {
     printk("Hello World! %s\n", CONFIG_ARCH);
+    LOG_INF("Exercise %d",2);   
+    LOG_DBG("A log message in debug level");
+    LOG_WRN("A log message in warning level!");
+    LOG_ERR("A log message in Error level!");
     k_sleep(K_SECONDS(1));
   }
 }
