@@ -82,7 +82,9 @@ int main(void) {
     k_sleep(K_MSEC(100));
   }
 
-  const struct device *const bq27 = DEVICE_DT_GET_ONE(ti_bq274xx);
+  // const struct device *const bq27 = DEVICE_DT_GET_ONE(ti_bq274xx);
+  const struct device *const bq27 = DEVICE_DT_GET(DT_INST(0,ti_bq274xx));
+  const struct device *const as = DEVICE_DT_GET(DT_INST(0,ams_as5600));
 
   if (!device_is_ready(bq27)) {
 		printk("Device %s is not ready\n", bq27->name);
