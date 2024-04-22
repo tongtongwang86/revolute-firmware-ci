@@ -86,9 +86,9 @@ BT_GATT_SERVICE_DEFINE(
 	BT_GATT_CHARACTERISTIC(BT_UUID_LBS_BUTTON, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
 			       BT_GATT_PERM_READ, read_button, NULL, &button_state),
 	BT_GATT_CCC(lbslc_ccc_cfg_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
-	/* STEP 1.1 - Change the LED characteristic permission to require encryption */
-	/* STEP 8 - Change the LED characteristic permission to require pairing with authentication */
 	BT_GATT_CHARACTERISTIC(BT_UUID_LBS_LED, BT_GATT_CHRC_WRITE,BT_GATT_PERM_WRITE_ENCRYPT,NULL, write_led, NULL),);
+	/* STEP 8 - Change the LED characteristic permission to require pairing with authentication */
+	
 
 
 int bt_lbs_init(struct bt_lbs_cb *callbacks)

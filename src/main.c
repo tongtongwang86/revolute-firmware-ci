@@ -136,55 +136,6 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
 };
 
 
-#if defined(CONFIG_BT_LBS_SECURITY_ENABLED)
-static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
-{
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	printk("Passkey for %s: %06u\n", addr, passkey);
-}
-
-static void auth_cancel(struct bt_conn *conn)
-{
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	printk("Pairing cancelled: %s\n", addr);
-}
-
-static void pairing_complete(struct bt_conn *conn, bool bonded)
-{
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	printk("Pairing completed: %s, bonded: %d\n", addr, bonded);
-}
-
-static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
-{
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	printk("Pairing failed conn: %s, reason %d\n", addr, reason);
-}
-
-static struct bt_conn_auth_cb conn_auth_callbacks = {
-	.passkey_display = auth_passkey_display,
-	.cancel = auth_cancel,
-};
-
-static struct bt_conn_auth_info_cb conn_auth_info_callbacks = { .pairing_complete =
-									pairing_complete,
-								.pairing_failed = pairing_failed };
-#else
-static struct bt_conn_auth_cb conn_auth_callbacks;
-static struct bt_conn_auth_info_cb conn_auth_info_callbacks;
-#endif
 
 static void app_led_cb(bool led_state)
 {
@@ -256,7 +207,7 @@ int err;
 
 ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
 if (ret < 0) {
-    return;
+    return -1;
 }
 
 ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
@@ -279,24 +230,12 @@ if (ret < 0) {
 	gpio_add_callback(button.port, &button_cb_data);
 
 
-if (IS_ENABLED(CONFIG_BT_LBS_SECURITY_ENABLED)) {
-		err = bt_conn_auth_cb_register(&conn_auth_callbacks);
-		if (err) {
-			printk("Failed to register authorization callbacks.\n");
-			return;
-		}
 
-		err = bt_conn_auth_info_cb_register(&conn_auth_info_callbacks);
-		if (err) {
-			printk("Failed to register authorization info callbacks.\n");
-			return;
-		}
-	}
 
 	err = bt_enable(NULL);
 	if (err) {
 		printk("Bluetooth init failed (err %d)\n", err);
-		return;
+		return -1;
 	}
 
 	printk("Bluetooth initialized\n");
@@ -308,13 +247,13 @@ if (IS_ENABLED(CONFIG_BT_LBS_SECURITY_ENABLED)) {
   	err = bt_lbs_init(&lbs_callbacs);
 	if (err) {
 		printk("Failed to init LBS (err:%d)\n", err);
-		return;
+		return -1;
 	}
 
   err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
 	if (err) {
 		printk("Advertising failed to start (err %d)\n", err);
-		return;
+		return -1;
 	}
   printk("Advertising successfully started\n");
 
@@ -330,6 +269,6 @@ if (IS_ENABLED(CONFIG_BT_LBS_SECURITY_ENABLED)) {
     //  if (ret < 0) {
     //     return;
     // }
-    // k_sleep(K_MSEC(1000));
+    k_sleep(K_MSEC(50));
   }
 }
