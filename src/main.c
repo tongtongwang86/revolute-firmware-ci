@@ -111,29 +111,28 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
   gpio_pin_toggle_dt(&led);
 }
 
-#ifdef CONFIG_BT_LBS_SECURITY_ENABLED
-
-static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_security_err err)
+static void on_security_changed(struct bt_conn *conn, bt_security_t level,
+			     enum bt_security_err err)
 {
 	char addr[BT_ADDR_LE_STR_LEN];
 
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
 	if (!err) {
-		printk("Security changed: %s level %u\n", addr, level);
+		LOG_INF("Security changed: %s level %u\n", addr, level);
 	} else {
-		printk("Security failed: %s level %u err %d\n", addr, level, err);
+		LOG_INF("Security failed: %s level %u err %d\n", addr, level,
+			err);
 	}
 }
-#endif
 
 
 BT_CONN_CB_DEFINE(conn_callbacks) = {
 	.connected = connected,
 	.disconnected = disconnected,
-#ifdef CONFIG_BT_LBS_SECURITY_ENABLED
-	.security_changed = security_changed,
-#endif
+// #ifdef CONFIG_BT_LBS_SECURITY_ENABLED
+	.security_changed = on_security_changed,
+// #endif
 };
 
 
