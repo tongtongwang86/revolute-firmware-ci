@@ -323,7 +323,7 @@ if (IS_ENABLED(CONFIG_BT_LBS_SECURITY_ENABLED)) {
     // bool val = gpio_pin_get_dt(&button);
     // gpio_pin_set_dt(&led,val);
     // printk("Hello World! %s\n", CONFIG_ARCH);
-    LOG_INF("running");
+    // LOG_INF("running");
     // LOG_DBG("A log message in debug level");
     // LOG_WRN("A log message in warning level!");
     // LOG_ERR("A log message in Error level!");
@@ -331,6 +331,6 @@ if (IS_ENABLED(CONFIG_BT_LBS_SECURITY_ENABLED)) {
     //  if (ret < 0) {
     //     return;
     // }
-    k_sleep(K_MSEC(1000));
+    // k_sleep(K_MSEC(1000));
   }
 }
