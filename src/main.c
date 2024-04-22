@@ -48,6 +48,22 @@
 static bool app_button_state;
 
 
+
+#define SW0_NODE	DT_ALIAS(sw0) 
+static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
+
+
+#define LED0_NODE DT_ALIAS(led0)
+static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+
+
+LOG_MODULE_REGISTER(Rev,LOG_LEVEL_DBG);
+
+
+BUILD_ASSERT(DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_console), zephyr_cdc_acm_uart),
+             "Console device is not ACM CDC UART device");
+
+
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
 	BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),
@@ -169,45 +185,6 @@ static struct bt_lbs_cb lbs_callbacs = {
 	.button_cb = app_button_cb,
 };
 
-// static void button_changed(uint32_t button_state, uint32_t has_changed)
-// {
-// 	if (has_changed & USER_BUTTON) {
-// 		uint32_t user_button_state = button_state & USER_BUTTON;
-
-// 		bt_lbs_send_button_state(user_button_state);
-// 		app_button_state = user_button_state ? true : false;
-// 	}
-// }
-
-// static int init_button(void)
-// {
-// 	int err;
-
-// 	err = dk_buttons_init(button_changed);
-// 	if (err) {
-// 		printk("Cannot init buttons (err: %d)\n", err);
-// 	}
-
-// 	return err;
-// }
-
-
-
-
-
-#define SW0_NODE	DT_ALIAS(sw0) 
-static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
-
-
-#define LED0_NODE DT_ALIAS(led0)
-static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
-
-
-LOG_MODULE_REGISTER(Rev,LOG_LEVEL_DBG);
-
-
-BUILD_ASSERT(DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_console), zephyr_cdc_acm_uart),
-             "Console device is not ACM CDC UART device");
 
 void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
