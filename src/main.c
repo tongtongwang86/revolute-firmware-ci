@@ -190,8 +190,8 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 {
     // gpio_pin_toggle_dt(&led);
 
-    bt_lbs_send_button_state(user_button_state);
-    app_button_state = user_button_state ? true : false;
+    bt_lbs_send_button_state(app_button_state);
+    app_button_state = !app_button_state;
     LOG_INF("toggled led");
 }
 
