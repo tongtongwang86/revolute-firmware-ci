@@ -28,7 +28,7 @@
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
 
-#include <bluetooth/services/lbs.h>
+#include "lbs.h"
 
 #include <zephyr/settings/settings.h>
 
@@ -99,15 +99,16 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	printk("Connected\n");
 
 	// dk_set_led_on(CON_STATUS_LED);
-  // gpio_pin_toggle_dt(&led);
-  gpio_pin_set_dt(&led, 1);
+  gpio_pin_toggle_dt(&led);
+  // gpio_pin_set_dt(&led, 1);
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
 	printk("Disconnected (reason %u)\n", reason);
 
-	gpio_pin_set_dt(&led, 0);
+	// gpio_pin_set_dt(&led, 0);
+  gpio_pin_toggle_dt(&led);
 }
 
 #ifdef CONFIG_BT_LBS_SECURITY_ENABLED
@@ -188,12 +189,15 @@ static struct bt_conn_auth_info_cb conn_auth_info_callbacks;
 
 static void app_led_cb(bool led_state)
 {
-	gpio_pin_set_dt(&led, led_state);
+	// gpio_pin_set_dt(&led, led_state);
+  gpio_pin_toggle_dt(&led);
 }
 
 static bool app_button_cb(void)
 {
 	return app_button_state;
+  LOG_INF("POLLED FOR BUTTON STATE");
+
 }
 
 static struct bt_lbs_cb lbs_callbacs = {
@@ -205,6 +209,7 @@ static struct bt_lbs_cb lbs_callbacs = {
 void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
     // gpio_pin_toggle_dt(&led);
+    gpio_pin_toggle_dt(&led);
 
     bt_lbs_send_button_state(app_button_state);
     app_button_state = !app_button_state;
