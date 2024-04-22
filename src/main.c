@@ -11,12 +11,6 @@
 #include <zephyr/usb/usbd.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/sensor.h>
-
-
-
-
 
 
 #define SW0_NODE	DT_ALIAS(sw0) 
@@ -27,23 +21,16 @@ static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
 
-
 LOG_MODULE_REGISTER(Rev,LOG_LEVEL_DBG);
 
 
 BUILD_ASSERT(DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_console), zephyr_cdc_acm_uart),
              "Console device is not ACM CDC UART device");
 
-
-
-
-
-
 void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
     gpio_pin_toggle_dt(&led);
     LOG_INF("toggled led");
-    LOG_WRN("wrn led");
 }
 
 static struct gpio_callback button_cb_data;
@@ -51,8 +38,6 @@ static struct gpio_callback button_cb_data;
 int main(void) {
 
   const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
-  
-
   uint32_t dtr = 0;
 
 #if defined(CONFIG_USB_DEVICE_STACK_NEXT)
@@ -72,8 +57,6 @@ int main(void) {
     /* Give CPU resources to low priority threads. */
     k_sleep(K_MSEC(100));
   }
-
-
 
 
 
@@ -112,14 +95,6 @@ if (ret < 0) {
 	gpio_add_callback(button.port, &button_cb_data);
 
 
-// printk("device is %p, name is %s\n", bq27, bq27->name);
-
-// int status = 0;
-// 	struct sensor_value voltage, current, state_of_charge,
-// 		full_charge_capacity, remaining_charge_capacity, avg_power,
-// 		int_temp, current_standby, current_max_load, state_of_health;
-
-
   while (1) {
     // bool val = gpio_pin_get_dt(&button);
     // gpio_pin_set_dt(&led,val);
@@ -128,8 +103,10 @@ if (ret < 0) {
     LOG_DBG("A log message in debug level");
     LOG_WRN("A log message in warning level!");
     LOG_ERR("A log message in Error level!");
-
-
+    // ret = gpio_pin_toggle_dt(&led);
+    //  if (ret < 0) {
+    //     return;
+    // }
     k_sleep(K_MSEC(1000));
   }
 }
