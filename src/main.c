@@ -195,8 +195,9 @@ static void app_led_cb(bool led_state)
 
 static bool app_button_cb(void)
 {
+ LOG_INF("POLLED FOR BUTTON STATE");
 	return app_button_state;
-  LOG_INF("POLLED FOR BUTTON STATE");
+ 
 
 }
 
