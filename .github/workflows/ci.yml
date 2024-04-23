@@ -167,17 +167,17 @@ jobs:
           path: zephyr-workspace/build/zephyr/zephyr.uf2
 
       # upload the symbol file to Memfault, if this was a tag build
-      - name: ⬆️ Upload Build to Memfault
-        if: github.event_name == 'create' && github.event.ref_type == 'tag'
+      # - name: ⬆️ Upload Build to Memfault
+      #   if: github.event_name == 'create' && github.event.ref_type == 'tag'
 
-        run: |
-          . /venv/bin/activate
-          pip install memfault-cli==1.0.6
-          cd zephyr-workspace
-          memfault \
-            --org-token ${{ secrets.MEMFAULT_ORG_KEY }} \
-            --org ${{ secrets.MEMFAULT_ORG }} \
-            --project ${{ secrets.MEMFAULT_PROJECT }} \
-            upload-mcu-symbols \
-            build/zephyr/zephyr.elf
+      #   run: |
+      #     . /venv/bin/activate
+      #     pip install memfault-cli==1.0.6
+      #     cd zephyr-workspace
+      #     memfault \
+      #       --org-token ${{ secrets.MEMFAULT_ORG_KEY }} \
+      #       --org ${{ secrets.MEMFAULT_ORG }} \
+      #       --project ${{ secrets.MEMFAULT_PROJECT }} \
+      #       upload-mcu-symbols \
+      #       build/zephyr/zephyr.elf
 
