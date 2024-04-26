@@ -2,3 +2,5 @@ build/*
 **/.DS_Store
 .west
 zephyr/
+.DS_Store
+
