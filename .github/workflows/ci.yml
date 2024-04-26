@@ -1,11 +1,6 @@
 on:
   pull_request:
-    branches:
-      - main
   push:
-    branches:
-      - main
-
   # run on tag creation
   create:
     tags:
