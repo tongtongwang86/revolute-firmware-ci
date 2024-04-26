@@ -15,6 +15,7 @@ manifest:
           - mbedtls
           - nrfxlib
           - cmsis
+          - tinycrypt
           - hal_nordic
 
     # Specify a newer version of the Memfault Firmware SDK, overriding the one
