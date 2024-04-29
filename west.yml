@@ -6,21 +6,21 @@ manifest:
     - name: sdk-nrf
       path: nrf
       url: https://github.com/nrfconnect/sdk-nrf.git
-      revision: v2.6.0
-      import: 
+      revision: v2.5.1
+      import:
         name-allowlist:
           - hostap
           - zephyr
-          - tinycrypt
           - mcuboot
           - mbedtls
           - nrfxlib
           - cmsis
+          - tinycrypt
           - hal_nordic
 
     # Specify a newer version of the Memfault Firmware SDK, overriding the one
-    # # specified in the nRF-Connect SDK manifest.
-    # - name: memfault-firmware-sdk
-    #   url: https://github.com/memfault/memfault-firmware-sdk
-    #   path: modules/lib/memfault-firmware-sdk
-    #   revision: 1.6.0
+    # specified in the nRF-Connect SDK manifest.
+    - name: memfault-firmware-sdk
+      url: https://github.com/memfault/memfault-firmware-sdk
+      path: modules/lib/memfault-firmware-sdk
+      revision: 1.6.0
