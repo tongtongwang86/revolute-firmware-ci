@@ -15,4 +15,5 @@ manifest:
           - mbedtls
           - nrfxlib
           - cmsis
+          - tinycrypt
           - hal_nordic
