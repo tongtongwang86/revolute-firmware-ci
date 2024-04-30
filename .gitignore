@@ -1,6 +1,3 @@
-build/*
-**/.DS_Store
-.west
-zephyr/
-.DS_Store
 
+/zephyr
+.DS_Store
