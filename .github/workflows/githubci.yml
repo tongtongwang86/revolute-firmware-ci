@@ -50,8 +50,9 @@ jobs:
 
     - name: Build
       run: |
-        which python3
         arm-none-eabi-gcc --version
+        make --version
+        python3 --version
         make BOARD=${{ matrix.board }} all
         make BOARD=${{ matrix.board }} copy-artifact
 
