@@ -130,9 +130,8 @@ static void on_security_changed(struct bt_conn *conn, bt_security_t level,
 BT_CONN_CB_DEFINE(conn_callbacks) = {
 	.connected = connected,
 	.disconnected = disconnected,
-// #ifdef CONFIG_BT_LBS_SECURITY_ENABLED
 	.security_changed = on_security_changed,
-// #endif
+
 };
 
 
