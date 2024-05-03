@@ -329,6 +329,6 @@ if (IS_ENABLED(CONFIG_BT_LBS_SECURITY_ENABLED)) {
     //  if (ret < 0) {
     //     return;
     // }
-    // k_sleep(K_MSEC(1000));
+    k_sleep(K_MSEC(100));
   }
 }
