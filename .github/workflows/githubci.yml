@@ -17,10 +17,8 @@ jobs:
       fail-fast: false
       matrix:
         board:
-
           - 'revolute'
-          - 'revoluteWireless'
-             
+          - 'revoluteWireless'  
     steps:
     - name: Setup Python
       uses: actions/setup-python@v3
