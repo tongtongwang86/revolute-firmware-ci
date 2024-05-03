@@ -20,7 +20,6 @@ jobs:
 
           - 'revolute'
           - 'revoluteWireless'
-          - 'feather_nrf52832'
              
     steps:
     - name: Setup Python
