@@ -1,6 +1,8 @@
 on:
   pull_request:
   push:
+    branches:
+      - Test-ButtonLed
   # run on tag creation
   create:
     tags:
