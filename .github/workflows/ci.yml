@@ -1,6 +1,8 @@
 on:
   pull_request:
   push:
+    branches:
+      - Test-Bluetooth
   # run on tag creation
   create:
     tags:
