@@ -1,6 +1,8 @@
 on:
   pull_request:
   push:
+    branches:
+      - Test-ConsoleOverBluetooth
   # run on tag creation
   create:
     tags:
