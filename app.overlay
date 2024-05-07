@@ -15,3 +15,10 @@
 		compatible = "zephyr,cdc-acm-uart";
 	};
 };
+
+&uart0 {
+	compatible = "nordic,nrf-uart";
+	current-speed = <1000000>;
+	hw-flow-control;
+	status = "okay";
+};
