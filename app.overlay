@@ -16,9 +16,9 @@
 	};
 };
 
-&uart0 {
-	compatible = "nordic,nrf-uart";
+ &uart0 {
+	compatible = "nordic,nrf-uarte";
 	current-speed = <1000000>;
-	hw-flow-control;
 	status = "okay";
+	hw-flow-control;
 };
