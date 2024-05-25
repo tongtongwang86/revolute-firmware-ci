@@ -116,7 +116,7 @@
 
 
 
-& flash0 {
+&flash0 {
   partitions {
     compatible = "fixed-partitions";
     # address-cells = <1>;
