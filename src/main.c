@@ -180,10 +180,6 @@ int main(void)
 #endif
 
 
-  /* Poll if the DTR flag was set */
-    uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
-
-
 
 	
 	int err;
@@ -199,6 +195,13 @@ int main(void)
 		printk("Bluetooth authentication callbacks registered.\n");
 	}
 
+while (!dtr) {
+    uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
+    /* Give CPU resources to low priority threads. */
+    k_sleep(K_MSEC(100));
+  }
+
+	
 	hog_button_loop();
 	return 0;
 }
