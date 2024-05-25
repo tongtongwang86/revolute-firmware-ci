@@ -5,7 +5,7 @@ mainmenu "Bluetooth: Peripheral HIDs"
 
 config SAMPLE_BT_USE_AUTHENTICATION
 	bool "Enable passkey authentication"
-	default y
+	default n
 	help
 	  Enable the passkey authentication callback and register the GATT
 	  read and write attributes as authentication required.
