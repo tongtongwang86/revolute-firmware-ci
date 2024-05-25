@@ -177,13 +177,22 @@ void hog_init(void)
 }
 
 #define SW0_NODE DT_ALIAS(sw0)
+#define SW1_NODE DT_ALIAS(sw1)
+#define SW2_NODE DT_ALIAS(sw2)
+#define SW3_NODE DT_ALIAS(sw3)
 
 void hog_button_loop(void)
 {
-#if DT_NODE_HAS_STATUS(SW0_NODE, okay)
+
 	const struct gpio_dt_spec sw0 = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
+	const struct gpio_dt_spec sw1 = GPIO_DT_SPEC_GET(SW1_NODE, gpios);
+	const struct gpio_dt_spec sw2 = GPIO_DT_SPEC_GET(SW2_NODE, gpios);
+	const struct gpio_dt_spec sw3 = GPIO_DT_SPEC_GET(SW3_NODE, gpios);
 
 	gpio_pin_configure_dt(&sw0, GPIO_INPUT);
+	gpio_pin_configure_dt(&sw1, GPIO_INPUT);
+	gpio_pin_configure_dt(&sw2, GPIO_INPUT);
+	gpio_pin_configure_dt(&sw3, GPIO_INPUT);
 
 	for (;;) {
 		if (simulate_input) {
@@ -193,11 +202,18 @@ void hog_button_loop(void)
 			 * Byte 2: Y axis (int8)
 			 */
 			int8_t report[3] = {0, 0, 0};
-			report[1] = 10;   // X axis movement
-		        report[2] = -5;   // Y axis movement
 
 
 			if (gpio_pin_get_dt(&sw0)) {
+				report[1] = 10;
+			}
+			if (gpio_pin_get_dt(&sw1)) {
+				report[1] = -10;
+			}
+			if (gpio_pin_get_dt(&sw2)) {
+				report[0] |= BIT(0);
+			}
+			if (gpio_pin_get_dt(&sw3)) {
 				report[0] |= BIT(0);
 			}
 
@@ -206,5 +222,5 @@ void hog_button_loop(void)
 		}
 		k_sleep(K_MSEC(100));
 	}
-#endif
+
 }
