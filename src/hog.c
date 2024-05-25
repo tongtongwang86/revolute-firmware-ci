@@ -214,7 +214,12 @@ void hog_button_loop(void)
 				report[0] |= BIT(0);
 			}
 			if (gpio_pin_get_dt(&sw3)) {
-				report[0] |= BIT(0);
+				int err= bt_unpair(BT_ID_DEFAULT,BT_ADDR_LE_ANY);
+		if (err) {
+			LOG_INF("Cannot delete bond (err: %d)\n", err);
+		} else	{
+			LOG_INF("Bond deleted succesfully \n");
+		}
 			}
 
 			bt_gatt_notify(NULL, &hog_svc.attrs[5],
