@@ -1,10 +1,18 @@
 sample:
-  name: Console over USB
+  name: Bluetooth Peripheral HIDs
+  description: Bluetooth Low Energy HID-over-GATT service sample
 tests:
-  sample.usb.console:
-    depends_on: usb_device usb_cdc
-    tags: usb
-    platform_exclude: native_posix native_posix_64
-    harness: console
-    harness_config:
-      fixture: fixture_usb_cdc
+  sample.bluetooth.peripheral_hids:
+    harness: bluetooth
+    platform_allow: qemu_x86
+    tags: bluetooth
+    integration_platforms:
+      - qemu_x86
+  sample.bluetooth.peripheral_hids.no_authentication:
+    harness: bluetooth
+    extra_configs:
+      - CONFIG_SAMPLE_BT_USE_AUTHENTICATION=n
+    platform_allow: qemu_x86
+    tags: bluetooth
+    integration_platforms:
+      - qemu_x86
