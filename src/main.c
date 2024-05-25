@@ -29,19 +29,6 @@
 
 #include "hog.h"
 
-// logging stuff
-#include <zephyr/drivers/uart.h>
-#include <zephyr/logging/log.h>
-#include <zephyr/usb/usb_device.h>
-#include <zephyr/usb/usbd.h>
-#include <zephyr/types.h>
-#include <stddef.h>
-#include <string.h>
-#include <errno.h>
-
-LOG_MODULE_REGISTER(Rev,LOG_LEVEL_DBG);
-BUILD_ASSERT(DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_console), zephyr_cdc_acm_uart),
-             "Console device is not ACM CDC UART device");
 
 
 
@@ -166,21 +153,6 @@ static struct bt_conn_auth_cb auth_cb_display = {
 int main(void)
 {
 
-	const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
-  uint32_t dtr = 0;
-
-#if defined(CONFIG_USB_DEVICE_STACK_NEXT)
-  if (enable_usb_device_next()) {
-    return 0;
-  }
-#else
-  if (usb_enable(NULL)) {
-    return 0;
-  }
-#endif
-
-
-
 	
 	int err;
 
@@ -195,11 +167,6 @@ int main(void)
 		printk("Bluetooth authentication callbacks registered.\n");
 	}
 
-while (!dtr) {
-    uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
-    /* Give CPU resources to low priority threads. */
-    k_sleep(K_MSEC(100));
-  }
 
 	
 	hog_button_loop();
