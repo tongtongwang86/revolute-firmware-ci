@@ -30,6 +30,7 @@
 #include "hog.h"
 
 // logging stuff
+#include <zephyr/drivers/uart.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/usb/usb_device.h>
 #include <zephyr/usb/usbd.h>
