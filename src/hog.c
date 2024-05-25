@@ -220,7 +220,7 @@ void hog_button_loop(void)
 			bt_gatt_notify(NULL, &hog_svc.attrs[5],
 				       report, sizeof(report));
 		}
-		k_sleep(K_MSEC(100));
+		k_sleep(K_MSEC(5));
 	}
 
 }
