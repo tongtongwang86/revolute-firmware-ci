@@ -216,9 +216,9 @@ void hog_button_loop(void)
 			if (gpio_pin_get_dt(&sw3)) {
 				int err= bt_unpair(BT_ID_DEFAULT,BT_ADDR_LE_ANY);
 		if (err) {
-			LOG_INF("Cannot delete bond (err: %d)\n", err);
+			printk("Cannot delete bond (err: %d)\n", err);
 		} else	{
-			LOG_INF("Bond deleted succesfully \n");
+			printk("Bond deleted succesfully \n");
 		}
 			}
 
