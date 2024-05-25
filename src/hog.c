@@ -193,6 +193,9 @@ void hog_button_loop(void)
 			 * Byte 2: Y axis (int8)
 			 */
 			int8_t report[3] = {0, 0, 0};
+			report[1] = 10;   // X axis movement
+		        report[2] = -5;   // Y axis movement
+
 
 			if (gpio_pin_get_dt(&sw0)) {
 				report[0] |= BIT(0);
