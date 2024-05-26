@@ -452,28 +452,8 @@ while (!dtr) {
 LOG_INF("blabla");
 
 while (1) {
-		if (simulate_input) {
-			/* HID Report:
-			 * Byte 0: buttons (lower 3 bits)
-			 * Byte 1: X axis (int8)
-			 * Byte 2: Y axis (int8)
-			 */
-			int8_t report[3] = {0, 0, 0};
 
-
-			if (gpio_pin_get_dt(&sw0)) {
-				report[1] = 10;
-				LOG_INF("right");
-			}
-			if (gpio_pin_get_dt(&sw1)) {
-				report[1] = -10;
-				LOG_INF("left");
-			}
-			if (gpio_pin_get_dt(&sw2)) {
-				report[0] |= BIT(0);
-				LOG_INF("left click");
-			}
-			if (gpio_pin_get_dt(&sw3)) {
+				if (gpio_pin_get_dt(&sw3)) {
 	int err_code = bt_le_adv_stop();
 			if (err_code) {
 				LOG_INF("Cannot stop advertising err= %d \n", err_code);
@@ -495,6 +475,29 @@ while (1) {
 			}
 
 			}
+			
+		if (simulate_input) {
+			/* HID Report:
+			 * Byte 0: buttons (lower 3 bits)
+			 * Byte 1: X axis (int8)
+			 * Byte 2: Y axis (int8)
+			 */
+			int8_t report[3] = {0, 0, 0};
+
+
+			if (gpio_pin_get_dt(&sw0)) {
+				report[1] = 10;
+				LOG_INF("right");
+			}
+			if (gpio_pin_get_dt(&sw1)) {
+				report[1] = -10;
+				LOG_INF("left");
+			}
+			if (gpio_pin_get_dt(&sw2)) {
+				report[0] |= BIT(0);
+				LOG_INF("left click");
+			}
+
 
 			bt_gatt_notify(NULL, &hog_svc.attrs[5],
 				       report, sizeof(report));
