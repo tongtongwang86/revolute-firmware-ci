@@ -368,6 +368,9 @@ static struct bt_conn_auth_cb auth_cb_display = {
 int main(void)
 {
 
+
+
+
 	const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
   uint32_t dtr = 0;
 
@@ -387,6 +390,13 @@ int main(void)
     /* Give CPU resources to low priority threads. */
     k_sleep(K_MSEC(100));
   }
+  
+  const struct device *const as = DEVICE_DT_GET(DT_INST(0,ams_as5600));
+
+	if (as == NULL || !device_is_ready(as)) {
+		printk("as5600 device tree not configured\n");
+		return;
+	}
 	
 	int err;
 
@@ -483,7 +493,10 @@ while (1) {
 			// state += (deltaDeltadegrees);
 			report[1] = deltaDeltadegrees;
 		}
-		
+
+		lastDegree = degrees;
+		lastDeltadegrees = deltadegrees;
+		lastdeltaDeltadegrees = deltaDeltadegrees;
 
 
 	if (gpio_pin_get_dt(&sw1)) {
