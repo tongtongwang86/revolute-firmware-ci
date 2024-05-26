@@ -447,7 +447,9 @@ while (1) {
 			 */
 			int8_t report[3] = {0, 0, 0};
 
-		if ((deltaDeltadegrees > 0) && (degrees != lastDegree)){
+
+if(degrees != lastDegree){
+		if (deltaDeltadegrees > 0){
 			// state += (deltaDeltadegrees);
 			report[1] = 10;
 			// LOG_INF("right");
@@ -456,6 +458,7 @@ while (1) {
 			// state += (deltaDeltadegrees);
 			report[1] = -10;
 			// LOG_INF("left");
+		}
 		}
 
 		lastDegree = degrees;
