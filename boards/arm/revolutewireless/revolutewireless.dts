@@ -163,14 +163,14 @@
 		reg = <0x36>;
 		status = "okay";
 	};
-	fuelgauge: bq27441@55 {
-		compatible = "ti,bq274xx";
-		reg = <0x55>;
-		design-voltage = <3700>;
-		design-capacity = <1800>;
-		taper-current = <45>;
-		terminate-voltage = <3000>;
-	};
+	// fuelgauge: bq27441@55 {
+	// 	compatible = "ti,bq274xx";
+	// 	reg = <0x55>;
+	// 	design-voltage = <3700>;
+	// 	design-capacity = <1800>;
+	// 	taper-current = <45>;
+	// 	terminate-voltage = <3000>;
+	// };
 
 };
 
