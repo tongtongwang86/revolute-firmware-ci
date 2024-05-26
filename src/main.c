@@ -37,6 +37,10 @@
 #include <zephyr/usb/usbd.h>
 #include <zephyr/types.h>
 
+
+//magnetic angle sensor
+#include <zephyr/drivers/sensor.h>
+
 static bool isPair;
 
 
@@ -45,6 +49,25 @@ static bool isPair;
 #define SW1_NODE DT_ALIAS(sw1)
 #define SW2_NODE DT_ALIAS(sw2)
 #define SW3_NODE DT_ALIAS(sw3)
+
+
+
+int as5600_refresh(const struct device *dev)
+{
+	int ret;
+    struct sensor_value rot_raw;
+    ret = sensor_sample_fetch_chan(dev,SENSOR_CHAN_ROTATION);
+	if (ret != 0){
+			printk("sample fetch error:,%d\n", ret);
+		}
+    sensor_channel_get(dev,SENSOR_CHAN_ROTATION, &rot_raw);
+	
+
+    return rot_raw.val1;
+}
+
+
+
 
 
 enum {
@@ -406,6 +429,31 @@ LOG_INF("starting system");
 
 while (1) {
 
+			int degrees = as5600_refresh(as) ;
+			int degrees = as5600_refresh(as) ;
+			int usefulDegrees = as5600_refresh(as) ;
+			int lastDegree = as5600_refresh(as);
+			int deltadegrees = 0;
+			int lastDeltadegrees = 0;
+			int deltaDeltadegrees = 0;
+			int lastdeltaDeltadegrees = 0;
+			deltadegrees = (degrees-lastDegree);
+			deltaDeltadegrees = (deltadegrees-lastDeltadegrees);
+
+			if (deltaDeltadegrees < -200){
+			usefulDegrees = lastDeltadegrees ;
+			deltaDeltadegrees = lastdeltaDeltadegrees;
+
+			} else if(deltaDeltadegrees > 200) {
+				usefulDegrees = lastDeltadegrees ;
+				deltaDeltadegrees = lastdeltaDeltadegrees;
+
+			}else{
+				usefulDegrees = (degrees-lastDegree) ;
+
+			}
+
+
 			int err_code;	
 
 
@@ -426,6 +474,19 @@ while (1) {
 			 * Byte 2: Y axis (int8)
 			 */
 			int8_t report[3] = {0, 0, 0};
+
+		if (deltaDeltadegrees > 0 && degrees != lastDegree){
+			// state += (deltaDeltadegrees);
+			report[1] = -deltaDeltadegrees;
+
+		}else{
+			// state += (deltaDeltadegrees);
+			report[1] = deltaDeltadegrees;
+		}
+		lastIdent = ((degrees+6+IDENT_OFFSET) - ((degrees+6+IDENT_OFFSET) % 12))/12;
+		lastDegree = degrees;
+		lastDeltadegrees = deltadegrees;
+		lastdeltaDeltadegrees = deltaDeltadegrees;
 
 
 	if (gpio_pin_get_dt(&sw1)) {
