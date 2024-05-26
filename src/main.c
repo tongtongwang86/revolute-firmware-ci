@@ -471,7 +471,7 @@ while (!dtr) {
   }
 
 
-
+LOG_INF("blabla")
 
 while (1) {
 		if (simulate_input) {
