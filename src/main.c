@@ -433,7 +433,7 @@ int main(void)
 
 
 LOG_INF("blabla");
-
+bool lastsw3;
 while (1) {
 
 			int err_code;	
@@ -448,7 +448,7 @@ while (1) {
 			}
 			}
 
-			if (gpio_pin_get_dt(&sw3)) {
+			if (gpio_pin_get_dt(&sw3) != lastsw3) {
 			
 			err_code = bt_le_adv_stop();
 			if (err_code) {
@@ -471,6 +471,7 @@ while (1) {
 			}
 
 			}
+			lastsw3 = gpio_pin_get_dt(&sw3);
 
 		if (simulate_input) {
 			/* HID Report:
