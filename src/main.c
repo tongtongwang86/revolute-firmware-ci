@@ -37,6 +37,7 @@
 #include <zephyr/usb/usbd.h>
 #include <zephyr/types.h>
 
+static bool isPair;
 
 
 
@@ -351,30 +352,7 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
 	.security_changed = security_changed,
 };
 
-static void bt_ready(int err)
-{
-	if (err) {
-		LOG_INF("Bluetooth init failed (err %d)\n", err);
-		return;
-	}
 
-	LOG_INF("Bluetooth initialized\n");
-
-
-
-	if (IS_ENABLED(CONFIG_SETTINGS)) {
-		settings_load();
-	}
-	k_work_submit(&advertise_acceptlist_work);
-
-	// err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-	// if (err) {
-	// 	LOG_INF("Advertising failed to start (err %d)\n", err);
-	// 	return;
-	// }
-
-	LOG_INF("Advertising successfully started\n");
-}
 
 static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
 {
@@ -417,15 +395,24 @@ int main(void)
 #endif
 
 
-
+	while (!dtr) {
+    uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
+    /* Give CPU resources to low priority threads. */
+    k_sleep(K_MSEC(100));
+  }
 	
 	int err;
 
-	err = bt_enable(bt_ready);
+	err = bt_enable(NULL);
 	if (err) {
 		LOG_INF("Bluetooth init failed (err %d)\n", err);
 		return 0;
 	}
+
+			settings_load();
+			k_work_submit(&advertise_acceptlist_work);
+			LOG_INF("Advertising successfully started\n");
+
 
 	if (IS_ENABLED(CONFIG_SAMPLE_BT_USE_AUTHENTICATION)) {
 		bt_conn_auth_cb_register(&auth_cb_display);
@@ -442,11 +429,7 @@ int main(void)
 	gpio_pin_configure_dt(&sw2, GPIO_INPUT);
 	gpio_pin_configure_dt(&sw3, GPIO_INPUT);
 
-while (!dtr) {
-    uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
-    /* Give CPU resources to low priority threads. */
-    k_sleep(K_MSEC(100));
-  }
+
 
 
 LOG_INF("blabla");
