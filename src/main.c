@@ -347,11 +347,11 @@ int main(void)
 #endif
 
 
-	while (!dtr) {
-    uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
-    /* Give CPU resources to low priority threads. */
-    k_sleep(K_MSEC(100));
-  }
+// 	while (!dtr) {
+//     uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
+//     /* Give CPU resources to low priority threads. */
+//     k_sleep(K_MSEC(100));
+//   }
 
   const struct device *const as = DEVICE_DT_GET(DT_INST(0,ams_as5600));
 
