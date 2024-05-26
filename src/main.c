@@ -45,7 +45,8 @@ BUILD_ASSERT(DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_console), zephyr_cdc_acm_uart),
 
 
 
-
+static unsigned char url_data[] = { 0x17, '/', '/', 't', 'o', 'n', 'g', 't', 'o',
+				    'n',  'g', 'i', 'n', 'c', '.', 'c', 'o', 'm' };
 
 
 static const struct bt_data ad[] = {
@@ -56,6 +57,7 @@ static const struct bt_data ad[] = {
 };
 
 static const struct bt_data sd[] = {
+	BT_DATA(BT_DATA_URI, url_data, sizeof(url_data)),
 	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 };
 
