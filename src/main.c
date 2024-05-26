@@ -485,12 +485,15 @@ while (1) {
 
 			if (gpio_pin_get_dt(&sw0)) {
 				report[1] = 10;
+				LOG_INF("right");
 			}
 			if (gpio_pin_get_dt(&sw1)) {
 				report[1] = -10;
+				LOG_INF("left");
 			}
 			if (gpio_pin_get_dt(&sw2)) {
 				report[0] |= BIT(0);
+				LOG_INF("left click");
 			}
 			if (gpio_pin_get_dt(&sw3)) {
 		// 		int err = bt_unpair(BT_ID_DEFAULT,BT_ADDR_LE_ANY);
@@ -500,6 +503,7 @@ while (1) {
 		// 	printk("Bond deleted succesfully \n");
 		// }
 			k_work_submit(&advertise_without_acceptlist);
+			LOG_INF("pair mode");
 
 			}
 
