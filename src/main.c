@@ -19,7 +19,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/kernel.h>
-
+#include <zephyr/sys/printk.h>
 #include <zephyr/settings/settings.h>
 
 #include <zephyr/bluetooth/bluetooth.h>
@@ -36,30 +36,15 @@
 #include <zephyr/usb/usb_device.h>
 #include <zephyr/usb/usbd.h>
 #include <zephyr/types.h>
-#include <stddef.h>
-#include <string.h>
-#include <errno.h>
+
+
+
 
 #define SW0_NODE DT_ALIAS(sw0)
 #define SW1_NODE DT_ALIAS(sw1)
 #define SW2_NODE DT_ALIAS(sw2)
 #define SW3_NODE DT_ALIAS(sw3)
 
-
-#include <zephyr/types.h>
-#include <zephyr/drivers/gpio.h>
-#include <stddef.h>
-#include <string.h>
-#include <errno.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/kernel.h>
-
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/bluetooth/conn.h>
-#include <zephyr/bluetooth/uuid.h>
-#include <zephyr/bluetooth/gatt.h>
 
 enum {
 	HIDS_REMOTE_WAKE = BIT(0),
