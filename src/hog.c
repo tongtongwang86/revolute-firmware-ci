@@ -1,4 +1,6 @@
-/* main.c - Application main entry point */
+/** @file
+ *  @brief HoG Service sample
+ */
 
 /*
  * Copyright (c) 2016 Intel Corporation
@@ -6,46 +8,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-
-
-
-#include <zephyr/drivers/gpio.h>
-
-
 #include <zephyr/types.h>
+#include <zephyr/drivers/gpio.h>
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
-#include <zephyr/logging/log.h>
+#include <zephyr/sys/printk.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/kernel.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/settings/settings.h>
 
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
-
-// #include "hog.h"
-
-// logging stuff
-#include <zephyr/drivers/uart.h>
-#include <zephyr/logging/log.h>
-#include <zephyr/usb/usb_device.h>
-#include <zephyr/usb/usbd.h>
-#include <zephyr/types.h>
-
-static bool isPair;
-
-
-
-#define SW0_NODE DT_ALIAS(sw0)
-#define SW1_NODE DT_ALIAS(sw1)
-#define SW2_NODE DT_ALIAS(sw2)
-#define SW3_NODE DT_ALIAS(sw3)
-
 
 enum {
 	HIDS_REMOTE_WAKE = BIT(0),
@@ -175,6 +151,7 @@ static ssize_t write_ctrl_point(struct bt_conn *conn,
 #define SAMPLE_BT_PERM_WRITE BT_GATT_PERM_WRITE_ENCRYPT
 #endif
 
+/* HID Service Declaration */
 BT_GATT_SERVICE_DEFINE(hog_svc,
 	BT_GATT_PRIMARY_SERVICE(BT_UUID_HIDS),
 	BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_INFO, BT_GATT_CHRC_READ,
@@ -197,197 +174,13 @@ BT_GATT_SERVICE_DEFINE(hog_svc,
 
 
 
-LOG_MODULE_REGISTER(Rev,LOG_LEVEL_DBG);
-BUILD_ASSERT(DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_console), zephyr_cdc_acm_uart),
-             "Console device is not ACM CDC UART device");
+#define SW0_NODE DT_ALIAS(sw0)
+#define SW1_NODE DT_ALIAS(sw1)
+#define SW2_NODE DT_ALIAS(sw2)
+#define SW3_NODE DT_ALIAS(sw3)
 
-
-
-static unsigned char url_data[] = { 0x17, '/', '/', 't', 'o', 'n', 'g', 't', 'o',
-				    'n',  'g', 'i', 'n', 'c', '.', 'c', 'o', 'm' };
-
-
-static const struct bt_data ad[] = {
-	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
-	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-	BT_DATA_BYTES(BT_DATA_UUID16_ALL,
-		      BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),
-		      BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)),
-};
-
-static const struct bt_data sd[] = {
-	BT_DATA(BT_DATA_URI, url_data, sizeof(url_data)),
-};
-
-static void setup_accept_list_cb(const struct bt_bond_info *info, void *user_data)
+void hog_button_loop(void)
 {
-	int *bond_cnt = user_data;
-
-	if ((*bond_cnt) < 0) {
-		return;
-	}
-
-	int err = bt_le_filter_accept_list_add(&info->addr);
-	LOG_INF("Added following peer to accept list: %x %x\n", info->addr.a.val[0],
-		info->addr.a.val[1]);
-	if (err) {
-		LOG_INF("Cannot add peer to filter accept list (err: %d)\n", err);
-		(*bond_cnt) = -EIO;
-	} else {
-		(*bond_cnt)++;
-	}
-}
-
-
-static int setup_accept_list(uint8_t local_id)
-{
-	int err = bt_le_filter_accept_list_clear();
-
-	if (err) {
-		LOG_INF("Cannot clear accept list (err: %d)\n", err);
-		return err;
-	}
-
-	int bond_cnt = 0;
-
-	bt_foreach_bond(local_id, setup_accept_list_cb, &bond_cnt);
-
-	return bond_cnt;
-}
-
-
-
-
-
-
-static void connected(struct bt_conn *conn, uint8_t err)
-{
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	if (err) {
-		LOG_INF("Failed to connect to %s (%u)\n", addr, err);
-		return;
-	}
-
-	LOG_INF("Connected %s\n", addr);
-
-	if (bt_conn_set_security(conn, BT_SECURITY_L2)) {
-		LOG_INF("Failed to set security\n");
-	}
-}
-
-static void disconnected(struct bt_conn *conn, uint8_t reason)
-{
-	int err;
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	LOG_INF("Disconnected from %s (reason 0x%02x)\n", addr, reason);
-	
-	err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-	if (err) {
-		LOG_INF("Advertising failed to start (err %d)\n", err);
-		return;
-	}
-
-}
-
-static void security_changed(struct bt_conn *conn, bt_security_t level,
-			     enum bt_security_err err)
-{
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	if (!err) {
-		LOG_INF("Security changed: %s level %u\n", addr, level);
-	} else {
-		LOG_INF("Security failed: %s level %u err %d\n", addr, level,
-		       err);
-	}
-}
-
-BT_CONN_CB_DEFINE(conn_callbacks) = {
-	.connected = connected,
-	.disconnected = disconnected,
-	.security_changed = security_changed,
-};
-
-
-
-static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
-{
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	LOG_INF("Passkey for %s: %06u\n", addr, passkey);
-}
-
-static void auth_cancel(struct bt_conn *conn)
-{
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	LOG_INF("Pairing cancelled: %s\n", addr);
-}
-
-static struct bt_conn_auth_cb auth_cb_display = {
-	.passkey_display = auth_passkey_display,
-	.passkey_entry = NULL,
-	.cancel = auth_cancel,
-};
-
-int main(void)
-{
-
-	const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
-  uint32_t dtr = 0;
-
-#if defined(CONFIG_USB_DEVICE_STACK_NEXT)
-  if (enable_usb_device_next()) {
-    return 0;
-  }
-#else
-  if (usb_enable(NULL)) {
-    return 0;
-  }
-#endif
-
-
-	while (!dtr) {
-    uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
-    /* Give CPU resources to low priority threads. */
-    k_sleep(K_MSEC(100));
-  }
-	
-	int err;
-
-	err = bt_enable(NULL);
-	if (err) {
-		LOG_INF("Bluetooth init failed (err %d)\n", err);
-		return 0;
-	}
-
-			settings_load();
-
-	err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-	if (err) {
-		LOG_INF("Advertising failed to start (err %d)\n", err);
-		return;
-	}
-
-			LOG_INF("Advertising successfully started\n");
-
-
-	if (IS_ENABLED(CONFIG_SAMPLE_BT_USE_AUTHENTICATION)) {
-		bt_conn_auth_cb_register(&auth_cb_display);
-		LOG_INF("Bluetooth authentication callbacks registered.\n");
-	}
 
 	const struct gpio_dt_spec sw0 = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
 	const struct gpio_dt_spec sw1 = GPIO_DT_SPEC_GET(SW1_NODE, gpios);
@@ -399,26 +192,7 @@ int main(void)
 	gpio_pin_configure_dt(&sw2, GPIO_INPUT);
 	gpio_pin_configure_dt(&sw3, GPIO_INPUT);
 
-
-
-
-LOG_INF("starting system");
-
-while (1) {
-
-			int err_code;	
-
-
-			if (gpio_pin_get_dt(&sw3)) {
-			 err_code = bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
-			if (err_code) {
-				LOG_INF("Cannot delete bond (err: %d)\n", err);
-			} else {
-				LOG_INF("Bond deleted succesfully");
-			}
-			}
-
-
+	for (;;) {
 		if (simulate_input) {
 			/* HID Report:
 			 * Byte 0: buttons (lower 3 bits)
@@ -428,28 +202,30 @@ while (1) {
 			int8_t report[3] = {0, 0, 0};
 
 
-	if (gpio_pin_get_dt(&sw1)) {
-				report[1] = -10;
-				LOG_INF("right");
-			}
-
 			if (gpio_pin_get_dt(&sw0)) {
 				report[1] = 10;
-				LOG_INF("right");
 			}
-		
+			if (gpio_pin_get_dt(&sw1)) {
+				report[1] = -10;
+			}
 			if (gpio_pin_get_dt(&sw2)) {
 				report[0] |= BIT(0);
-				LOG_INF("left click");
 			}
+			if (gpio_pin_get_dt(&sw3)) {
+		// 		int err = bt_unpair(BT_ID_DEFAULT,BT_ADDR_LE_ANY);
+		// if (err) {
+		// 	printk("Cannot delete bond (err: %d)\n", err);
+		// } else	{
+		// 	printk("Bond deleted succesfully \n");
+		// }
+			k_work_submit(&advertise_without_acceptlist);
 
+			}
 
 			bt_gatt_notify(NULL, &hog_svc.attrs[5],
 				       report, sizeof(report));
 		}
 		k_sleep(K_MSEC(5));
-  }
-	
+	}
 
-	return 0;
 }
