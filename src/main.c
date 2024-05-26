@@ -195,15 +195,6 @@ BT_GATT_SERVICE_DEFINE(hog_svc,
 			       NULL, write_ctrl_point, &ctrl_point),
 );
 
-#define BT_LE_ADV_CONN_NO_ACCEPT_LIST                                                              \
-	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME,                        \
-			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
-/* STEP 3.2.2 - Define advertising parameter for when Accept List is used */
-#define BT_LE_ADV_CONN_ACCEPT_LIST                                                                 \
-	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_FILTER_CONN |                    \
-				BT_LE_ADV_OPT_ONE_TIME,                                            \
-			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
-
 
 
 LOG_MODULE_REGISTER(Rev,LOG_LEVEL_DBG);
@@ -264,30 +255,6 @@ static int setup_accept_list(uint8_t local_id)
 	return bond_cnt;
 }
 
-void advertise_with_acceptlist(struct k_work *work)
-{
-	int err = 0;
-	int allowed_cnt = setup_accept_list(BT_ID_DEFAULT);
-	if (allowed_cnt < 0) {
-		LOG_INF("Acceptlist setup failed (err:%d)\n", allowed_cnt);
-	} else {
-		if (allowed_cnt == 0) {
-			LOG_INF("Advertising with no Accept list \n");
-			err = bt_le_adv_start(BT_LE_ADV_CONN_NO_ACCEPT_LIST, ad, ARRAY_SIZE(ad), sd,
-					      ARRAY_SIZE(sd));
-		} else {
-			LOG_INF("Acceptlist setup number  = %d \n", allowed_cnt);
-			err = bt_le_adv_start(BT_LE_ADV_CONN_ACCEPT_LIST, ad, ARRAY_SIZE(ad), sd,
-					      ARRAY_SIZE(sd));
-		}
-		if (err) {
-			LOG_INF("Advertising failed to start (err %d)\n", err);
-			return;
-		}
-		LOG_INF("Advertising successfully started\n");
-	}
-}
-K_WORK_DEFINE(advertise_acceptlist_work, advertise_with_acceptlist);
 
 
 
@@ -320,14 +287,11 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 
 	LOG_INF("Disconnected from %s (reason 0x%02x)\n", addr, reason);
 	
-		k_work_submit(&advertise_acceptlist_work);
-
-
-	// err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-	// if (err) {
-	// 	LOG_INF("Advertising failed to start (err %d)\n", err);
-	// 	return;
-	// }
+	err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+	if (err) {
+		LOG_INF("Advertising failed to start (err %d)\n", err);
+		return;
+	}
 
 }
 
@@ -410,7 +374,13 @@ int main(void)
 	}
 
 			settings_load();
-			k_work_submit(&advertise_acceptlist_work);
+
+	err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+	if (err) {
+		LOG_INF("Advertising failed to start (err %d)\n", err);
+		return;
+	}
+
 			LOG_INF("Advertising successfully started\n");
 
 
@@ -432,14 +402,14 @@ int main(void)
 
 
 
-LOG_INF("blabla");
-bool lastsw3;
+LOG_INF("starting system");
+
 while (1) {
 
 			int err_code;	
 
 
-			if (gpio_pin_get_dt(&sw1)) {
+			if (gpio_pin_get_dt(&sw3)) {
 			 err_code = bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
 			if (err_code) {
 				LOG_INF("Cannot delete bond (err: %d)\n", err);
@@ -448,30 +418,6 @@ while (1) {
 			}
 			}
 
-			if (gpio_pin_get_dt(&sw3) != lastsw3) {
-			
-			err_code = bt_le_adv_stop();
-			if (err_code) {
-				LOG_INF("Cannot stop advertising err= %d \n", err_code);
-				return;
-			}
-			err_code = bt_le_filter_accept_list_clear();
-			if (err_code) {
-				LOG_INF("Cannot clear accept list (err: %d)\n", err_code);
-			} else {
-				LOG_INF("Accept list cleared succesfully");
-			}
-			err_code = bt_le_adv_start(BT_LE_ADV_CONN_NO_ACCEPT_LIST, ad,
-						   ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-
-			if (err_code) {
-				LOG_INF("Cannot start open advertising (err: %d)\n", err_code);
-			} else {
-				LOG_INF("Advertising in pairing mode started");
-			}
-
-			}
-			lastsw3 = gpio_pin_get_dt(&sw3);
 
 		if (simulate_input) {
 			/* HID Report:
@@ -481,6 +427,11 @@ while (1) {
 			 */
 			int8_t report[3] = {0, 0, 0};
 
+
+	if (gpio_pin_get_dt(&sw1)) {
+				report[1] = -10;
+				LOG_INF("right");
+			}
 
 			if (gpio_pin_get_dt(&sw0)) {
 				report[1] = 10;
