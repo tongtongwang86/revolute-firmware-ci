@@ -483,7 +483,7 @@ while (1) {
 			// state += (deltaDeltadegrees);
 			report[1] = deltaDeltadegrees;
 		}
-		lastIdent = ((degrees+6+IDENT_OFFSET) - ((degrees+6+IDENT_OFFSET) % 12))/12;
+
 		lastDegree = degrees;
 		lastDeltadegrees = deltadegrees;
 		lastdeltaDeltadegrees = deltaDeltadegrees;
