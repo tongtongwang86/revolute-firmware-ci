@@ -13,7 +13,6 @@
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
-#include <zephyr/logging/log.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/kernel.h>
@@ -23,27 +22,6 @@
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
-
-static const struct bt_data ad[] = {
-	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-	BT_DATA_BYTES(BT_DATA_UUID16_ALL,
-		      BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),
-		      BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)),
-};
-
-static const struct bt_data sd[] = {
-	BT_DATA(BT_DATA_URI, url_data, sizeof(url_data)),
-	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
-};
-
-#define BT_LE_ADV_CONN_NO_ACCEPT_LIST                                                              \
-	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME,                        \
-			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
-/* STEP 3.2.2 - Define advertising parameter for when Accept List is used */
-#define BT_LE_ADV_CONN_ACCEPT_LIST                                                                 \
-	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_FILTER_CONN |                    \
-				BT_LE_ADV_OPT_ONE_TIME,                                            \
-			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
 
 enum {
 	HIDS_REMOTE_WAKE = BIT(0),
@@ -205,7 +183,7 @@ void hog_init(void)
 
 void hog_button_loop(void)
 {
-	int err_code;
+
 	const struct gpio_dt_spec sw0 = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
 	const struct gpio_dt_spec sw1 = GPIO_DT_SPEC_GET(SW1_NODE, gpios);
 	const struct gpio_dt_spec sw2 = GPIO_DT_SPEC_GET(SW2_NODE, gpios);
@@ -235,35 +213,14 @@ void hog_button_loop(void)
 			if (gpio_pin_get_dt(&sw2)) {
 				report[0] |= BIT(0);
 			}
-			if (gpio_pin_get_dt(&sw3)) {
-		// 		int err = bt_unpair(BT_ID_DEFAULT,BT_ADDR_LE_ANY);
-		// if (err) {
-		// 	printk("Cannot delete bond (err: %d)\n", err);
-		// } else	{
-		// 	printk("Bond deleted succesfully \n");
-		// }
-
-		int err_code = bt_le_adv_stop();
-			if (err_code) {
-				LOG_INF("Cannot stop advertising err= %d \n", err_code);
-				return;
-			}
-			err_code = bt_le_filter_accept_list_clear();
-			if (err_code) {
-				LOG_INF("Cannot clear accept list (err: %d)\n", err_code);
-			} else {
-				LOG_INF("Accept list cleared succesfully");
-			}
-			err_code = bt_le_adv_start(BT_LE_ADV_CONN_NO_ACCEPT_LIST, ad,
-						   ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-
-			if (err_code) {
-				LOG_INF("Cannot start open advertising (err: %d)\n", err_code);
-			} else {
-				LOG_INF("Advertising in pairing mode started");
-			}
-			
-			}
+		// 	if (gpio_pin_get_dt(&sw3)) {
+		// // 		int err = bt_unpair(BT_ID_DEFAULT,BT_ADDR_LE_ANY);
+		// // if (err) {
+		// // 	printk("Cannot delete bond (err: %d)\n", err);
+		// // } else	{
+		// // 	printk("Bond deleted succesfully \n");
+		// // }
+		// 	}
 
 			bt_gatt_notify(NULL, &hog_svc.attrs[5],
 				       report, sizeof(report));
