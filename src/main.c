@@ -133,6 +133,32 @@ void advertise_with_acceptlist(struct k_work *work)
 }
 K_WORK_DEFINE(advertise_acceptlist_work, advertise_with_acceptlist);
 
+
+void advertise_without_acceptlist(struct k_work *work)
+{
+int err_code = bt_le_adv_stop();
+			if (err_code) {
+				LOG_INF("Cannot stop advertising err= %d \n", err_code);
+				return;
+			}
+			err_code = bt_le_filter_accept_list_clear();
+			if (err_code) {
+				LOG_INF("Cannot clear accept list (err: %d)\n", err_code);
+			} else {
+				LOG_INF("Accept list cleared succesfully");
+			}
+			err_code = bt_le_adv_start(BT_LE_ADV_CONN_NO_ACCEPT_LIST, ad,
+						   ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+
+			if (err_code) {
+				LOG_INF("Cannot start open advertising (err: %d)\n", err_code);
+			} else {
+				LOG_INF("Advertising in pairing mode started");
+			}
+}
+K_WORK_DEFINE(advertise_withoutacceptlist_work, advertise_without_acceptlist);
+
+
 static void connected(struct bt_conn *conn, uint8_t err)
 {
 	char addr[BT_ADDR_LE_STR_LEN];
