@@ -421,7 +421,7 @@ while (1) {
 			}else{
 				usefulDegrees = (degrees-lastDegree) ;
 
-				printk('%d',usefulDegrees);
+				printk('%d\n',usefulDegrees);
 
 			}
 
