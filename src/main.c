@@ -313,7 +313,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
-	int err;
+
 	char addr[BT_ADDR_LE_STR_LEN];
 
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
@@ -445,16 +445,8 @@ while (1) {
 			}
 			}
 
-				if (gpio_pin_get_dt(&sw3)) {
-			
-			// int err_code = bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
-			// if (err_code) {
-			// 	LOG_INF("Cannot delete bond (err: %d)\n", err);
-			// } else {
-			// 	LOG_INF("Bond deleted succesfully");
-			// }
+		if (gpio_pin_get_dt(&sw3)) {
 
-			
 			
 			err_code = bt_le_adv_stop();
 			if (err_code) {
