@@ -436,16 +436,19 @@ LOG_INF("blabla");
 
 while (1) {
 
-				if (gpio_pin_get_dt(&sw3)) {
-			
-			int err_code = bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
+			int err_code;	
+
+
+			if (gpio_pin_get_dt(&sw1)) {
+			 err_code = bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
 			if (err_code) {
 				LOG_INF("Cannot delete bond (err: %d)\n", err);
 			} else {
 				LOG_INF("Bond deleted succesfully");
 			}
+			}
 
-			
+			if (gpio_pin_get_dt(&sw3)) {
 			
 			err_code = bt_le_adv_stop();
 			if (err_code) {
@@ -482,10 +485,7 @@ while (1) {
 				report[1] = 10;
 				LOG_INF("right");
 			}
-			if (gpio_pin_get_dt(&sw1)) {
-				report[1] = -10;
-				LOG_INF("left");
-			}
+		
 			if (gpio_pin_get_dt(&sw2)) {
 				report[0] |= BIT(0);
 				LOG_INF("left click");
