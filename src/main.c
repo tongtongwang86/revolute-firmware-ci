@@ -409,7 +409,7 @@ while (1) {
 			int lastdeltaDeltadegrees = 0;
 			deltadegrees = (degrees-lastDegree);
 			deltaDeltadegrees = (deltadegrees-lastDeltadegrees);
-
+			printk ("%d\n",degrees);
 			if (deltaDeltadegrees < -200){
 			usefulDegrees = lastDeltadegrees ;
 			deltaDeltadegrees = lastdeltaDeltadegrees;
@@ -450,12 +450,12 @@ while (1) {
 		if ((deltaDeltadegrees > 0) && (degrees != lastDegree)){
 			// state += (deltaDeltadegrees);
 			report[1] = 10;
-			LOG_INF("right");
+			// LOG_INF("right");
 
 		}else{
 			// state += (deltaDeltadegrees);
 			report[1] = -10;
-			LOG_INF("left");
+			// LOG_INF("left");
 		}
 
 		lastDegree = degrees;
