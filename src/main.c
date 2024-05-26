@@ -39,6 +39,17 @@
 #include <string.h>
 #include <errno.h>
 
+#define BT_LE_ADV_CONN_NO_ACCEPT_LIST                                                              \
+	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME,                        \
+			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
+/* STEP 3.2.2 - Define advertising parameter for when Accept List is used */
+#define BT_LE_ADV_CONN_ACCEPT_LIST                                                                 \
+	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_FILTER_CONN |                    \
+				BT_LE_ADV_OPT_ONE_TIME,                                            \
+			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
+
+
+
 LOG_MODULE_REGISTER(Rev,LOG_LEVEL_DBG);
 BUILD_ASSERT(DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_console), zephyr_cdc_acm_uart),
              "Console device is not ACM CDC UART device");
@@ -60,6 +71,67 @@ static const struct bt_data sd[] = {
 	BT_DATA(BT_DATA_URI, url_data, sizeof(url_data)),
 	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 };
+
+static void setup_accept_list_cb(const struct bt_bond_info *info, void *user_data)
+{
+	int *bond_cnt = user_data;
+
+	if ((*bond_cnt) < 0) {
+		return;
+	}
+
+	int err = bt_le_filter_accept_list_add(&info->addr);
+	LOG_INF("Added following peer to accept list: %x %x\n", info->addr.a.val[0],
+		info->addr.a.val[1]);
+	if (err) {
+		LOG_INF("Cannot add peer to filter accept list (err: %d)\n", err);
+		(*bond_cnt) = -EIO;
+	} else {
+		(*bond_cnt)++;
+	}
+}
+
+
+static int setup_accept_list(uint8_t local_id)
+{
+	int err = bt_le_filter_accept_list_clear();
+
+	if (err) {
+		LOG_INF("Cannot clear accept list (err: %d)\n", err);
+		return err;
+	}
+
+	int bond_cnt = 0;
+
+	bt_foreach_bond(local_id, setup_accept_list_cb, &bond_cnt);
+
+	return bond_cnt;
+}
+
+void advertise_with_acceptlist(struct k_work *work)
+{
+	int err = 0;
+	int allowed_cnt = setup_accept_list(BT_ID_DEFAULT);
+	if (allowed_cnt < 0) {
+		LOG_INF("Acceptlist setup failed (err:%d)\n", allowed_cnt);
+	} else {
+		if (allowed_cnt == 0) {
+			LOG_INF("Advertising with no Accept list \n");
+			err = bt_le_adv_start(BT_LE_ADV_CONN_NO_ACCEPT_LIST, ad, ARRAY_SIZE(ad), sd,
+					      ARRAY_SIZE(sd));
+		} else {
+			LOG_INF("Acceptlist setup number  = %d \n", allowed_cnt);
+			err = bt_le_adv_start(BT_LE_ADV_CONN_ACCEPT_LIST, ad, ARRAY_SIZE(ad), sd,
+					      ARRAY_SIZE(sd));
+		}
+		if (err) {
+			LOG_INF("Advertising failed to start (err %d)\n", err);
+			return;
+		}
+		LOG_INF("Advertising successfully started\n");
+	}
+}
+K_WORK_DEFINE(advertise_acceptlist_work, advertise_with_acceptlist);
 
 static void connected(struct bt_conn *conn, uint8_t err)
 {
@@ -88,11 +160,14 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 
 	LOG_INF("Disconnected from %s (reason 0x%02x)\n", addr, reason);
 	
-	err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-	if (err) {
-		LOG_INF("Advertising failed to start (err %d)\n", err);
-		return;
-	}
+		k_work_submit(&advertise_acceptlist_work);
+
+
+	// err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+	// if (err) {
+	// 	LOG_INF("Advertising failed to start (err %d)\n", err);
+	// 	return;
+	// }
 
 }
 
@@ -131,12 +206,13 @@ static void bt_ready(int err)
 	if (IS_ENABLED(CONFIG_SETTINGS)) {
 		settings_load();
 	}
+	k_work_submit(&advertise_acceptlist_work);
 
-	err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-	if (err) {
-		LOG_INF("Advertising failed to start (err %d)\n", err);
-		return;
-	}
+	// err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+	// if (err) {
+	// 	LOG_INF("Advertising failed to start (err %d)\n", err);
+	// 	return;
+	// }
 
 	LOG_INF("Advertising successfully started\n");
 }
