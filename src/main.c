@@ -421,6 +421,8 @@ while (1) {
 			}else{
 				usefulDegrees = (degrees-lastDegree) ;
 
+				LOG_LEVEL_DBG(usefulDegrees);
+
 			}
 
 
