@@ -449,12 +449,12 @@ while (1) {
 
 		if ((deltaDeltadegrees > 0) && (degrees != lastDegree)){
 			// state += (deltaDeltadegrees);
-			report[1] = 10 * deltaDeltadegrees  ;
+			report[1] = 10;
 			LOG_INF("right");
 
 		}else{
 			// state += (deltaDeltadegrees);
-			report[1] = -10 * deltaDeltadegrees;
+			report[1] = -10;
 			LOG_INF("left");
 		}
 
