@@ -41,7 +41,6 @@
 //magnetic angle sensor
 #include <zephyr/drivers/sensor.h>
 
-static bool isPair;
 
 
 
@@ -65,7 +64,6 @@ int as5600_refresh(const struct device *dev)
 
     return rot_raw.val1;
 }
-
 
 
 
@@ -242,42 +240,6 @@ static const struct bt_data sd[] = {
 	BT_DATA(BT_DATA_URI, url_data, sizeof(url_data)),
 };
 
-static void setup_accept_list_cb(const struct bt_bond_info *info, void *user_data)
-{
-	int *bond_cnt = user_data;
-
-	if ((*bond_cnt) < 0) {
-		return;
-	}
-
-	int err = bt_le_filter_accept_list_add(&info->addr);
-	LOG_INF("Added following peer to accept list: %x %x\n", info->addr.a.val[0],
-		info->addr.a.val[1]);
-	if (err) {
-		LOG_INF("Cannot add peer to filter accept list (err: %d)\n", err);
-		(*bond_cnt) = -EIO;
-	} else {
-		(*bond_cnt)++;
-	}
-}
-
-
-static int setup_accept_list(uint8_t local_id)
-{
-	int err = bt_le_filter_accept_list_clear();
-
-	if (err) {
-		LOG_INF("Cannot clear accept list (err: %d)\n", err);
-		return err;
-	}
-
-	int bond_cnt = 0;
-
-	bt_foreach_bond(local_id, setup_accept_list_cb, &bond_cnt);
-
-	return bond_cnt;
-}
-
 
 
 
@@ -390,7 +352,7 @@ int main(void)
     /* Give CPU resources to low priority threads. */
     k_sleep(K_MSEC(100));
   }
-  
+
   const struct device *const as = DEVICE_DT_GET(DT_INST(0,ams_as5600));
 
 	if (as == NULL || !device_is_ready(as)) {
@@ -411,7 +373,6 @@ int main(void)
 	err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
 	if (err) {
 		LOG_INF("Advertising failed to start (err %d)\n", err);
-		return;
 	}
 
 			LOG_INF("Advertising successfully started\n");
@@ -439,7 +400,6 @@ LOG_INF("starting system");
 
 while (1) {
 
-			int degrees = as5600_refresh(as) ;
 			int degrees = as5600_refresh(as) ;
 			int usefulDegrees = as5600_refresh(as) ;
 			int lastDegree = as5600_refresh(as);
