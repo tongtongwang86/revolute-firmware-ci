@@ -421,7 +421,7 @@ while (1) {
 			}else{
 				usefulDegrees = (degrees-lastDegree) ;
 
-				LOG_INF('%d',usefulDegrees);
+				printk('%d',usefulDegrees);
 
 			}
 
