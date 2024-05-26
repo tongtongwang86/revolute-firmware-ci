@@ -214,12 +214,33 @@ void hog_button_loop(void)
 				report[0] |= BIT(0);
 			}
 			if (gpio_pin_get_dt(&sw3)) {
-				int err= bt_unpair(BT_ID_DEFAULT,BT_ADDR_LE_ANY);
-		if (err) {
-			printk("Cannot delete bond (err: %d)\n", err);
-		} else	{
-			printk("Bond deleted succesfully \n");
-		}
+		// 		int err = bt_unpair(BT_ID_DEFAULT,BT_ADDR_LE_ANY);
+		// if (err) {
+		// 	printk("Cannot delete bond (err: %d)\n", err);
+		// } else	{
+		// 	printk("Bond deleted succesfully \n");
+		// }
+
+		int err_code = bt_le_adv_stop();
+			if (err_code) {
+				LOG_INF("Cannot stop advertising err= %d \n", err_code);
+				return;
+			}
+			err_code = bt_le_filter_accept_list_clear();
+			if (err_code) {
+				LOG_INF("Cannot clear accept list (err: %d)\n", err_code);
+			} else {
+				LOG_INF("Accept list cleared succesfully");
+			}
+			err_code = bt_le_adv_start(BT_LE_ADV_CONN_NO_ACCEPT_LIST, ad,
+						   ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+
+			if (err_code) {
+				LOG_INF("Cannot start open advertising (err: %d)\n", err_code);
+			} else {
+				LOG_INF("Advertising in pairing mode started");
+			}
+			
 			}
 
 			bt_gatt_notify(NULL, &hog_svc.attrs[5],
