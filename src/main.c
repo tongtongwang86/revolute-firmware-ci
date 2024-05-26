@@ -37,7 +37,7 @@
 #include <zephyr/usb/usbd.h>
 #include <zephyr/types.h>
 
-static bool isPair;
+// static bool isPair;
 
 
 
