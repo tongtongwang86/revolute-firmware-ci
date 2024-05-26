@@ -217,6 +217,7 @@ static unsigned char url_data[] = { 0x17, '/', '/', 't', 'o', 'n', 'g', 't', 'o'
 
 
 static const struct bt_data ad[] = {
+	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
 	BT_DATA_BYTES(BT_DATA_UUID16_ALL,
 		      BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),
@@ -225,7 +226,6 @@ static const struct bt_data ad[] = {
 
 static const struct bt_data sd[] = {
 	BT_DATA(BT_DATA_URI, url_data, sizeof(url_data)),
-	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 };
 
 static void setup_accept_list_cb(const struct bt_bond_info *info, void *user_data)
