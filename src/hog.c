@@ -13,6 +13,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/kernel.h>
@@ -22,6 +23,15 @@
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
+
+#define BT_LE_ADV_CONN_NO_ACCEPT_LIST                                                              \
+	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME,                        \
+			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
+/* STEP 3.2.2 - Define advertising parameter for when Accept List is used */
+#define BT_LE_ADV_CONN_ACCEPT_LIST                                                                 \
+	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_FILTER_CONN |                    \
+				BT_LE_ADV_OPT_ONE_TIME,                                            \
+			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
 
 enum {
 	HIDS_REMOTE_WAKE = BIT(0),
@@ -183,7 +193,7 @@ void hog_init(void)
 
 void hog_button_loop(void)
 {
-
+	int err_code;
 	const struct gpio_dt_spec sw0 = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
 	const struct gpio_dt_spec sw1 = GPIO_DT_SPEC_GET(SW1_NODE, gpios);
 	const struct gpio_dt_spec sw2 = GPIO_DT_SPEC_GET(SW2_NODE, gpios);
@@ -220,7 +230,7 @@ void hog_button_loop(void)
 		// } else	{
 		// 	printk("Bond deleted succesfully \n");
 		// }
-		int err_code;
+
 		int err_code = bt_le_adv_stop();
 			if (err_code) {
 				LOG_INF("Cannot stop advertising err= %d \n", err_code);
