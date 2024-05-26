@@ -454,7 +454,17 @@ LOG_INF("blabla");
 while (1) {
 
 				if (gpio_pin_get_dt(&sw3)) {
-	int err_code = bt_le_adv_stop();
+			
+			int err_code = bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
+			if (err_code) {
+				LOG_INF("Cannot delete bond (err: %d)\n", err);
+			} else {
+				LOG_INF("Bond deleted succesfully");
+			}
+
+			
+			
+			err_code = bt_le_adv_stop();
 			if (err_code) {
 				LOG_INF("Cannot stop advertising err= %d \n", err_code);
 				return;
@@ -475,7 +485,7 @@ while (1) {
 			}
 
 			}
-			
+
 		if (simulate_input) {
 			/* HID Report:
 			 * Byte 0: buttons (lower 3 bits)
