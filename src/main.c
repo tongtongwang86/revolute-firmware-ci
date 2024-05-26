@@ -15,7 +15,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
-#include <zephyr/sys/printk.h>
+#include <zephyr/sys/LOG_INF.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/kernel.h>
 
@@ -68,14 +68,14 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
 	if (err) {
-		printk("Failed to connect to %s (%u)\n", addr, err);
+		LOG_INF("Failed to connect to %s (%u)\n", addr, err);
 		return;
 	}
 
-	printk("Connected %s\n", addr);
+	LOG_INF("Connected %s\n", addr);
 
 	if (bt_conn_set_security(conn, BT_SECURITY_L2)) {
-		printk("Failed to set security\n");
+		LOG_INF("Failed to set security\n");
 	}
 }
 
@@ -86,11 +86,11 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
-	printk("Disconnected from %s (reason 0x%02x)\n", addr, reason);
+	LOG_INF("Disconnected from %s (reason 0x%02x)\n", addr, reason);
 	
 	err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
 	if (err) {
-		printk("Advertising failed to start (err %d)\n", err);
+		LOG_INF("Advertising failed to start (err %d)\n", err);
 		return;
 	}
 
@@ -104,9 +104,9 @@ static void security_changed(struct bt_conn *conn, bt_security_t level,
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
 	if (!err) {
-		printk("Security changed: %s level %u\n", addr, level);
+		LOG_INF("Security changed: %s level %u\n", addr, level);
 	} else {
-		printk("Security failed: %s level %u err %d\n", addr, level,
+		LOG_INF("Security failed: %s level %u err %d\n", addr, level,
 		       err);
 	}
 }
@@ -120,11 +120,11 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
 static void bt_ready(int err)
 {
 	if (err) {
-		printk("Bluetooth init failed (err %d)\n", err);
+		LOG_INF("Bluetooth init failed (err %d)\n", err);
 		return;
 	}
 
-	printk("Bluetooth initialized\n");
+	LOG_INF("Bluetooth initialized\n");
 
 	hog_init();
 
@@ -134,11 +134,11 @@ static void bt_ready(int err)
 
 	err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
 	if (err) {
-		printk("Advertising failed to start (err %d)\n", err);
+		LOG_INF("Advertising failed to start (err %d)\n", err);
 		return;
 	}
 
-	printk("Advertising successfully started\n");
+	LOG_INF("Advertising successfully started\n");
 }
 
 static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
@@ -147,7 +147,7 @@ static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
 
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
-	printk("Passkey for %s: %06u\n", addr, passkey);
+	LOG_INF("Passkey for %s: %06u\n", addr, passkey);
 }
 
 static void auth_cancel(struct bt_conn *conn)
@@ -156,7 +156,7 @@ static void auth_cancel(struct bt_conn *conn)
 
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
-	printk("Pairing cancelled: %s\n", addr);
+	LOG_INF("Pairing cancelled: %s\n", addr);
 }
 
 static struct bt_conn_auth_cb auth_cb_display = {
@@ -188,13 +188,13 @@ int main(void)
 
 	err = bt_enable(bt_ready);
 	if (err) {
-		printk("Bluetooth init failed (err %d)\n", err);
+		LOG_INF("Bluetooth init failed (err %d)\n", err);
 		return 0;
 	}
 
 	if (IS_ENABLED(CONFIG_SAMPLE_BT_USE_AUTHENTICATION)) {
 		bt_conn_auth_cb_register(&auth_cb_display);
-		printk("Bluetooth authentication callbacks registered.\n");
+		LOG_INF("Bluetooth authentication callbacks registered.\n");
 	}
 
 while (!dtr) {
