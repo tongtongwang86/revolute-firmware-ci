@@ -5,6 +5,4 @@
 #
 
 target_sources(app PRIVATE main.c)
-target_sources(app PRIVATE hog.c)
-target_sources(app PRIVATE hog.h)
 target_include_directories(app PRIVATE .)
