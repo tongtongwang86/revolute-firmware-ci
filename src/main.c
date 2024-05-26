@@ -483,10 +483,7 @@ while (1) {
 			// state += (deltaDeltadegrees);
 			report[1] = deltaDeltadegrees;
 		}
-
-		lastDegree = degrees;
-		lastDeltadegrees = deltadegrees;
-		lastdeltaDeltadegrees = deltaDeltadegrees;
+		
 
 
 	if (gpio_pin_get_dt(&sw1)) {
