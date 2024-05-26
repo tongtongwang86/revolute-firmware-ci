@@ -220,7 +220,7 @@ void hog_button_loop(void)
 		// } else	{
 		// 	printk("Bond deleted succesfully \n");
 		// }
-
+		int err_code;
 		int err_code = bt_le_adv_stop();
 			if (err_code) {
 				LOG_INF("Cannot stop advertising err= %d \n", err_code);
