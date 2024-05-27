@@ -64,10 +64,20 @@ struct sensor_value voltage, current, state_of_charge,
 void batteryUpdateThread()
 {
 	
+  const struct device *const bq = DEVICE_DT_GET_ONE(ti_bq274xx);
+
+	if (!device_is_ready(bq)) {
+		printk("Device %s is not ready\n", bq->name);
+		return 0;
+	}
+
+	printk("device is %p, name is %s\n", bq, bq->name);
+
+
 	uint8_t level ;
 
 
-
+while(1){
 
 level = getbatterylevel(bq);
 
@@ -81,6 +91,9 @@ if (err) {
 	}
 
 k_sleep(K_MSEC(1000));
+
+
+}
 }
 
 int as5600_refresh(const struct device *dev)
@@ -413,15 +426,6 @@ int main(void)
     /* Give CPU resources to low priority threads. */
     k_sleep(K_MSEC(100));
   }
-
-  const struct device *const bq = DEVICE_DT_GET_ONE(ti_bq274xx);
-
-	if (!device_is_ready(bq)) {
-		printk("Device %s is not ready\n", bq->name);
-		return 0;
-	}
-
-	printk("device is %p, name is %s\n", bq, bq->name);
 
 
   k_thread_create(&batteryUpdateThread_data, batteryUpdateThread_stack_area,
