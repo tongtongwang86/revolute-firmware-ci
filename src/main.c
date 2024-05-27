@@ -56,6 +56,20 @@ K_THREAD_STACK_DEFINE(batteryUpdateThread_stack_area, STACKSIZE);
 static struct k_thread batteryUpdateThread_data;
 
 
+void batteryUpdateThread()
+{
+
+	uint8_t level = 50;
+	int err;
+err = bt_bas_set_battery_level (level);
+if (err) {
+		LOG_INF("cant send battery report", err);
+		return 0;
+	}
+
+k_sleep(K_MSEC(1000));
+}
+
 int as5600_refresh(const struct device *dev)
 {
 	int ret;
@@ -507,17 +521,4 @@ if(degrees != lastDegree){
 	return 0;
 }
 
-void batteryUpdateThread()
-{
-
-	uint8_t level = 50;
-	int err;
-err = bt_bas_set_battery_level (level);
-if (err) {
-		LOG_INF("cant send battery report", err);
-		return 0;
-	}
-
-k_sleep(K_MSEC(1000));
-}
 
