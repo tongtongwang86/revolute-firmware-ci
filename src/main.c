@@ -361,7 +361,7 @@ int main(void)
 
   k_thread_create(&batteryUpdateThread_data, batteryUpdateThread_stack_area,
 			K_THREAD_STACK_SIZEOF(batteryUpdateThread_stack_area),
-			batteryUpdateThread,
+			batteryUpdateThread, NULL, 
 			PRIORITY, 0, K_FOREVER);
 	k_thread_name_set(&batteryUpdateThread_data, "batterythread");
 
