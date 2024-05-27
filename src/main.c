@@ -58,6 +58,11 @@ static struct k_thread batteryUpdateThread_data;
 
 void batteryUpdateThread()
 {
+	int status = 0;
+	struct sensor_value voltage, current, state_of_charge,
+		full_charge_capacity, remaining_charge_capacity, avg_power,
+		int_temp, current_standby, current_max_load, state_of_health;
+
 
 const struct device *const bq = DEVICE_DT_GET_ONE(ti_bq274xx);
 
