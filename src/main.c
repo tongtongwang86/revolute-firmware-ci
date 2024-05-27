@@ -59,7 +59,25 @@ static struct k_thread batteryUpdateThread_data;
 void batteryUpdateThread()
 {
 
-	uint8_t level = 50;
+const struct device *const bq = DEVICE_DT_GET_ONE(ti_bq274xx);
+
+	if (!device_is_ready(bq)) {
+		printk("Device %s is not ready\n", bq->name);
+		return 0;
+	}
+
+	printk("device is %p, name is %s\n", bq, bq->name);
+
+	status = sensor_channel_get(bq,
+					    SENSOR_CHAN_GAUGE_STATE_OF_CHARGE,
+					    &state_of_charge);
+		if (status < 0) {
+			printk("Unable to get state of charge\n");
+			return;
+		}
+
+
+	uint8_t level = state_of_charge.val1;
 	int err;
 err = bt_bas_set_battery_level (level);
 if (err) {
