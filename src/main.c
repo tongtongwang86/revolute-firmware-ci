@@ -421,11 +421,11 @@ int main(void)
 
 
 
-	while (!dtr) {
-    uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
-    /* Give CPU resources to low priority threads. */
-    k_sleep(K_MSEC(100));
-  }
+// 	while (!dtr) {
+//     uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
+//     /* Give CPU resources to low priority threads. */
+//     k_sleep(K_MSEC(100));
+//   }
 
 
   k_thread_create(&batteryUpdateThread_data, batteryUpdateThread_stack_area,
