@@ -125,7 +125,7 @@ int getbatterylevel(const struct device *dev)
 		}
 
 
-	status = sensor_channel_get(bq,
+	status = sensor_channel_get(dev,
 					    SENSOR_CHAN_GAUGE_STATE_OF_CHARGE,
 					    &state_of_charge);
 		if (status < 0) {
