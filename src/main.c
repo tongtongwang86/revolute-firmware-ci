@@ -78,11 +78,15 @@ const struct device *const bq = DEVICE_DT_GET_ONE(ti_bq274xx);
 					    &state_of_charge);
 		if (status < 0) {
 			printk("Unable to get state of charge\n");
+				uint8_t level = 69;
 			return;
+		}else{
+
+			uint8_t level = state_of_charge.val1;
 		}
 
 
-	uint8_t level = state_of_charge.val1;
+	
 	int err;
 err = bt_bas_set_battery_level (level);
 if (err) {
