@@ -69,9 +69,9 @@ void batteryUpdateThread()
 
 
 
-level = (uint8_t)state_of_charge.val1;
+level = getbatterylevel(bq);
 
-			printk("State of charge: %d%%\n", state_of_charge.val1);
+			printk("State of charge: %d%%\n", level);
 
 	int err;
 err = bt_bas_set_battery_level (level);
@@ -95,6 +95,34 @@ int as5600_refresh(const struct device *dev)
 	
 
     return rot_raw.val1;
+}
+
+int getbatterylevel(const struct device *dev)
+{
+
+	int status = 0;
+    struct sensor_value state_of_charge;
+
+
+	status = sensor_sample_fetch_chan(dev,
+					SENSOR_CHAN_GAUGE_STATE_OF_CHARGE);
+		if (status < 0) {
+			printk("Unable to fetch State of Charge\n");
+			return;
+		}
+
+
+	status = sensor_channel_get(bq,
+					    SENSOR_CHAN_GAUGE_STATE_OF_CHARGE,
+					    &state_of_charge);
+		if (status < 0) {
+			printk("Unable to get state of charge\n");
+			return;
+		}
+
+	
+
+    return state_of_charge.val1;
 }
 
 
@@ -453,14 +481,7 @@ int main(void)
 LOG_INF("starting system");
 
 while (1) {
-			int status = 0;
-	status = sensor_channel_get(bq,
-					    SENSOR_CHAN_GAUGE_STATE_OF_CHARGE,
-					    &state_of_charge);
-		if (status < 0) {
-			printk("Unable to get state of charge\n");
-			return;
-		}
+			
 
 			int degrees = as5600_refresh(as) ;
 			int usefulDegrees = as5600_refresh(as) ;
