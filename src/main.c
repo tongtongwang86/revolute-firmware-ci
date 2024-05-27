@@ -63,7 +63,7 @@ void batteryUpdateThread()
 	int err;
 err = bt_bas_set_battery_level (level);
 if (err) {
-		LOG_INF("cant send battery report", err);
+		// LOG_INF("cant send battery report", err);
 		return 0;
 	}
 
