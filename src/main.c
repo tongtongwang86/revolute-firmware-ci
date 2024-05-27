@@ -386,6 +386,16 @@ int main(void)
     k_sleep(K_MSEC(100));
   }
 
+  const struct device *const bq = DEVICE_DT_GET_ONE(ti_bq274xx);
+
+	if (!device_is_ready(bq)) {
+		printk("Device %s is not ready\n", bq->name);
+		return 0;
+	}
+
+	printk("device is %p, name is %s\n", bq, bq->name);
+
+
   k_thread_create(&batteryUpdateThread_data, batteryUpdateThread_stack_area,
 			K_THREAD_STACK_SIZEOF(batteryUpdateThread_stack_area),
 			batteryUpdateThread, NULL, NULL, NULL,
@@ -402,16 +412,6 @@ int main(void)
 		return;
 	}
 	
-const struct device *const bq = DEVICE_DT_GET_ONE(ti_bq274xx);
-
-	if (!device_is_ready(bq)) {
-		printk("Device %s is not ready\n", bq->name);
-		return 0;
-	}
-
-	printk("device is %p, name is %s\n", bq, bq->name);
-
-
 
 
 	int err;
@@ -461,7 +461,7 @@ while (1) {
 			printk("Unable to get state of charge\n");
 			return;
 		}
-		
+
 			int degrees = as5600_refresh(as) ;
 			int usefulDegrees = as5600_refresh(as) ;
 			int lastDegree = as5600_refresh(as);
