@@ -409,7 +409,7 @@ while (1) {
 			int lastdeltaDeltadegrees = 0;
 			deltadegrees = (degrees-lastDegree);
 			deltaDeltadegrees = (deltadegrees-lastDeltadegrees);
-			printk ("%d\n",degrees);
+			// printk ("%d\n",degrees);
 			if (deltaDeltadegrees < -200){
 			usefulDegrees = lastDeltadegrees ;
 			deltaDeltadegrees = lastdeltaDeltadegrees;
@@ -421,7 +421,7 @@ while (1) {
 			}else{
 				usefulDegrees = (degrees-lastDegree) ;
 
-				// printk('%d\n',usefulDegrees);
+				printk("%d\n",usefulDegrees);
 
 			}
 
