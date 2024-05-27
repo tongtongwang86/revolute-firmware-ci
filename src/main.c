@@ -59,6 +59,7 @@ static struct k_thread batteryUpdateThread_data;
 void batteryUpdateThread()
 {
 	int status = 0;
+	uint8_t level ;
 	struct sensor_value voltage, current, state_of_charge,
 		full_charge_capacity, remaining_charge_capacity, avg_power,
 		int_temp, current_standby, current_max_load, state_of_health;
@@ -78,15 +79,16 @@ const struct device *const bq = DEVICE_DT_GET_ONE(ti_bq274xx);
 					    &state_of_charge);
 		if (status < 0) {
 			printk("Unable to get state of charge\n");
-				uint8_t level = 69;
+			 level = 69;
 			return;
 		}else{
 
-			uint8_t level = state_of_charge.val1;
+			 level = (uint8_t)state_of_charge.val1;
 		}
 
 
-	
+			printk("State of charge: %d%%\n", state_of_charge.val1);
+
 	int err;
 err = bt_bas_set_battery_level (level);
 if (err) {
@@ -394,11 +396,11 @@ int main(void)
 
 
 
-// 	while (!dtr) {
-//     uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
-//     /* Give CPU resources to low priority threads. */
-//     k_sleep(K_MSEC(100));
-//   }
+	while (!dtr) {
+    uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
+    /* Give CPU resources to low priority threads. */
+    k_sleep(K_MSEC(100));
+  }
 
   k_thread_create(&batteryUpdateThread_data, batteryUpdateThread_stack_area,
 			K_THREAD_STACK_SIZEOF(batteryUpdateThread_stack_area),
@@ -477,7 +479,7 @@ while (1) {
 			}else{
 				usefulDegrees = (degrees-lastDegree) ;
 
-				printk("%d\n",usefulDegrees);
+				// printk("%d\n",usefulDegrees);
 
 			}
 
