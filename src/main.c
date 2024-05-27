@@ -511,7 +511,13 @@ void batteryUpdateThread()
 {
 
 	uint8_t level = 50;
-bt_bas_set_battery_level (level);
+	int err;
+err = bt_bas_set_battery_level (level);
+if (err) {
+		LOG_INF("cant send battery report", err);
+		return 0;
+	}
+
 k_sleep(K_MSEC(1000));
 }
 
