@@ -22,6 +22,7 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/settings/settings.h>
 
+#include <zephyr/bluetooth/services/bas.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/bluetooth/conn.h>
@@ -49,6 +50,10 @@
 #define SW2_NODE DT_ALIAS(sw2)
 #define SW3_NODE DT_ALIAS(sw3)
 
+#define STACKSIZE 1024
+K_THREAD_STACK_DEFINE(batteryUpdateThread_stack_area, STACKSIZE);
+
+static struct k_thread batteryUpdateThread_data;
 
 
 int as5600_refresh(const struct device *dev)
@@ -347,11 +352,21 @@ int main(void)
 #endif
 
 
-// 	while (!dtr) {
-//     uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
-//     /* Give CPU resources to low priority threads. */
-//     k_sleep(K_MSEC(100));
-//   }
+
+	while (!dtr) {
+    uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
+    /* Give CPU resources to low priority threads. */
+    k_sleep(K_MSEC(100));
+  }
+
+  k_thread_create(&batteryUpdateThread_data, batteryUpdateThread_stack_area,
+			K_THREAD_STACK_SIZEOF(batteryUpdateThread_stack_area),
+			batteryUpdateThread,
+			PRIORITY, 0, K_FOREVER);
+	k_thread_name_set(&batteryUpdateThread_data, "batterythread");
+
+	k_thread_start(&batteryUpdateThread_data);
+
 
   const struct device *const as = DEVICE_DT_GET(DT_INST(0,ams_as5600));
 
@@ -491,3 +506,12 @@ if(degrees != lastDegree){
 
 	return 0;
 }
+
+void batteryUpdateThread()
+{
+
+	uint8_t level = 50;
+bt_bas_set_battery_level (level);
+k_sleep(K_MSEC(1000));
+}
+
