@@ -55,37 +55,21 @@ K_THREAD_STACK_DEFINE(batteryUpdateThread_stack_area, STACKSIZE);
 
 static struct k_thread batteryUpdateThread_data;
 
+struct sensor_value voltage, current, state_of_charge,
+	full_charge_capacity, remaining_charge_capacity, avg_power,
+	int_temp, current_standby, current_max_load, state_of_health;
+
+
 
 void batteryUpdateThread()
 {
-	int status = 0;
+	
 	uint8_t level ;
-	struct sensor_value voltage, current, state_of_charge,
-		full_charge_capacity, remaining_charge_capacity, avg_power,
-		int_temp, current_standby, current_max_load, state_of_health;
 
 
-const struct device *const bq = DEVICE_DT_GET_ONE(ti_bq274xx);
 
-	if (!device_is_ready(bq)) {
-		printk("Device %s is not ready\n", bq->name);
-		return 0;
-	}
 
-	printk("device is %p, name is %s\n", bq, bq->name);
-
-	status = sensor_channel_get(bq,
-					    SENSOR_CHAN_GAUGE_STATE_OF_CHARGE,
-					    &state_of_charge);
-		if (status < 0) {
-			printk("Unable to get state of charge\n");
-			 level = 69;
-			return;
-		}else{
-
-			 level = (uint8_t)state_of_charge.val1;
-		}
-
+level = (uint8_t)state_of_charge.val1;
 
 			printk("State of charge: %d%%\n", state_of_charge.val1);
 
@@ -418,6 +402,18 @@ int main(void)
 		return;
 	}
 	
+const struct device *const bq = DEVICE_DT_GET_ONE(ti_bq274xx);
+
+	if (!device_is_ready(bq)) {
+		printk("Device %s is not ready\n", bq->name);
+		return 0;
+	}
+
+	printk("device is %p, name is %s\n", bq, bq->name);
+
+
+
+
 	int err;
 
 	err = bt_enable(NULL);
@@ -457,7 +453,15 @@ int main(void)
 LOG_INF("starting system");
 
 while (1) {
-
+			int status = 0;
+	status = sensor_channel_get(bq,
+					    SENSOR_CHAN_GAUGE_STATE_OF_CHARGE,
+					    &state_of_charge);
+		if (status < 0) {
+			printk("Unable to get state of charge\n");
+			return;
+		}
+		
 			int degrees = as5600_refresh(as) ;
 			int usefulDegrees = as5600_refresh(as) ;
 			int lastDegree = as5600_refresh(as);
