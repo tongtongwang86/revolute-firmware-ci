@@ -44,7 +44,7 @@
 
 
 
-
+#define PRIORITY 1
 #define SW0_NODE DT_ALIAS(sw0)
 #define SW1_NODE DT_ALIAS(sw1)
 #define SW2_NODE DT_ALIAS(sw2)
