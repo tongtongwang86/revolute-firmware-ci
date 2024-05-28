@@ -152,18 +152,13 @@
 	status = "okay";
 	pinctrl-0 = <&i2c0_default>;
 	pinctrl-names = "default";
-	//clock-frequency = <200000>;
-	// pinctrl-0 = <&i2c0_default>;
-	// pinctrl-1 = <&i2c0_sleep>;
-	// pinctrl-names = "default", "sleep";
-	//reg = <0x40003000 0x1000>;
+	
 	as5600: as5600@36 {
 		compatible = "ams,as5600";
 		
 		reg = <0x36>;
 		status = "okay";
 	};
-
 
 	bq27421@55 {
 		compatible = "ti,bq274xx";
