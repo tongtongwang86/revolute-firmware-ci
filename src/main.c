@@ -10,6 +10,9 @@
 #include <zephyr/pm/policy.h>
 #include <zephyr/pm/state.h>
 #include <zephyr/pm/device.h>
+#include <zephyr/usb/usb_device.h>
+#include <zephyr/usb/usbd.h>
+#include <zephyr/logging/log.h> 
 
 
 bool sysOn = true;
@@ -125,7 +128,7 @@ if (ret < 0) {
 
   while (1) {
 
-    LOG_DBG("Hello World! %s\n", CONFIG_ARCH);
+    printk("Hello World! %s\n", CONFIG_ARCH);
     
     k_sleep(K_MSEC(1000));
   }
