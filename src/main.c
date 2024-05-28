@@ -6,10 +6,6 @@
 #include <zephyr/sys/util.h>
 #include <zephyr/sys/printk.h>
 #include <inttypes.h>
-#include <zephyr/pm/pm.h>
-#include <zephyr/pm/policy.h>
-#include <zephyr/pm/state.h>
-#include <zephyr/pm/device.h>
 #include <zephyr/usb/usb_device.h>
 #include <zephyr/usb/usbd.h>
 #include <zephyr/logging/log.h> 
@@ -38,7 +34,7 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 	if(sysOn == true){
 		LOG_INF("turned system OFF");
 		gpio_pin_set_dt(&led,0);
-		pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
+		k_cpu_idle();
 
 
 		sysOn = false;
@@ -52,15 +48,7 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 
 }
 
-static int disable_ds_1(const struct device *dev)
-{
-    ARG_UNUSED(dev);
 
-    pm_policy_state_lock_get(PM_STATE_SOFT_OFF, PM_ALL_SUBSTATES);
-    return 0;
-}
-
-SYS_INIT(disable_ds_1, PRE_KERNEL_2, 0);
 
 
 static struct gpio_callback button_cb_data;
