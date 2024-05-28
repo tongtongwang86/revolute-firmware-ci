@@ -24,6 +24,10 @@ static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
 LOG_MODULE_REGISTER(Rev,LOG_LEVEL_DBG);
 
+BUILD_ASSERT(DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_console), zephyr_cdc_acm_uart),
+             "Console device is not ACM CDC UART device");
+
+
 void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
 
