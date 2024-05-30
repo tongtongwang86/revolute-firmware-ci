@@ -153,21 +153,21 @@
 	pinctrl-0 = <&i2c0_default>;
 	pinctrl-names = "default";
 	
-	as5600: as5600@36 {
-		compatible = "ams,as5600";
+	// as5600: as5600@36 {
+	// 	compatible = "ams,as5600";
 		
-		reg = <0x36>;
-		status = "okay";
-	};
+	// 	reg = <0x36>;
+	// 	status = "okay";
+	// };
 
-	bq27421@55 {
-		compatible = "ti,bq274xx";
-		reg = <0x55>;
-		design-voltage = <3700>;
-		design-capacity = <40>;
-		taper-current = <45>;
-		terminate-voltage = <3000>;
-	};
+	// bq27421@55 {
+	// 	compatible = "ti,bq274xx";
+	// 	reg = <0x55>;
+	// 	design-voltage = <3700>;
+	// 	design-capacity = <40>;
+	// 	taper-current = <45>;
+	// 	terminate-voltage = <3000>;
+	// };
 
 };
 
