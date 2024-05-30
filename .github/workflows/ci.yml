@@ -97,7 +97,8 @@ jobs:
               -- \
               -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" 
           ccache -sv
-          cd "zephyr-workspace/build/zephyr"
+          cd build
+          cd zephyr
           ls
 
       - name: 📦 Save BIN
