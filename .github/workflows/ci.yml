@@ -95,17 +95,16 @@ jobs:
               --board revolutewireless \
               --pristine=always nrfconnect-ci-app \
               -- \
-              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" \
-              -t ble-package
+              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" 
           ccache -sv
           cd "zephyr-workspace/build/zephyr"
           ls
 
-      - name: 📦 Save HEX
+      - name: 📦 Save BIN
         uses: actions/upload-artifact@v4
         with:
           name: Firmware_HEX
-          path: zephyr-workspace/build/zephyr/zephyr.hex
+          path: zephyr-workspace/build/zephyr/zephyr.bin
       - name: 📦 Save UF2
         uses: actions/upload-artifact@v4
         with:
