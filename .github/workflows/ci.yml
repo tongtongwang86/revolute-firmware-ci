@@ -98,12 +98,16 @@ jobs:
               -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app"
           ccache -sv
 
-      - name: 📦 Save Build Artifacts
+      - name: 📦 Save HEX
         uses: actions/upload-artifact@v4
         with:
-          name: Firmware
-          path: zephyr-workspace/build/zephyr/zephyr.uf2
+          name: Firmware_HEX
           path: zephyr-workspace/build/zephyr/zephyr.hex
+      - name: 📦 Save UF2
+        uses: actions/upload-artifact@v4
+        with:
+          name: Firmware_UF2
+          path: zephyr-workspace/build/zephyr/zephyr.uf2
 
 
 
