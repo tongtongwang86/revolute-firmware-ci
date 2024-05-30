@@ -99,6 +99,7 @@ jobs:
           ccache -sv
           cd build
           cd zephyr
+          nrfutil
           ls
 
       - name: 📦 Save BIN
