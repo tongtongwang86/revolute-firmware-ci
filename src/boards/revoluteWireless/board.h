@@ -18,8 +18,8 @@
 /* BUTTON
  *------------------------------------------------------------------*/
 #define BUTTONS_NUMBER        2
-#define BUTTON_1              28
-#define BUTTON_2              18
+#define BUTTON_1              29
+#define BUTTON_2              31
 #define BUTTON_PULL           NRF_GPIO_PIN_PULLUP
 
 //--------------------------------------------------------------------+
