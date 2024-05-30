@@ -103,3 +103,8 @@ jobs:
         with:
           name: Firmware
           path: zephyr-workspace/build/zephyr/zephyr.uf2
+          path: zephyr-workspace/build/zephyr/zephyr.hex
+
+
+
+          
