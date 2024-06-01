@@ -194,10 +194,9 @@ void main(void)
 		printk("Button init failed (err %d)\n", err);
 		return;
 	}
-	printk("build time: " __DATE__ " " __TIME__ "\n");
-	os_mgmt_register_group();
-	img_mgmt_register_group();
-	smp_bt_register();	
+printk("build time: " __DATE__ " " __TIME__ "\n");
+
+smp_bt_register();
 
 	bt_conn_cb_register(&conn_callbacks);
 	if (IS_ENABLED(CONFIG_BT_LBS_SECURITY_ENABLED)) {
