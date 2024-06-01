@@ -21,9 +21,7 @@
 
 #include <dk_buttons_and_leds.h>
 
-#include <mgmt/mcumgr/smp_bt.h>
-#include "os_mgmt/os_mgmt.h"
-#include "img_mgmt/img_mgmt.h"
+#include <zephyr/mgmt/mcumgr/transport/smp_bt.h>
 
 #define DEVICE_NAME             CONFIG_BT_DEVICE_NAME
 #define DEVICE_NAME_LEN         (sizeof(DEVICE_NAME) - 1)
