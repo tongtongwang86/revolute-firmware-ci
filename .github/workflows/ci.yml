@@ -113,6 +113,12 @@ jobs:
           name: Firmware_HEX
           path: zephyr-workspace/build/zephyr/zephyr.hex
 
+      - name: 📦 Save Update File
+        uses: actions/upload-artifact@v4
+        with:
+          name: UpdateBin
+          path: zephyr-workspace/build/zephyr/app_update.bin
+
      
 
 
