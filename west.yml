@@ -1,8 +1,9 @@
 manifest:
   version: "0.10"
+  remotes:
+    - name: nrfconnect
+      url-base: https://github.com/nrfconnect
   projects:
-
-    # Specify the nRF-Connect SDK as a project dependency.
     - name: sdk-nrf
       path: nrf
       url: https://github.com/nrfconnect/sdk-nrf.git
