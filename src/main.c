@@ -6,8 +6,8 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/usb/class/usb_hid.h>
 
-#define KEY_1_CONFIGURE HID_KEY_F11 //clockwise key
-#define KEY_2_CONFIGURE HID_KEY_F12 //counter clockwise key
+#define KEY_1_CONFIGURE HID_KEY_F12 //clockwise key
+#define KEY_2_CONFIGURE 104 //counter clockwise key
 #define STACKSIZE 1024
 #define PRIORITY 1
 #define SLEEPTIME 500
