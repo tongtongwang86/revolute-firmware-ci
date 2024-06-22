@@ -6,26 +6,26 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/usb/class/usb_hid.h>
 
-#define KEY_1_CONFIGURE HID_KEY_Z // clockwise key
-#define KEY_2_CONFIGURE HID_KEY_X // counter clockwise key
+#define KEY_1_CONFIGURE HID_KEY_X // clockwise key
+#define KEY_2_CONFIGURE HID_KEY_Z // counter clockwise key
 #define STACKSIZE 1024
 #define PRIORITY 1
 #define SLEEPTIME 500
 #define IDENT_OFFSET 1
 
-K_THREAD_STACK_DEFINE(threadA_stack_area, STACKSIZE);
+K_THREAD_STACK_DEFINE(thread_stack, STACKSIZE);
 
-static struct k_thread threadA_data;
-static const struct device *hdev;
+static struct k_thread thread_data;
+static const struct device *hid_device;
 static const uint8_t hid_kbd_report_desc[] = HID_KEYBOARD_REPORT_DESC();
 
-K_SEM_DEFINE(my_sem, 0, 10);
-static K_SEM_DEFINE(usb_sem, 1, 1); // starts off "available"
+K_SEM_DEFINE(data_ready_sem, 0, 10);
+static K_SEM_DEFINE(usb_ready_sem, 1, 1); // starts off "available"
 
 static void int_in_ready_cb(const struct device *dev)
 {
     ARG_UNUSED(dev);
-    k_sem_give(&usb_sem);
+    k_sem_give(&usb_ready_sem);
 }
 
 static const struct hid_ops ops = {
@@ -44,7 +44,7 @@ int as5600_refresh(const struct device *dev)
     return rot_raw.val1;
 }
 
-void threadA(void)
+void thread_function(void)
 {
     const struct device *const as = DEVICE_DT_GET(DT_INST(0, ams_as5600));
 
@@ -53,22 +53,22 @@ void threadA(void)
         return;
     }
 
-    int lastIdent = (as5600_refresh(as) - (as5600_refresh(as) % 12)) / 12;
-    int lastDegree = as5600_refresh(as);
+    int last_identifier = (as5600_refresh(as) - (as5600_refresh(as) % 12)) / 12;
+    int last_degree = as5600_refresh(as);
 
     while (1) {
         int degrees = as5600_refresh(as);
         int deltadegrees = 0;
 
-        if (degrees - lastDegree < -200) {
-            deltadegrees = (degrees - lastDegree) + 360 + 50;
-        } else if (degrees - lastDegree > 200) {
-            deltadegrees = (degrees - lastDegree) - 360 - 50;
+        if (degrees - last_degree < -200) {
+            deltadegrees = (degrees - last_degree) + 360 + 50;
+        } else if (degrees - last_degree > 200) {
+            deltadegrees = (degrees - last_degree) - 360 - 50;
         } else {
-            deltadegrees = (degrees - lastDegree);
+            deltadegrees = (degrees - last_degree);
         }
 
-        if (lastIdent != (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 &&
+        if (last_identifier != (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 &&
             (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 != 30) {
             uint8_t rep[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
@@ -78,11 +78,11 @@ void threadA(void)
                 rep[7] = KEY_2_CONFIGURE;
             }
 
-            k_sem_take(&usb_sem, K_FOREVER);
-            int ret = hid_int_ep_write(hdev, rep, sizeof(rep), NULL);
-            k_sem_give(&my_sem);
-            lastIdent = ((degrees + 6 + IDENT_OFFSET) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12;
-            lastDegree = degrees;
+            k_sem_take(&usb_ready_sem, K_FOREVER);
+            int ret = hid_int_ep_write(hid_device, rep, sizeof(rep), NULL);
+            k_sem_give(&data_ready_sem);
+            last_identifier = ((degrees + 6 + IDENT_OFFSET) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12;
+            last_degree = degrees;
         }
     }
 }
@@ -129,36 +129,35 @@ int main(void)
     }
 #endif
 
-    k_thread_create(&threadA_data, threadA_stack_area,
-                    K_THREAD_STACK_SIZEOF(threadA_stack_area),
-                    threadA, NULL, NULL, NULL,
+    k_thread_create(&thread_data, thread_stack,
+                    K_THREAD_STACK_SIZEOF(thread_stack),
+                    thread_function, NULL, NULL, NULL,
                     PRIORITY, 0, K_FOREVER);
-    k_thread_name_set(&threadA_data, "thread_a");
+    k_thread_name_set(&thread_data, "thread_a");
 
-    k_thread_start(&threadA_data);
+    k_thread_start(&thread_data);
 
     while (1) {
-        if (k_sem_take(&my_sem, K_MSEC(50)) != 0) {
+        if (k_sem_take(&data_ready_sem, K_MSEC(50)) != 0) {
         } else {
             uint8_t rep[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-            k_sem_take(&usb_sem, K_FOREVER);
-            int ret = hid_int_ep_write(hdev, rep, sizeof(rep), NULL);
+            k_sem_take(&usb_ready_sem, K_FOREVER);
+            int ret = hid_int_ep_write(hid_device, rep, sizeof(rep), NULL);
         }
     }
 }
 
 static int composite_pre_init(void)
 {
-    hdev = device_get_binding("HID_0");
-    if (hdev == NULL) {
+    hid_device = device_get_binding("HID_0");
+    if (hid_device == NULL) {
         printk("Cannot get USB HID Device");
         return -ENODEV;
     }
 
-    usb_hid_register_device(hdev, hid_kbd_report_desc, sizeof(hid_kbd_report_desc), &ops);
-    return usb_hid_init(hdev);
+    usb_hid_register_device(hid_device, hid_kbd_report_desc, sizeof(hid_kbd_report_desc), &ops);
+    return usb_hid_init(hid_device);
 }
 
 SYS_INIT(composite_pre_init, APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
-
