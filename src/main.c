@@ -1,6 +1,3 @@
-Here is the code with some of the redundant elements removed, including the dummy parameters:
-
-```c
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/usb/usb_device.h>
