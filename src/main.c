@@ -161,4 +161,4 @@ static int composite_pre_init(void)
 }
 
 SYS_INIT(composite_pre_init, APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
-```
+
