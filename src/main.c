@@ -49,8 +49,12 @@ int as5600_refresh(const struct device *dev)
     return rot_raw.val1;
 }
 
-void thread_function(void)
+void thread_function(void *dummy1, void *dummy2, void *dummy3)
 {
+    ARG_UNUSED(dummy1);
+    ARG_UNUSED(dummy2);
+    ARG_UNUSED(dummy3);
+
     const struct device *const as = DEVICE_DT_GET(DT_INST(0, ams_as5600));
 
     if (as == NULL || !device_is_ready(as)) {
@@ -89,7 +93,7 @@ void thread_function(void)
             }
 
             k_sem_take(&usb_ready_sem, K_FOREVER);
-            int ret = hid_int_ep_write(hid_device, rep, sizeof(rep), NULL);
+            hid_int_ep_write(hid_device, rep, sizeof(rep), NULL);
             k_sem_give(&data_ready_sem);
             last_identifier = ((degrees + 6 + IDENT_OFFSET) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12;
             last_degree = degrees;
@@ -126,9 +130,6 @@ static int enable_usb_device_next(void)
 
 int main(void)
 {
-    const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
-    uint32_t dtr = 0;
-
 #if defined(CONFIG_USB_DEVICE_STACK_NEXT)
     if (enable_usb_device_next()) {
         return 0;
@@ -139,7 +140,7 @@ int main(void)
     }
 #endif
 
-    if (!device_is_ready(dev)) {
+    if (!device_is_ready(DEVICE_DT_GET(DT_CHOSEN(zephyr_console)))) {
         printk("Console device is not ready\n");
         return 0;
     }
@@ -150,17 +151,8 @@ int main(void)
         return -ENODEV;
     }
 
-    int ret = usb_hid_register_device(hid_device, hid_kbd_report_desc, sizeof(hid_kbd_report_desc), &ops);
-    if (ret != 0) {
-        printk("Failed to register HID device: %d\n", ret);
-        return ret;
-    }
-
-    ret = usb_hid_init(hid_device);
-    if (ret != 0) {
-        printk("Failed to initialize HID device: %d\n", ret);
-        return ret;
-    }
+    usb_hid_register_device(hid_device, hid_kbd_report_desc, sizeof(hid_kbd_report_desc), &ops);
+    usb_hid_init(hid_device);
 
     k_sleep(K_SECONDS(1)); // Delay to ensure all initializations are complete
 
@@ -179,7 +171,7 @@ int main(void)
             uint8_t rep[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
             k_sem_take(&usb_ready_sem, K_FOREVER);
-            int ret = hid_int_ep_write(hid_device, rep, sizeof(rep), NULL);
+            hid_int_ep_write(hid_device, rep, sizeof(rep), NULL);
         }
     }
 }
@@ -192,12 +184,7 @@ static int composite_pre_init(void)
         return -ENODEV;
     }
 
-    int ret = usb_hid_register_device(hid_device, hid_kbd_report_desc, sizeof(hid_kbd_report_desc), &ops);
-    if (ret != 0) {
-        printk("Failed to register HID device: %d\n", ret);
-        return ret;
-    }
-
+    usb_hid_register_device(hid_device, hid_kbd_report_desc, sizeof(hid_kbd_report_desc), &ops);
     return usb_hid_init(hid_device);
 }
 
