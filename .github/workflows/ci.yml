@@ -92,7 +92,7 @@ jobs:
           cd zephyr-workspace
           ccache -z
           west build \
-              --board revolute \
+              --board revolutewireless \
               --pristine=always nrfconnect-ci-app \
               -- \
               -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app"
