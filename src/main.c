@@ -139,10 +139,10 @@ void thread_function(void *dummy1, void *dummy2, void *dummy3)
             if (use_keyboard) {
                 if (deltadegrees > 0) {
                     rep[3] = KEY_Z; // Set key Z
-                    rep[2] = KEY_1_MODIFYER
+                    rep[2] = KEY_1_MODIFYER;
                 } else {
                     rep[3] = KEY_X; // Set key X
-                    rep[2] = KEY_2_MODIFYER
+                    rep[2] = KEY_2_MODIFYER;
                 }
             } else {
                 if (deltadegrees > 0) {
