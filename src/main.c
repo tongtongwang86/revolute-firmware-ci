@@ -161,9 +161,9 @@ void thread_function(void *dummy1, void *dummy2, void *dummy3)
             uint8_t rep[] = {0x03, 0x00}; // Report ID 3, initial state
 
             if (deltadegrees > 0) {
-                rep[1] = CLOCKWISE;
+                rep[2] = CLOCKWISE;
             } else {
-                rep[1] = COUNTERCLOCKWISE;
+                rep[2] = COUNTERCLOCKWISE;
             }
 
             k_sem_take(&usb_ready_sem, K_FOREVER);
