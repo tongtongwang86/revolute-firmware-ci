@@ -89,7 +89,7 @@ static const uint8_t hid_consumer_report_desc[] = {
     0xC0,             // END_COLLECTION
 
 
-};
+
 
 };
 
