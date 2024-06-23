@@ -161,7 +161,7 @@ void thread_function(void *dummy1, void *dummy2, void *dummy3)
             uint8_t rep[] = {0x03, 0x00}; // Report ID 3, initial state
 
             if (deltadegrees > 0) {
-                rep[2] = {
+                rep[] = {
     0x02,       // Report ID (2 for Consumer Control)
     0x00,       // Padding or reserved byte (depends on device)
     0x08,       // Usage ID (Brightness Control)
