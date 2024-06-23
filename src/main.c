@@ -6,8 +6,8 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/usb/class/usb_hid.h>
 
-#define KEY_1_CONFIGURE HID_KEY_Z // clockwise key
-#define KEY_2_CONFIGURE HID_KEY_X // counter clockwise key
+#define VOLUME_UP 0xE9 // HID usage ID for volume increment
+#define VOLUME_DOWN 0xEA // HID usage ID for volume decrement
 #define STACKSIZE 1024
 #define PRIORITY 1
 #define SLEEPTIME 500
@@ -17,7 +17,23 @@ K_THREAD_STACK_DEFINE(thread_stack, STACKSIZE);
 
 static struct k_thread thread_data;
 static const struct device *hid_device;
-static const uint8_t hid_kbd_report_desc[] = HID_KEYBOARD_REPORT_DESC();
+
+static const uint8_t hid_consumer_report_desc[] = {
+    0x05, 0x0C,       // Usage Page (Consumer)
+    0x09, 0x01,       // Usage (Consumer Control)
+    0xA1, 0x01,       // Collection (Application)
+    0x85, 0x01,       // Report ID (1)
+    0x09, 0xE9,       // Usage (Volume Increment)
+    0x09, 0xEA,       // Usage (Volume Decrement)
+    0x15, 0x00,       // Logical Minimum (0)
+    0x25, 0x01,       // Logical Maximum (1)
+    0x75, 0x01,       // Report Size (1)
+    0x95, 0x02,       // Report Count (2)
+    0x81, 0x02,       // Input (Data, Var, Abs)
+    0x95, 0x06,       // Report Count (6)
+    0x81, 0x03,       // Input (Cnst, Var, Abs)
+    0xC0              // End Collection
+};
 
 K_SEM_DEFINE(data_ready_sem, 0, 10);
 static K_SEM_DEFINE(usb_ready_sem, 1, 1); // starts off "available"
@@ -84,12 +100,12 @@ void thread_function(void *dummy1, void *dummy2, void *dummy3)
 
         if (last_identifier != (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 &&
             (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 != 30) {
-            uint8_t rep[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+            uint8_t rep[] = {0x01, 0x00}; // Report ID 1, initial state
 
             if (deltadegrees > 0) {
-                rep[7] = KEY_1_CONFIGURE;
+                rep[1] = VOLUME_UP;
             } else {
-                rep[7] = KEY_2_CONFIGURE;
+                rep[1] = VOLUME_DOWN;
             }
 
             k_sem_take(&usb_ready_sem, K_FOREVER);
@@ -151,7 +167,7 @@ int main(void)
         return -ENODEV;
     }
 
-    usb_hid_register_device(hid_device, hid_kbd_report_desc, sizeof(hid_kbd_report_desc), &ops);
+    usb_hid_register_device(hid_device, hid_consumer_report_desc, sizeof(hid_consumer_report_desc), &ops);
     usb_hid_init(hid_device);
 
     k_sleep(K_SECONDS(1)); // Delay to ensure all initializations are complete
@@ -168,7 +184,7 @@ int main(void)
         if (k_sem_take(&data_ready_sem, K_MSEC(50)) != 0) {
             continue;
         } else {
-            uint8_t rep[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+            uint8_t rep[] = {0x01, 0x00}; // Report ID 1, release all keys
 
             k_sem_take(&usb_ready_sem, K_FOREVER);
             hid_int_ep_write(hid_device, rep, sizeof(rep), NULL);
@@ -184,7 +200,7 @@ static int composite_pre_init(void)
         return -ENODEV;
     }
 
-    usb_hid_register_device(hid_device, hid_kbd_report_desc, sizeof(hid_kbd_report_desc), &ops);
+    usb_hid_register_device(hid_device, hid_consumer_report_desc, sizeof(hid_consumer_report_desc), &ops);
     return usb_hid_init(hid_device);
 }
 
