@@ -8,8 +8,8 @@
 
 #define VOLUME_UP 0xE9     // HID usage ID for volume increment
 #define VOLUME_DOWN 0xEA   // HID usage ID for volume decrement
-#define KEY_Z 0x1D         // HID usage ID for key 'z'
-#define KEY_X 0x1B         // HID usage ID for key 'x'
+#define KEY_Z HID_KEY_Z         // HID usage ID for key 'z'
+#define KEY_X HID_KEY_X         // HID usage ID for key 'x'
 #define STACKSIZE 1024
 #define PRIORITY 1
 #define SLEEPTIME 500
