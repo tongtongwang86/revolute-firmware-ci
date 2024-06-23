@@ -135,9 +135,9 @@ void thread_function(void *dummy1, void *dummy2, void *dummy3)
 
             if (use_keyboard) {
                 if (deltadegrees > 0) {
-                    rep[2] = KEY_Z; // Set key Z
+                    rep[7] = KEY_Z; // Set key Z
                 } else {
-                    rep[2] = KEY_X; // Set key X
+                    rep[7] = KEY_X; // Set key X
                 }
             } else {
                 if (deltadegrees > 0) {
