@@ -19,7 +19,6 @@
 
 #define STACKSIZE 1024
 #define PRIORITY 1
-#define SLEEPTIME 500
 #define IDENT_OFFSET 1
 
 K_THREAD_STACK_DEFINE(thread_stack, STACKSIZE);
@@ -27,22 +26,70 @@ K_THREAD_STACK_DEFINE(thread_stack, STACKSIZE);
 static struct k_thread thread_data;
 static const struct device *hid_device;
 
-static const uint8_t hid_consumer_report_desc[] = {
-    0x05, 0x0C,       // Usage Page (Consumer)
-    0x09, 0x01,       // Usage (Consumer Control)
+static const uint8_t composite_hid_report_desc[] = {
+    0x05, 0x01,       // Usage Page (Generic Desktop)
+    0x09, 0x06,       // Usage (Keyboard)
     0xA1, 0x01,       // Collection (Application)
     0x85, 0x01,       // Report ID (1)
-    0x09, 0xE9,       // Usage (Volume Increment)
-    0x09, 0xEA,       // Usage (Volume Decrement)
-    0x09, 0x6F,       // Usage (Brightness Increment)
-    0x09, 0x70,       // Usage (Brightness Decrement)
+    0x05, 0x07,       // Usage Page (Key Codes)
+    0x19, 0xE0,       // Usage Minimum (224)
+    0x29, 0xE7,       // Usage Maximum (231)
     0x15, 0x00,       // Logical Minimum (0)
     0x25, 0x01,       // Logical Maximum (1)
     0x75, 0x01,       // Report Size (1)
-    0x95, 0x04,       // Report Count (4)
-    0x81, 0x02,       // Input (Data, Var, Abs)
-    0x95, 0x04,       // Report Count (4)
-    0x81, 0x03,       // Input (Cnst, Var, Abs)
+    0x95, 0x08,       // Report Count (8)
+    0x81, 0x02,       // Input (Data, Variable, Absolute)
+    0x95, 0x01,       // Report Count (1)
+    0x75, 0x08,       // Report Size (8)
+    0x81, 0x03,       // Input (Constant)
+    0x95, 0x05,       // Report Count (5)
+    0x75, 0x01,       // Report Size (1)
+    0x05, 0x08,       // Usage Page (LEDs)
+    0x19, 0x01,       // Usage Minimum (1)
+    0x29, 0x05,       // Usage Maximum (5)
+    0x91, 0x02,       // Output (Data, Variable, Absolute)
+    0x95, 0x01,       // Report Count (1)
+    0x75, 0x03,       // Report Size (3)
+    0x91, 0x03,       // Output (Constant)
+    0x95, 0x06,       // Report Count (6)
+    0x75, 0x08,       // Report Size (8)
+    0x15, 0x00,       // Logical Minimum (0)
+    0x25, 0x65,       // Logical Maximum (101)
+    0x05, 0x07,       // Usage Page (Key Codes)
+    0x19, 0x00,       // Usage Minimum (0)
+    0x29, 0x65,       // Usage Maximum (101)
+    0x81, 0x00,       // Input (Data, Array)
+    0xC0,             // End Collection
+
+    // Consumer Control
+    0x05, 0x0C,       // Usage Page (Consumer)
+    0x09, 0x01,       // Usage (Consumer Control)
+    0xA1, 0x01,       // Collection (Application)
+    0x85, 0x02,       // Report ID (2)
+    0x19, 0x00,       // Usage Minimum (0)
+    0x2A, 0xFF, 0x03, // Usage Maximum (1023)
+    0x15, 0x00,       // Logical Minimum (0)
+    0x26, 0xFF, 0x03, // Logical Maximum (1023)
+    0x75, 0x10,       // Report Size (16)
+    0x95, 0x01,       // Report Count (1)
+    0x81, 0x00,       // Input (Data, Array)
+    0xC0,             // End Collection
+
+    // Custom Buttons
+    0x05, 0x01,       // Usage Page (Generic Desktop)
+    0x09, 0x00,       // Usage (Undefined)
+    0xA1, 0x01,       // Collection (Application)
+    0x85, 0x03,       // Report ID (3)
+    0x05, 0x09,       // Usage Page (Button)
+    0x19, 0x01,       // Usage Minimum (Button 1)
+    0x29, 0x02,       // Usage Maximum (Button 2)
+    0x15, 0x00,       // Logical Minimum (0)
+    0x25, 0x01,       // Logical Maximum (1)
+    0x75, 0x01,       // Report Size (1)
+    0x95, 0x02,       // Report Count (2)
+    0x81, 0x02,       // Input (Data, Variable, Absolute)
+    0x95, 0x06,       // Report Count (6)
+    0x81, 0x03,       // Input (Constant)
     0xC0              // End Collection
 };
 
@@ -111,7 +158,7 @@ void thread_function(void *dummy1, void *dummy2, void *dummy3)
 
         if (last_identifier != (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 &&
             (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 != 30) {
-            uint8_t rep[] = {0x01, 0x00}; // Report ID 1, initial state
+            uint8_t rep[] = {0x03, 0x00}; // Report ID 3, initial state
 
             if (deltadegrees > 0) {
                 rep[1] = CLOCKWISE;
@@ -178,7 +225,7 @@ int main(void)
         return -ENODEV;
     }
 
-    usb_hid_register_device(hid_device, hid_consumer_report_desc, sizeof(hid_consumer_report_desc), &ops);
+    usb_hid_register_device(hid_device, composite_hid_report_desc, sizeof(composite_hid_report_desc), &ops);
     usb_hid_init(hid_device);
 
     k_sleep(K_SECONDS(1)); // Delay to ensure all initializations are complete
@@ -195,7 +242,7 @@ int main(void)
         if (k_sem_take(&data_ready_sem, K_MSEC(50)) != 0) {
             continue;
         } else {
-            uint8_t rep[] = {0x01, 0x00}; // Report ID 1, release all keys
+            uint8_t rep[] = {0x03, 0x00}; // Report ID 3, release all keys
 
             k_sem_take(&usb_ready_sem, K_FOREVER);
             hid_int_ep_write(hid_device, rep, sizeof(rep), NULL);
@@ -211,8 +258,11 @@ static int composite_pre_init(void)
         return -ENODEV;
     }
 
-    usb_hid_register_device(hid_device, hid_consumer_report_desc, sizeof(hid_consumer_report_desc), &ops);
+    usb_hid_register_device(hid_device, composite_hid_report_desc, sizeof(composite_hid_report_desc), &ops);
     return usb_hid_init(hid_device);
 }
 
 SYS_INIT(composite_pre_init, APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
+
+
+
