@@ -6,8 +6,17 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/usb/class/usb_hid.h>
 
-#define VOLUME_UP 0xE9 // HID usage ID for volume increment
-#define VOLUME_DOWN 0xEA // HID usage ID for volume decrement
+
+
+#define CLOCKWISE 0xEA // clockwise key
+#define COUNTERCLOCKWISE 0xE9 // counter clockwise key
+
+// 0xEA HID usage ID for volume decrement
+// 0xE9 HID usage ID for volume increment
+// HID_KEY_F12
+// HID_KEY_F11
+
+
 #define STACKSIZE 1024
 #define PRIORITY 1
 #define SLEEPTIME 500
@@ -25,12 +34,14 @@ static const uint8_t hid_consumer_report_desc[] = {
     0x85, 0x01,       // Report ID (1)
     0x09, 0xE9,       // Usage (Volume Increment)
     0x09, 0xEA,       // Usage (Volume Decrement)
+    0x09, 0x6F,       // Usage (Brightness Increment)
+    0x09, 0x70,       // Usage (Brightness Decrement)
     0x15, 0x00,       // Logical Minimum (0)
     0x25, 0x01,       // Logical Maximum (1)
     0x75, 0x01,       // Report Size (1)
-    0x95, 0x02,       // Report Count (2)
+    0x95, 0x04,       // Report Count (4)
     0x81, 0x02,       // Input (Data, Var, Abs)
-    0x95, 0x06,       // Report Count (6)
+    0x95, 0x04,       // Report Count (4)
     0x81, 0x03,       // Input (Cnst, Var, Abs)
     0xC0              // End Collection
 };
@@ -103,9 +114,9 @@ void thread_function(void *dummy1, void *dummy2, void *dummy3)
             uint8_t rep[] = {0x01, 0x00}; // Report ID 1, initial state
 
             if (deltadegrees > 0) {
-                rep[1] = VOLUME_UP;
+                rep[1] = CLOCKWISE;
             } else {
-                rep[1] = VOLUME_DOWN;
+                rep[1] = COUNTERCLOCKWISE;
             }
 
             k_sem_take(&usb_ready_sem, K_FOREVER);
