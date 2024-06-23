@@ -28,7 +28,7 @@ static struct k_thread thread_data;
 static const struct device *hid_device;
 
 static const uint8_t hid_consumer_report_desc[] = {
-  const uint8_t hid_descriptor[] = {
+
     // Consumer Control
     0x05, 0x0C,       // USAGE_PAGE (Consumer Devices)
     0x09, 0x01,       // USAGE (Consumer Control)
