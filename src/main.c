@@ -19,7 +19,7 @@ K_THREAD_STACK_DEFINE(thread_stack, STACKSIZE);
 
 static struct k_thread thread_data;
 static const struct device *hid_device;
-static bool use_keyboard = false;  // Variable to switch between keyboard and volume control
+static bool use_keyboard = true;  // Variable to switch between keyboard and volume control
 
 static const uint8_t hid_report_desc[] = {
     // Keyboard report descriptor
