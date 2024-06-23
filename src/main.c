@@ -130,14 +130,14 @@ void thread_function(void *dummy1, void *dummy2, void *dummy3)
 
         if (last_identifier != (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 &&
             (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 != 30) {
-            uint8_t rep[] = {0x01, 0x00, 0x00}; // Report ID 1, initial state for keyboard
+            uint8_t rep[] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Report ID 1, initial state for keyboard
             uint8_t volume_rep[] = {0x02, 0x00}; // Report ID 2, initial state for volume control
 
             if (use_keyboard) {
                 if (deltadegrees > 0) {
-                    rep[2] = KEY_Z; // Set key Z
+                    rep[3] = KEY_Z; // Set key Z
                 } else {
-                    rep[2] = KEY_X; // Set key X
+                    rep[3] = KEY_X; // Set key X
                 }
             } else {
                 if (deltadegrees > 0) {
