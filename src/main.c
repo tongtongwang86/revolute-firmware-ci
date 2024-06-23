@@ -8,8 +8,8 @@
 
 #define VOLUME_UP 0xE9     // HID usage ID for volume increment
 #define VOLUME_DOWN 0xEA   // HID usage ID for volume decrement
-#define KEY_Z HID_KEY_Z         // HID usage ID for key 'z'
-#define KEY_X HID_KEY_X         // HID usage ID for key 'x'
+#define KEY_Z 0x1D         // HID usage ID for key 'z'
+#define KEY_X 0x1B         // HID usage ID for key 'x'
 #define STACKSIZE 1024
 #define PRIORITY 1
 #define SLEEPTIME 500
@@ -38,15 +38,6 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,       // Report Count (1)
     0x75, 0x08,       // Report Size (8)
     0x81, 0x03,       // Input (Const, Var, Abs)
-    0x95, 0x05,       // Report Count (5)
-    0x75, 0x01,       // Report Size (1)
-    0x05, 0x08,       // Usage Page (LEDs)
-    0x19, 0x01,       // Usage Minimum (Num Lock)
-    0x29, 0x05,       // Usage Maximum (Kana)
-    0x91, 0x02,       // Output (Data, Var, Abs)
-    0x95, 0x01,       // Report Count (1)
-    0x75, 0x03,       // Report Size (3)
-    0x91, 0x03,       // Output (Const, Var, Abs)
     0x95, 0x06,       // Report Count (6)
     0x75, 0x08,       // Report Size (8)
     0x15, 0x00,       // Logical Minimum (0)
@@ -139,14 +130,14 @@ void thread_function(void *dummy1, void *dummy2, void *dummy3)
 
         if (last_identifier != (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 &&
             (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 != 30) {
-            uint8_t rep[] = {0x01, 0x00}; // Report ID 1, initial state for keyboard
+            uint8_t rep[] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Report ID 1, initial state for keyboard
             uint8_t volume_rep[] = {0x02, 0x00}; // Report ID 2, initial state for volume control
 
             if (use_keyboard) {
                 if (deltadegrees > 0) {
-                    rep[1] = KEY_Z;
+                    rep[2] = KEY_Z; // Set key Z
                 } else {
-                    rep[1] = KEY_X;
+                    rep[2] = KEY_X; // Set key X
                 }
             } else {
                 if (deltadegrees > 0) {
@@ -236,7 +227,7 @@ int main(void)
         if (k_sem_take(&data_ready_sem, K_MSEC(50)) != 0) {
             continue;
         } else {
-            uint8_t rep[] = {0x01, 0x00}; // Report ID 1, release all keys
+            uint8_t rep[] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Report ID 1, release all keys
             uint8_t volume_rep[] = {0x02, 0x00}; // Report ID 2, release volume controls
 
             k_sem_take(&usb_ready_sem, K_FOREVER);
