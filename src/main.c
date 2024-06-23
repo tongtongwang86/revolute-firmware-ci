@@ -8,6 +8,9 @@
 
 #define VOLUME_UP 0xE9     // HID usage ID for volume increment
 #define VOLUME_DOWN 0xEA   // HID usage ID for volume decrement
+
+#define KEY_1_MODIFYER 0b00000010  // | RGUI| RALT| RSHIFT| RCONTROL | LGUI| LALT| LSHIFT| LCONTROL|
+#define KEY_2_MODIFYER 0b00000010  // | RGUI| RALT| RSHIFT| RCONTROL | LGUI| LALT| LSHIFT| LCONTROL|
 #define KEY_Z 0x1D         // HID usage ID for key 'z'
 #define KEY_X 0x1B         // HID usage ID for key 'x'
 #define STACKSIZE 1024
@@ -136,8 +139,10 @@ void thread_function(void *dummy1, void *dummy2, void *dummy3)
             if (use_keyboard) {
                 if (deltadegrees > 0) {
                     rep[3] = KEY_Z; // Set key Z
+                    rep[2] = KEY_1_MODIFYER
                 } else {
                     rep[3] = KEY_X; // Set key X
+                    rep[2] = KEY_2_MODIFYER
                 }
             } else {
                 if (deltadegrees > 0) {
