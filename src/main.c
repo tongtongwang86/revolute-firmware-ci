@@ -227,7 +227,7 @@ int main(void)
         if (k_sem_take(&data_ready_sem, K_MSEC(50)) != 0) {
             continue;
         } else {
-            uint8_t rep[] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Report ID 1, release all keys
+            uint8_t rep[] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Report ID 1, release all keys
             uint8_t volume_rep[] = {0x02, 0x00}; // Report ID 2, release volume controls
 
             k_sem_take(&usb_ready_sem, K_FOREVER);
