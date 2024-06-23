@@ -8,8 +8,8 @@
 
 
 
-#define CLOCKWISE 0xEA // clockwise key
-#define COUNTERCLOCKWISE 0xE9 // counter clockwise key
+#define CLOCKWISE 0x02 // clockwise key
+#define COUNTERCLOCKWISE 0x04 // counter clockwise key
 
 // 0xEA HID usage ID for volume decrement
 // 0xE9 HID usage ID for volume increment
