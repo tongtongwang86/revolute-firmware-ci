@@ -6,8 +6,10 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/usb/class/usb_hid.h>
 
-#define VOLUME_UP 0xE9 // HID usage ID for volume increment
-#define VOLUME_DOWN 0xEA // HID usage ID for volume decrement
+#define VOLUME_UP 0xE9     // HID usage ID for volume increment
+#define VOLUME_DOWN 0xEA   // HID usage ID for volume decrement
+#define KEY_Z 0x1D         // HID usage ID for key 'z'
+#define KEY_X 0x1B         // HID usage ID for key 'x'
 #define STACKSIZE 1024
 #define PRIORITY 1
 #define SLEEPTIME 500
@@ -17,12 +19,49 @@ K_THREAD_STACK_DEFINE(thread_stack, STACKSIZE);
 
 static struct k_thread thread_data;
 static const struct device *hid_device;
+static bool use_keyboard = true;  // Variable to switch between keyboard and volume control
 
-static const uint8_t hid_consumer_report_desc[] = {
+static const uint8_t hid_report_desc[] = {
+    // Keyboard report descriptor
+    0x05, 0x01,       // Usage Page (Generic Desktop)
+    0x09, 0x06,       // Usage (Keyboard)
+    0xA1, 0x01,       // Collection (Application)
+    0x85, 0x01,       // Report ID (1)
+    0x05, 0x07,       // Usage Page (Keyboard)
+    0x19, 0xE0,       // Usage Minimum (0xE0)
+    0x29, 0xE7,       // Usage Maximum (0xE7)
+    0x15, 0x00,       // Logical Minimum (0)
+    0x25, 0x01,       // Logical Maximum (1)
+    0x75, 0x01,       // Report Size (1)
+    0x95, 0x08,       // Report Count (8)
+    0x81, 0x02,       // Input (Data, Var, Abs)
+    0x95, 0x01,       // Report Count (1)
+    0x75, 0x08,       // Report Size (8)
+    0x81, 0x03,       // Input (Const, Var, Abs)
+    0x95, 0x05,       // Report Count (5)
+    0x75, 0x01,       // Report Size (1)
+    0x05, 0x08,       // Usage Page (LEDs)
+    0x19, 0x01,       // Usage Minimum (Num Lock)
+    0x29, 0x05,       // Usage Maximum (Kana)
+    0x91, 0x02,       // Output (Data, Var, Abs)
+    0x95, 0x01,       // Report Count (1)
+    0x75, 0x03,       // Report Size (3)
+    0x91, 0x03,       // Output (Const, Var, Abs)
+    0x95, 0x06,       // Report Count (6)
+    0x75, 0x08,       // Report Size (8)
+    0x15, 0x00,       // Logical Minimum (0)
+    0x25, 0x65,       // Logical Maximum (101)
+    0x05, 0x07,       // Usage Page (Keyboard)
+    0x19, 0x00,       // Usage Minimum (0)
+    0x29, 0x65,       // Usage Maximum (101)
+    0x81, 0x00,       // Input (Data, Ary, Abs)
+    0xC0,             // End Collection
+
+    // Consumer control report descriptor (volume control)
     0x05, 0x0C,       // Usage Page (Consumer)
     0x09, 0x01,       // Usage (Consumer Control)
     0xA1, 0x01,       // Collection (Application)
-    0x85, 0x01,       // Report ID (1)
+    0x85, 0x02,       // Report ID (2)
     0x09, 0xE9,       // Usage (Volume Increment)
     0x09, 0xEA,       // Usage (Volume Decrement)
     0x15, 0x00,       // Logical Minimum (0)
@@ -100,16 +139,29 @@ void thread_function(void *dummy1, void *dummy2, void *dummy3)
 
         if (last_identifier != (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 &&
             (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 != 30) {
-            uint8_t rep[] = {0x01, 0x00}; // Report ID 1, initial state
+            uint8_t rep[] = {0x01, 0x00}; // Report ID 1, initial state for keyboard
+            uint8_t volume_rep[] = {0x02, 0x00}; // Report ID 2, initial state for volume control
 
-            if (deltadegrees > 0) {
-                rep[1] = VOLUME_UP;
+            if (use_keyboard) {
+                if (deltadegrees > 0) {
+                    rep[1] = KEY_Z;
+                } else {
+                    rep[1] = KEY_X;
+                }
             } else {
-                rep[1] = VOLUME_DOWN;
+                if (deltadegrees > 0) {
+                    volume_rep[1] = VOLUME_UP;
+                } else {
+                    volume_rep[1] = VOLUME_DOWN;
+                }
             }
 
             k_sem_take(&usb_ready_sem, K_FOREVER);
-            hid_int_ep_write(hid_device, rep, sizeof(rep), NULL);
+            if (use_keyboard) {
+                hid_int_ep_write(hid_device, rep, sizeof(rep), NULL);
+            } else {
+                hid_int_ep_write(hid_device, volume_rep, sizeof(volume_rep), NULL);
+            }
             k_sem_give(&data_ready_sem);
             last_identifier = ((degrees + 6 + IDENT_OFFSET) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12;
             last_degree = degrees;
@@ -167,7 +219,7 @@ int main(void)
         return -ENODEV;
     }
 
-    usb_hid_register_device(hid_device, hid_consumer_report_desc, sizeof(hid_consumer_report_desc), &ops);
+    usb_hid_register_device(hid_device, hid_report_desc, sizeof(hid_report_desc), &ops);
     usb_hid_init(hid_device);
 
     k_sleep(K_SECONDS(1)); // Delay to ensure all initializations are complete
@@ -185,9 +237,14 @@ int main(void)
             continue;
         } else {
             uint8_t rep[] = {0x01, 0x00}; // Report ID 1, release all keys
+            uint8_t volume_rep[] = {0x02, 0x00}; // Report ID 2, release volume controls
 
             k_sem_take(&usb_ready_sem, K_FOREVER);
-            hid_int_ep_write(hid_device, rep, sizeof(rep), NULL);
+            if (use_keyboard) {
+                hid_int_ep_write(hid_device, rep, sizeof(rep), NULL);
+            } else {
+                hid_int_ep_write(hid_device, volume_rep, sizeof(volume_rep), NULL);
+            }
         }
     }
 }
@@ -200,7 +257,7 @@ static int composite_pre_init(void)
         return -ENODEV;
     }
 
-    usb_hid_register_device(hid_device, hid_consumer_report_desc, sizeof(hid_consumer_report_desc), &ops);
+    usb_hid_register_device(hid_device, hid_report_desc, sizeof(hid_report_desc), &ops);
     return usb_hid_init(hid_device);
 }
 
