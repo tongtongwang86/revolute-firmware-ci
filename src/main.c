@@ -8,8 +8,8 @@
 
 
 
-#define CLOCKWISE 0x02 // clockwise key
-#define COUNTERCLOCKWISE 0x04 // counter clockwise key
+#define CLOCKWISE 0xEA // clockwise key
+#define COUNTERCLOCKWISE 0xE9 // counter clockwise key
 
 // 0xEA HID usage ID for volume decrement
 // 0xE9 HID usage ID for volume increment
@@ -28,69 +28,22 @@ static struct k_thread thread_data;
 static const struct device *hid_device;
 
 static const uint8_t hid_consumer_report_desc[] = {
-
-    // Consumer Control
-    0x05, 0x0C,       // USAGE_PAGE (Consumer Devices)
-    0x09, 0x01,       // USAGE (Consumer Control)
-    0xA1, 0x01,       // COLLECTION (Application)
-    0x85, 0x01,       //   REPORT_ID (1)
-    0x15, 0x00,       //   LOGICAL_MINIMUM (0)
-    0x25, 0x01,       //   LOGICAL_MAXIMUM (1)
-    0x75, 0x01,       //   REPORT_SIZE (1)
-    0x95, 0x03,       //   REPORT_COUNT (3)
-    0x09, 0xE2,       //   USAGE (Mute)
-    0x09, 0xE9,       //   USAGE (Volume Up)
-    0x09, 0xEA,       //   USAGE (Volume Down)
-    0x81, 0x02,       //   INPUT (Data,Var,Abs)
-    0x95, 0x01,       //   REPORT_COUNT (1)
-    0x75, 0x05,       //   REPORT_SIZE (5)
-    0x81, 0x03,       //   INPUT (Cnst,Var,Abs)
-    0x95, 0x01,       //   REPORT_COUNT (1)
-    0x75, 0x08,       //   REPORT_SIZE (8)
-    0x09, 0xB0,       //   USAGE (Play)
-    0x09, 0xB7,       //   USAGE (Stop)
-    0x09, 0xCD,       //   USAGE (Play/Pause)
-    0x81, 0x02,       //   INPUT (Data,Var,Abs)
-    0xC0,             // END_COLLECTION
-
-    // Keyboard
-    0x05, 0x01,       // USAGE_PAGE (Generic Desktop)
-    0x09, 0x06,       // USAGE (Keyboard)
-    0xA1, 0x01,       // COLLECTION (Application)
-    0x85, 0x02,       //   REPORT_ID (2)
-    0x05, 0x07,       //   USAGE_PAGE (Keyboard)
-    0x19, 0xE0,       //   USAGE_MINIMUM (Keyboard LeftControl)
-    0x29, 0xE7,       //   USAGE_MAXIMUM (Keyboard Right GUI)
-    0x15, 0x00,       //   LOGICAL_MINIMUM (0)
-    0x25, 0x01,       //   LOGICAL_MAXIMUM (1)
-    0x75, 0x01,       //   REPORT_SIZE (1)
-    0x95, 0x08,       //   REPORT_COUNT (8)
-    0x81, 0x02,       //   INPUT (Data,Var,Abs)
-    0x95, 0x01,       //   REPORT_COUNT (1)
-    0x75, 0x08,       //   REPORT_SIZE (8)
-    0x81, 0x03,       //   INPUT (Cnst,Var,Abs)
-    0x95, 0x05,       //   REPORT_COUNT (5)
-    0x75, 0x01,       //   REPORT_SIZE (1)
-    0x05, 0x08,       //   USAGE_PAGE (LEDs)
-    0x19, 0x01,       //   USAGE_MINIMUM (Num Lock)
-    0x29, 0x05,       //   USAGE_MAXIMUM (Kana)
-    0x91, 0x02,       //   OUTPUT (Data,Var,Abs)
-    0x95, 0x01,       //   REPORT_COUNT (1)
-    0x75, 0x03,       //   REPORT_SIZE (3)
-    0x91, 0x03,       //   OUTPUT (Cnst,Var,Abs)
-    0x95, 0x06,       //   REPORT_COUNT (6)
-    0x75, 0x08,       //   REPORT_SIZE (8)
-    0x15, 0x00,       //   LOGICAL_MINIMUM (0)
-    0x25, 0x65,       //   LOGICAL_MAXIMUM (101)
-    0x05, 0x07,       //   USAGE_PAGE (Keyboard)
-    0x19, 0x00,       //   USAGE_MINIMUM (Reserved (no event indicated))
-    0x29, 0x65,       //   USAGE_MAXIMUM (Keyboard Application)
-    0x81, 0x00,       //   INPUT (Data,Ary,Abs)
-    0xC0,             // END_COLLECTION
-
-
-
-
+    0x05, 0x0C,       // Usage Page (Consumer)
+    0x09, 0x01,       // Usage (Consumer Control)
+    0xA1, 0x01,       // Collection (Application)
+    0x85, 0x01,       // Report ID (1)
+    0x09, 0xE9,       // Usage (Volume Increment)
+    0x09, 0xEA,       // Usage (Volume Decrement)
+    0x09, 0x6F,       // Usage (Brightness Increment)
+    0x09, 0x70,       // Usage (Brightness Decrement)
+    0x15, 0x00,       // Logical Minimum (0)
+    0x25, 0x01,       // Logical Maximum (1)
+    0x75, 0x01,       // Report Size (1)
+    0x95, 0x04,       // Report Count (4)
+    0x81, 0x02,       // Input (Data, Var, Abs)
+    0x95, 0x04,       // Report Count (4)
+    0x81, 0x03,       // Input (Cnst, Var, Abs)
+    0xC0              // End Collection
 };
 
 K_SEM_DEFINE(data_ready_sem, 0, 10);
