@@ -8,8 +8,8 @@
 
 
 
-#define CLOCKWISE 0xEA // clockwise key
-#define COUNTERCLOCKWISE 0xE9 // counter clockwise key
+#define CLOCKWISE 0x08 // clockwise key
+#define COUNTERCLOCKWISE 0x09 // counter clockwise key
 
 // 0xEA HID usage ID for volume decrement
 // 0xE9 HID usage ID for volume increment
@@ -65,15 +65,19 @@ static const uint8_t composite_hid_report_desc[] = {
     0x05, 0x0C,       // Usage Page (Consumer)
     0x09, 0x01,       // Usage (Consumer Control)
     0xA1, 0x01,       // Collection (Application)
-    0x85, 0x02,       // Report ID (2)
-    0x19, 0x00,       // Usage Minimum (0)
-    0x2A, 0xFF, 0x03, // Usage Maximum (1023)
+    0x85, 0x01,       // Report ID (1)
+    0x09, 0xE9,       // Usage (Volume Increment)
+    0x09, 0xEA,       // Usage (Volume Decrement)
+    0x09, 0x6F,       // Usage (Brightness Increment)
+    0x09, 0x70,       // Usage (Brightness Decrement)
     0x15, 0x00,       // Logical Minimum (0)
-    0x26, 0xFF, 0x03, // Logical Maximum (1023)
-    0x75, 0x10,       // Report Size (16)
-    0x95, 0x01,       // Report Count (1)
-    0x81, 0x00,       // Input (Data, Array)
-    0xC0,             // End Collection
+    0x25, 0x01,       // Logical Maximum (1)
+    0x75, 0x01,       // Report Size (1)
+    0x95, 0x04,       // Report Count (4)
+    0x81, 0x02,       // Input (Data, Var, Abs)
+    0x95, 0x04,       // Report Count (4)
+    0x81, 0x03,       // Input (Cnst, Var, Abs)
+    0xC0              // End Collection
 
     // Custom Buttons
     0x05, 0x01,       // Usage Page (Generic Desktop)
