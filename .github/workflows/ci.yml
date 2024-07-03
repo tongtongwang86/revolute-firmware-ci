@@ -104,14 +104,21 @@ jobs:
       - name: 📦 Save BIN
         uses: actions/upload-artifact@v4
         with:
-          name: Firmware_BIN
+          name: ZephyrBin
           path: zephyr-workspace/build/zephyr/zephyr.bin
 
       - name: 📦 Save HEX
         uses: actions/upload-artifact@v4
         with:
-          name: Firmware_HEX
+          name: Zephyrhex
           path: zephyr-workspace/build/zephyr/zephyr.hex
+
+      - name: 📦 Save merged hex
+        uses: actions/upload-artifact@v4
+        with:
+          name: MergedHex
+          path: zephyr-workspace/build/zephyr/merged.hex
+
 
       - name: 📦 Save Update File
         uses: actions/upload-artifact@v4
