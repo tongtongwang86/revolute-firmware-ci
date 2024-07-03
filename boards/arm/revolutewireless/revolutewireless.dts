@@ -122,10 +122,13 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		
+		boot_partition: partition@0 {
+			label = "mcuboot";
+			reg = <0x00000000 0xC000>;
+		};
 		slot0_partition: partition@c000 {
 			label = "image-0";
-			reg = <0x00000000 0x37000>;
+			reg = <0x0000C000 0x37000>;
 		};
 		slot1_partition: partition@43000 {
 			label = "image-1";
