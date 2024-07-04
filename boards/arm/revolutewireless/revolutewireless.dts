@@ -141,14 +141,20 @@
 	};
 };
 
-&uart0 {
-   status = "okay";
-   bt_hci_uart: bt_hci_uart {
-      compatible = "zephyr,bt-hci-uart";
-      status = "okay";
-   };
-};
 
+
+&uart0 {
+	compatible = "nordic,nrf-uarte";
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart0_default>;
+	pinctrl-1 = <&uart0_sleep>;
+	pinctrl-names = "default", "sleep";
+	   bt_hci_uart: bt_hci_uart {
+	      compatible = "zephyr,bt-hci-uart";
+	      status = "okay";
+	   };
+};
 
 &i2c0 {
 
