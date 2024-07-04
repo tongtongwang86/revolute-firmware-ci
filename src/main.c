@@ -133,8 +133,8 @@ int main(void)
 
 	while (1) {
 
-		ret = gpio_pin_toggle_dt(&led);
-		if (ret < 0)
+		err = gpio_pin_toggle_dt(&led);
+		if (err < 0)
 		{
 			return -ENODEV;
 		}
