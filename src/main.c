@@ -4,6 +4,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_backend_ble.h>
 
+
 #include <zephyr/mgmt/mcumgr/transport/smp_bt.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
@@ -11,6 +12,8 @@
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/bluetooth/uuid.h>
+
+#include <zephyr/settings/settings.h>
 
 LOG_MODULE_REGISTER(ble_backend);
 
@@ -132,6 +135,7 @@ int main(void)
 		LOG_ERR("Bluetooth init failed (err %d)", err);
 		return 0;
 	}
+	settings_load();
 
 	bt_conn_auth_cb_register(&auth_cb_display);
 
