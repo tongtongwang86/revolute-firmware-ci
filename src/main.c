@@ -53,6 +53,11 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	} else {
 		LOG_INF("Connected");
 	}
+
+		if (bt_conn_set_security(conn, BT_SECURITY_L2)) {
+		LOG_INF("Failed to set security\n");
+	}
+	
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -60,6 +65,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 	
 	LOG_INF("Disconnected (reason 0x%02x)", reason);
 	start_adv();
+	
 }
 
 static void security_changed(struct bt_conn *conn, bt_security_t level,
