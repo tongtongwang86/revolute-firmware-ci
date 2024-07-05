@@ -136,11 +136,12 @@ int main(void)
 		LOG_ERR("Bluetooth init failed (err %d)", err);
 		return 0;
 	}
+	settings_load();
 
 	bt_conn_auth_cb_register(&auth_cb_display);
 
 	start_adv();
-	settings_load();
+	
 
 	while (1) {
 		uint32_t uptime_secs = k_uptime_get_32()/1000U;
