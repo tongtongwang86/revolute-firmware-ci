@@ -56,14 +56,31 @@ static void connected(struct bt_conn *conn, uint8_t err)
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
-{
+{	
+	
 	LOG_INF("Disconnected (reason 0x%02x)", reason);
 	start_adv();
+}
+
+static void security_changed(struct bt_conn *conn, bt_security_t level,
+			     enum bt_security_err err)
+{
+	char addr[BT_ADDR_LE_STR_LEN];
+
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+
+	if (!err) {
+		LOG_INF("Security changed: %s level %u\n", addr, level);
+	} else {
+		LOG_INF("Security failed: %s level %u err %d\n", addr, level,
+		       err);
+	}
 }
 
 BT_CONN_CB_DEFINE(conn_callbacks) = {
 	.connected = connected,
 	.disconnected = disconnected,
+	.security_changed = security_changed,
 };
 
 static void auth_cancel(struct bt_conn *conn)
