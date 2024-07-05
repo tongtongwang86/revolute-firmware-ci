@@ -34,7 +34,7 @@ static const struct bt_data sd[] = {
 static void start_adv(void)
 {	
 	    struct bt_le_adv_param *adv_param = BT_LE_ADV_PARAM(
-	        BT_LE_ADV_OPT_CONNECTABLE, 
+	        BT_LE_ADV_CONN, 
 	        BT_GAP_ADV_FAST_INT_MIN_2,
 	        BT_GAP_ADV_FAST_INT_MAX_2,
 	        NULL
