@@ -1,9 +1,5 @@
 
 
-#include <zephyr/settings/settings.h>
-
-
-
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_backend_ble.h>
@@ -34,7 +30,7 @@ static const struct bt_data sd[] = {
 static void start_adv(void)
 {	
 	    struct bt_le_adv_param *adv_param = BT_LE_ADV_PARAM(
-	        BT_LE_ADV_CONN, 
+	        BT_LE_ADV_OPT_CONNECTABLE, 
 	        BT_GAP_ADV_FAST_INT_MIN_2,
 	        BT_GAP_ADV_FAST_INT_MAX_2,
 	        NULL
@@ -136,12 +132,10 @@ int main(void)
 		LOG_ERR("Bluetooth init failed (err %d)", err);
 		return 0;
 	}
-	settings_load();
 
 	bt_conn_auth_cb_register(&auth_cb_display);
 
 	start_adv();
-	
 
 	while (1) {
 		uint32_t uptime_secs = k_uptime_get_32()/1000U;
