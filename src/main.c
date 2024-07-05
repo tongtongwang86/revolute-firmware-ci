@@ -206,12 +206,12 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 	}		
 	err = bt_le_adv_stop();
 	if (err) {
-		LOG_INF("Cannot stop advertising err= %d \n", err_code);
+		LOG_INF("Cannot stop advertising err= %d \n", err);
 		return;
 	}
-	err_code = bt_le_filter_accept_list_clear();
+	err = bt_le_filter_accept_list_clear();
 	if (err) {
-		LOG_INF("Cannot clear accept list (err: %d)\n", err_code);
+		LOG_INF("Cannot clear accept list (err: %d)\n", err);
 	} else {
 		LOG_INF("Accept list cleared succesfully");
 	}
@@ -219,7 +219,7 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 						   ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
 
 	if (err) {
-		LOG_INF("Cannot start open advertising (err: %d)\n", err_code);
+		LOG_INF("Cannot start open advertising (err: %d)\n", err);
 	} else {
 		LOG_INF("Advertising in pairing mode started");
 	}
