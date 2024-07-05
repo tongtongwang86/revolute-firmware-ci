@@ -241,11 +241,11 @@ int main(void)
 	}
 	
 	err = gpio_pin_configure_dt(&button, GPIO_INPUT);
-	if (ret < 0) {
+	if (err < 0) {
 		return -1;
 	}
 
-	ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
+	err = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
 	
   	gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin)); 	
 	gpio_add_callback(button.port, &button_cb_data);
