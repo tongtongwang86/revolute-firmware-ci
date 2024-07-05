@@ -45,19 +45,19 @@ static const struct bt_data sd[] = {
 	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 };
 
-static void start_adv(void)
-{	
+// static void start_adv(void)
+// {	
 	
 	
-	int err;
-	err = bt_le_adv_start(adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-	if (err) {
-		LOG_ERR("Advertising failed to start (err %d)", err);
-		return;
-	}
+// 	int err;
+// 	err = bt_le_adv_start(adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+// 	if (err) {
+// 		LOG_ERR("Advertising failed to start (err %d)", err);
+// 		return;
+// 	}
 
-	LOG_INF("Advertising successfully started");
-}
+// 	LOG_INF("Advertising successfully started");
+// }
 
 static void setup_accept_list_cb(const struct bt_bond_info *info, void *user_data)
 {
@@ -198,7 +198,6 @@ void backend_ble_hook(bool status, void *ctx)
 
 void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
-    gpio_pin_toggle_dt(&led);
     int err= bt_unpair(BT_ID_DEFAULT,BT_ADDR_LE_ANY);
 	if (err) {
 		LOG_INF("Cannot delete bond (err: %d)\n", err);
