@@ -66,6 +66,13 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 	LOG_INF("Disconnected (reason 0x%02x)", reason);
 	start_adv();
 	
+	 err = bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
+			if (err) {
+				LOG_INF("Cannot delete bond (err: %d)\n", err);
+			} else {
+				LOG_INF("Bond deleted succesfully");
+			}
+	
 }
 
 static void security_changed(struct bt_conn *conn, bt_security_t level,
