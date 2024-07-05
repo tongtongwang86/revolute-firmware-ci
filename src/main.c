@@ -6,11 +6,13 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_backend_ble.h>
 
+#include <zephyr/mgmt/mcumgr/transport/smp_bt.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/addr.h>
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/bluetooth/gatt.h>
+#include <zephyr/bluetooth/uuid.h>
 
 LOG_MODULE_REGISTER(ble_backend);
 
