@@ -4,6 +4,11 @@ manifest:
     - name: nrfconnect
       url-base: https://github.com/nrfconnect
   projects:
+    - name: zephyr
+      revision: v3.6.0
+      url: https://github.com/zephyrproject-rtos/zephyr
+
+  projects:
     - name: sdk-nrf
       path: nrf
       url: https://github.com/nrfconnect/sdk-nrf.git
@@ -22,7 +27,3 @@ manifest:
           - lz4
           - lvgl
           - mipi-sys-t
-  projects:
-    - name: zephyr
-      revision: v3.6.0
-      url: https://github.com/zephyrproject-rtos/zephyr
