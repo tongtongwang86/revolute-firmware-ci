@@ -62,7 +62,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {	
-	
+	int err;
 	LOG_INF("Disconnected (reason 0x%02x)", reason);
 	start_adv();
 	
