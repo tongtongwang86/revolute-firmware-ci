@@ -22,3 +22,7 @@ manifest:
           - lz4
           - lvgl
           - mipi-sys-t
+  projects:
+    - name: zephyr
+      revision: v3.6.0
+      url: https://github.com/zephyrproject-rtos/zephyr
