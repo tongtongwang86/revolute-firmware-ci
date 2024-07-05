@@ -20,6 +20,8 @@ LOG_MODULE_REGISTER(ble_backend);
 #define SW0_NODE	DT_ALIAS(sw0) 
 static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
 
+static struct gpio_callback button_cb_data;
+
 #define BT_LE_ADV_CONN_NO_ACCEPT_LIST                                                              \
 	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME,                        \
 			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
