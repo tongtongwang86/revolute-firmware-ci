@@ -71,15 +71,15 @@ static char *helper_button_evt_str(enum button_evt evt)
 	int err;
 	switch (evt) {
 	case BUTTON_EVT_PRESSED:
-		ret = gpio_pin_toggle_dt(&led);
-		if (ret < 0) {
+		err = gpio_pin_toggle_dt(&led);
+		if (err < 0) {
 			return 0;
 		}
 	
 		return "Pressed";
 	case BUTTON_EVT_RELEASED:
-		ret = gpio_pin_toggle_dt(&led);
-		if (ret < 0) {
+		err = gpio_pin_toggle_dt(&led);
+		if (err < 0) {
 			return 0;
 		}
 
