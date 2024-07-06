@@ -4,18 +4,18 @@
 #define SW0_NODE    DT_ALIAS(sw0)
 #define LED0_NODE   DT_ALIAS(led0)
 
-static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
-static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
-static struct gpio_callback button_cb_data;
-
-typedef void (*button_event_handler_t)(enum button_evt evt);
-
-static button_event_handler_t user_cb;
-
 enum button_evt {
     BUTTON_EVT_PRESSED,
     BUTTON_EVT_RELEASED
 };
+
+typedef void (*button_event_handler_t)(enum button_evt evt);
+
+static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
+static struct gpio_callback button_cb_data;
+
+static button_event_handler_t user_cb;
 
 static void cooldown_expired(struct k_work *work)
 {
@@ -93,24 +93,25 @@ static void button_event_handler(enum button_evt evt)
     printk("Button event: %s\n", helper_button_evt_str(evt));
 }
 
-void main(void)
+int main(void)
 {
     printk("Button Debouncing Sample!\n");
 
     int err = button_init(button_event_handler);
     if (err) {
         printk("Button Init failed: %d\n", err);
-        return;
+        return err;
     }
 
     if (!device_is_ready(led.port)) {
-        return;
+        return -EIO;
     }
 
     err = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
     if (err < 0) {
-        return;
+        return err;
     }
 
     printk("Init succeeded. Waiting for event...\n");
+    return 0;
 }
