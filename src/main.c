@@ -1,144 +1,189 @@
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/uart.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/usb/usb_device.h>
+#include <zephyr/usb/usbd.h>
+#include <zephyr/logging/log.h>
 
-// Define aliases for device tree nodes
+
+
 #define SW0_NODE    DT_ALIAS(sw0)
 #define SW1_NODE    DT_ALIAS(sw1)
+#define SW2_NODE    DT_ALIAS(sw2)
+#define SW3_NODE    DT_ALIAS(sw3)
 #define LED0_NODE   DT_ALIAS(led0)
 
-// Enum for button events
 enum button_evt {
     BUTTON_EVT_PRESSED,
     BUTTON_EVT_RELEASED
 };
 
-// Typedef for button event handler
-typedef void (*button_event_handler_t)(enum button_evt evt);
+typedef void (*button_event_handler_t)(size_t idx, enum button_evt evt);
 
-// GPIO specifications for LED and buttons
-static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
-static const struct gpio_dt_spec button0 = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
-static const struct gpio_dt_spec button1 = GPIO_DT_SPEC_GET(SW1_NODE, gpios);
-static struct gpio_callback button0_cb_data;
-static struct gpio_callback button1_cb_data;
+static const struct gpio_dt_spec leds[] = {
+    GPIO_DT_SPEC_GET_OR(LED0_NODE, gpios, {0}),
+};
 
-// User-defined button event handler
-static button_event_handler_t user_cb;
+static const struct gpio_dt_spec buttons[] = {
+    GPIO_DT_SPEC_GET_OR(SW0_NODE, gpios, {0}),
+    GPIO_DT_SPEC_GET_OR(SW1_NODE, gpios, {0}),
+    GPIO_DT_SPEC_GET_OR(SW2_NODE, gpios, {0}),
+    GPIO_DT_SPEC_GET_OR(SW3_NODE, gpios, {0}),
+};
 
-// Work item for cooldown period
+struct button_data {
+    struct gpio_callback cb;
+    struct k_work_delayable work;
+    button_event_handler_t handler;
+    size_t idx;
+};
+
+static struct button_data button_data[ARRAY_SIZE(buttons)];
+
 static void cooldown_expired(struct k_work *work)
 {
-    ARG_UNUSED(work);
-
-    int val0 = gpio_pin_get_dt(&button0);
-    int val1 = gpio_pin_get_dt(&button1);
-
-    enum button_evt evt0 = val0 ? BUTTON_EVT_PRESSED : BUTTON_EVT_RELEASED;
-    enum button_evt evt1 = val1 ? BUTTON_EVT_PRESSED : BUTTON_EVT_RELEASED;
-
-    if (user_cb) {
-        if (evt0 == BUTTON_EVT_PRESSED || evt1 == BUTTON_EVT_PRESSED) {
-            user_cb(BUTTON_EVT_PRESSED);
-        }
+    struct button_data *data = CONTAINER_OF(work, struct button_data, work);
+    int val = gpio_pin_get_dt(&buttons[data->idx]);
+    enum button_evt evt = val ? BUTTON_EVT_PRESSED : BUTTON_EVT_RELEASED;
+    if (data->handler) {
+        data->handler(data->idx, evt);
     }
 }
 
-static K_WORK_DELAYABLE_DEFINE(cooldown_work, cooldown_expired);
-
-// Callback function for button press
 void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
-    k_work_reschedule(&cooldown_work, K_MSEC(15));
+    struct button_data *data = CONTAINER_OF(cb, struct button_data, cb);
+    k_work_reschedule(&data->work, K_MSEC(15));
 }
 
-// Button initialization function
-int button_init(const struct gpio_dt_spec *button, struct gpio_callback *button_cb, button_event_handler_t handler)
+int button_init(size_t idx, button_event_handler_t handler)
 {
+    if (idx >= ARRAY_SIZE(buttons)) {
+        return -EINVAL;
+    }
+
     if (!handler) {
         return -EINVAL;
     }
 
-    if (!device_is_ready(button->port)) {
+    struct button_data *data = &button_data[idx];
+    data->handler = handler;
+    data->idx = idx;
+
+    if (!device_is_ready(buttons[idx].port)) {
+        printk("Button %zu port not ready\n", idx);
         return -EIO;
     }
 
-    int err = gpio_pin_configure_dt(button, GPIO_INPUT);
+    int err = gpio_pin_configure_dt(&buttons[idx], GPIO_INPUT);
     if (err) {
+        printk("Failed to configure button %zu: %d\n", idx, err);
         return err;
     }
 
-    err = gpio_pin_interrupt_configure_dt(button, GPIO_INT_EDGE_BOTH);
+    err = gpio_pin_interrupt_configure_dt(&buttons[idx], GPIO_INT_EDGE_BOTH);
     if (err) {
+        printk("Failed to configure interrupt for button %zu: %d\n", idx, err);
         return err;
     }
 
-    gpio_init_callback(button_cb, button_pressed, BIT(button->pin));
-    err = gpio_add_callback(button->port, button_cb);
+    gpio_init_callback(&data->cb, button_pressed, BIT(buttons[idx].pin));
+    err = gpio_add_callback(buttons[idx].port, &data->cb);
     if (err) {
+        printk("Failed to add callback for button %zu: %d\n", idx, err);
+        return err;
+    }
+
+    k_work_init_delayable(&data->work, cooldown_expired);
+
+    printk("Button %zu initialized\n", idx);
+
+    // Initialize LED GPIO as output (assuming LEDs are used)
+    if (!device_is_ready(leds[0].port)) {
+        printk("LED port not ready\n");
+        return -EIO;
+    }
+
+    err = gpio_pin_configure_dt(&leds[0], GPIO_OUTPUT_ACTIVE);
+    if (err < 0) {
+        printk("Failed to configure LED: %d\n", err);
         return err;
     }
 
     return 0;
 }
 
-// Helper function to handle button events
-static char *helper_button_evt_str(enum button_evt evt)
+static void button_event_handler(size_t idx, enum button_evt evt)
 {
-    int err;
-    switch (evt) {
-    case BUTTON_EVT_PRESSED:
-        err = gpio_pin_toggle_dt(&led);
-        if (err < 0) {
-            return "Error";
-        }
-        return "Pressed";
-    case BUTTON_EVT_RELEASED:
-        err = gpio_pin_toggle_dt(&led);
-        if (err < 0) {
-            return "Error";
-        }
-        return "Pressed";
-        return "Released";
-    default:
-        return "Unknown";
+    switch (idx) {
+        case 0:
+            if (evt == BUTTON_EVT_PRESSED) {
+                int err = gpio_pin_toggle_dt(&leds[0]);
+                if (err < 0) {
+                    return err;
+                }
+                printk("Button 1 pressed\n");
+            } else {
+                int err = gpio_pin_toggle_dt(&leds[0]);
+                if (err < 0) {
+                    return err;
+                }
+                printk("Button 1 released\n");
+            }
+            break;
+        case 1:
+            if (evt == BUTTON_EVT_PRESSED) {
+                int err = gpio_pin_toggle_dt(&leds[0]);
+                if (err < 0) {
+                    return err;
+                }
+                printk("Button 2 pressed\n");
+            } else {
+                printk("Button 2 released\n");
+            }
+            break;
+        case 2:
+            if (evt == BUTTON_EVT_PRESSED) {
+                printk("Button 3 pressed\n");
+            } else {
+                int err = gpio_pin_toggle_dt(&leds[0]);
+                if (err < 0) {
+                    return err;
+                }
+                printk("Button 3 released\n");
+            }
+            break;
+        case 3:
+            if (evt == BUTTON_EVT_PRESSED) {
+                printk("Button 4 pressed\n");
+            } else {
+                printk("Button 4 released\n");
+            }
+            break;
+        default:
+            printk("Unknown button %zu event\n", idx + 1);
+            break;
     }
 }
 
-// User-defined button event handler implementation
-static void button_event_handler(enum button_evt evt)
-{
-    printk("Button event: %s\n", helper_button_evt_str(evt));
-}
-
-// Main function
-void main(void)
+int main(void)
 {
     printk("Button Debouncing Sample!\n");
 
-    user_cb = button_event_handler;
-
-    int err = button_init(&button0, &button0_cb_data, button_event_handler);
-    if (err) {
-        printk("Button0 Init failed: %d\n", err);
-        return;
+    // Initialize buttons
+    for (size_t i = 0; i < ARRAY_SIZE(buttons); i++) {
+        int err = button_init(i, button_event_handler);
+        if (err) {
+            printk("Button %zu Init failed: %d\n", i + 1, err);
+            return err;
+        }
     }
 
-    err = button_init(&button1, &button1_cb_data, button_event_handler);
-    if (err) {
-        printk("Button1 Init failed: %d\n", err);
-        return;
+    // Main loop
+    while (1) {
+        k_sleep(K_FOREVER);
     }
 
-    if (!device_is_ready(led.port)) {
-        printk("LED device not ready\n");
-        return;
-    }
-
-    err = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
-    if (err < 0) {
-        printk("LED configuration failed: %d\n", err);
-        return;
-    }
-
-    printk("Init succeeded. Waiting for event...\n");
+    return 0;
 }
