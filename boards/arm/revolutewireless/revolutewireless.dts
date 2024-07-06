@@ -16,7 +16,6 @@
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,code-partition = &slot0_partition;
-		// zephyr,settings-partition = &storage_partition;
 
 	};
 
@@ -29,21 +28,7 @@
 					gpios = < &gpio0 3 GPIO_ACTIVE_HIGH >;
 					label = "LED 0";
 			};
-			nc_1: led_1 {
-					/* LED 1 on P0.14, LED on when pin is low */
-					gpios = < &gpio0 10 GPIO_ACTIVE_HIGH >;
-					label = "LED 1";
-			};
-			nc_2: led_2 {
-					/* LED 2 on P1.0, on when low */
-					gpios = < &gpio0 9 GPIO_ACTIVE_HIGH >;
-					label = "LED 2";
-			};
-			nc_3: led_3 {
-					/* LED 3 on P1.1, on when high */
-					gpios = < &gpio0 5 GPIO_ACTIVE_HIGH >;
-					label = "LED 3";
-			};
+
 	};
 
 
