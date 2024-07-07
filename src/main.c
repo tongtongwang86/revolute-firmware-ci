@@ -7,6 +7,7 @@
 #include <zephyr/logging/log.h>
 
 
+LOG_MODULE_REGISTER(button_handler, LOG_LEVEL_DBG);
 
 #define SW0_NODE    DT_ALIAS(sw0)
 #define SW1_NODE    DT_ALIAS(sw1)
@@ -32,29 +33,34 @@ static const struct gpio_dt_spec buttons[] = {
     GPIO_DT_SPEC_GET_OR(SW3_NODE, gpios, {0}),
 };
 
-struct button_data {
-    struct gpio_callback cb;
-    struct k_work_delayable work;
-    button_event_handler_t handler;
-    size_t idx;
-};
+static struct gpio_callback button_cb_data[ARRAY_SIZE(buttons)];
+static button_event_handler_t user_cb[ARRAY_SIZE(buttons)];
+static bool button_pressed[ARRAY_SIZE(buttons)] = {false};
 
-static struct button_data button_data[ARRAY_SIZE(buttons)];
-
-static void cooldown_expired(struct k_work *work)
+void button_pressed_handler(const struct device *dev, struct gpio_callback *cb,
+                            uint32_t pins)
 {
-    struct button_data *data = CONTAINER_OF(work, struct button_data, work);
-    int val = gpio_pin_get_dt(&buttons[data->idx]);
-    enum button_evt evt = val ? BUTTON_EVT_PRESSED : BUTTON_EVT_RELEASED;
-    if (data->handler) {
-        data->handler(data->idx, evt);
+    size_t idx = 0;
+    for (size_t i = 0; i < ARRAY_SIZE(buttons); i++) {
+        if (cb == &button_cb_data[i]) {
+            idx = i;
+            break;
+        }
     }
-}
 
-void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
-{
-    struct button_data *data = CONTAINER_OF(cb, struct button_data, cb);
-    k_work_reschedule(&data->work, K_MSEC(15));
+    if (!button_pressed[idx]) {
+        // Button pressed event
+        button_pressed[idx] = true;
+        if (user_cb[idx]) {
+            user_cb[idx](idx, BUTTON_EVT_PRESSED);
+        }
+    } else {
+        // Button released event
+        button_pressed[idx] = false;
+        if (user_cb[idx]) {
+            user_cb[idx](idx, BUTTON_EVT_RELEASED);
+        }
+    }
 }
 
 int button_init(size_t idx, button_event_handler_t handler)
@@ -67,47 +73,43 @@ int button_init(size_t idx, button_event_handler_t handler)
         return -EINVAL;
     }
 
-    struct button_data *data = &button_data[idx];
-    data->handler = handler;
-    data->idx = idx;
+    user_cb[idx] = handler;
 
     if (!device_is_ready(buttons[idx].port)) {
-        printk("Button %zu port not ready\n", idx);
+        LOG_ERR("Button %zu port not ready", idx);
         return -EIO;
     }
 
     int err = gpio_pin_configure_dt(&buttons[idx], GPIO_INPUT);
     if (err) {
-        printk("Failed to configure button %zu: %d\n", idx, err);
+        LOG_ERR("Failed to configure button %zu: %d", idx, err);
         return err;
     }
 
     err = gpio_pin_interrupt_configure_dt(&buttons[idx], GPIO_INT_EDGE_BOTH);
     if (err) {
-        printk("Failed to configure interrupt for button %zu: %d\n", idx, err);
+        LOG_ERR("Failed to configure interrupt for button %zu: %d", idx, err);
         return err;
     }
 
-    gpio_init_callback(&data->cb, button_pressed, BIT(buttons[idx].pin));
-    err = gpio_add_callback(buttons[idx].port, &data->cb);
+    gpio_init_callback(&button_cb_data[idx], button_pressed_handler, BIT(buttons[idx].pin));
+    err = gpio_add_callback(buttons[idx].port, &button_cb_data[idx]);
     if (err) {
-        printk("Failed to add callback for button %zu: %d\n", idx, err);
+        LOG_ERR("Failed to add callback for button %zu: %d", idx, err);
         return err;
     }
 
-    k_work_init_delayable(&data->work, cooldown_expired);
-
-    printk("Button %zu initialized\n", idx);
+    LOG_INF("Button %zu initialized", idx);
 
     // Initialize LED GPIO as output (assuming LEDs are used)
     if (!device_is_ready(leds[0].port)) {
-        printk("LED port not ready\n");
+        LOG_ERR("LED port not ready");
         return -EIO;
     }
 
     err = gpio_pin_configure_dt(&leds[0], GPIO_OUTPUT_ACTIVE);
     if (err < 0) {
-        printk("Failed to configure LED: %d\n", err);
+        LOG_ERR("Failed to configure LED: %d", err);
         return err;
     }
 
@@ -116,74 +118,78 @@ int button_init(size_t idx, button_event_handler_t handler)
 
 static void button_event_handler(size_t idx, enum button_evt evt)
 {
+    int err;
     switch (idx) {
         case 0:
             if (evt == BUTTON_EVT_PRESSED) {
-                int err = gpio_pin_toggle_dt(&leds[0]);
+                err = gpio_pin_toggle_dt(&leds[0]);
                 if (err < 0) {
                     return err;
                 }
-                printk("Button 1 pressed\n");
+                LOG_INF("Button 1 pressed");
+                
             } else {
-                int err = gpio_pin_toggle_dt(&leds[0]);
+                err = gpio_pin_toggle_dt(&leds[0]);
                 if (err < 0) {
                     return err;
                 }
-                printk("Button 1 released\n");
+                LOG_INF("Button 1 released");
+                
             }
             break;
         case 1:
             if (evt == BUTTON_EVT_PRESSED) {
-                int err = gpio_pin_toggle_dt(&leds[0]);
+                err = gpio_pin_toggle_dt(&leds[0]);
                 if (err < 0) {
                     return err;
                 }
-                printk("Button 2 pressed\n");
+                LOG_INF("Button 2 pressed");
             } else {
-                printk("Button 2 released\n");
+                LOG_INF("Button 2 released");
             }
             break;
         case 2:
             if (evt == BUTTON_EVT_PRESSED) {
-                printk("Button 3 pressed\n");
+                LOG_INF("Button 3 pressed");
             } else {
-                int err = gpio_pin_toggle_dt(&leds[0]);
+                err = gpio_pin_toggle_dt(&leds[0]);
                 if (err < 0) {
                     return err;
                 }
-                printk("Button 3 released\n");
+                LOG_INF("Button 3 released");
             }
             break;
         case 3:
             if (evt == BUTTON_EVT_PRESSED) {
-                printk("Button 4 pressed\n");
+                LOG_INF("Button 4 pressed");
             } else {
-                printk("Button 4 released\n");
+                LOG_INF("Button 4 released");
             }
             break;
         default:
-            printk("Unknown button %zu event\n", idx + 1);
+            LOG_ERR("Unknown button %zu event", idx + 1);
             break;
     }
 }
 
-int main(void)
+void main(void)
 {
-    printk("Button Debouncing Sample!\n");
+    log_init();
+    LOG_INF("Button Debouncing Sample!");
 
     // Initialize buttons
     for (size_t i = 0; i < ARRAY_SIZE(buttons); i++) {
         int err = button_init(i, button_event_handler);
         if (err) {
-            printk("Button %zu Init failed: %d\n", i + 1, err);
-            return err;
+            LOG_ERR("Button %zu Init failed: %d", i + 1, err);
+            return;
         }
     }
+
+    LOG_INF("Init succeeded. Waiting for event...");
 
     // Main loop
     while (1) {
         k_sleep(K_FOREVER);
     }
-
-    return 0;
 }
