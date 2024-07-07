@@ -1,3 +1,12 @@
+
+
+
+
+
+
+
+#include <zephyr/mgmt/mcumgr/transport/smp_bt.h>
+
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/uart.h>
@@ -258,23 +267,38 @@ void main(void)
 		LOG_INF("Failed to register authorization callbacks.\n");
 		return -1;
 	}
+ 
 
     bt_conn_cb_register(&connection_callbacks);
     
+
+    LOG_INF("Initializing settings subsystem...");
+    err = settings_subsys_init();
+    if (err) {
+        LOG_ERR("Settings subsystem initialization failed (err %d)", err);
+        return;
+    }
+
+    // settings_subsys_init();
+
+
+
 	err = bt_enable(NULL);
 	if (err) {
 		LOG_INF("Bluetooth init failed (err %d)\n", err);
 		return -1;
 	}
-
-
     LOG_INF("Bluetooth initialized\n");
-      err = settings_load();
+    err = settings_load();
     if (err) {
 		LOG_INF("settings gay (err %d)\n", err);
 		return -1;
 	}
-    LOG_INF("settings loaded\n");
+     LOG_INF("settings loaded\n");
+
+    
+      
+   
 	/* STEP 1.3 - Add setting load function */
 	
     // k_work_submit(&advertise_acceptlist_work);
