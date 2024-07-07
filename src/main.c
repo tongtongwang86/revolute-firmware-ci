@@ -44,10 +44,26 @@ static const struct bt_data sd[] = {
 
 
 
+#include <zephyr/kernel.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/uart.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/usb/usb_device.h>
+#include <zephyr/usb/usbd.h>
+#include <zephyr/logging/log.h>
+
+
+#include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/bluetooth/gatt.h>
+#include <zephyr/bluetooth/uuid.h>
+#include <zephyr/bluetooth/conn.h>
+#include <zephyr/settings/settings.h>
+
+
+#include <zephyr/kernel.h>
+#include <zephyr/drivers/gpio.h>
+
 #define SW0_NODE    DT_ALIAS(sw0)
-#define SW1_NODE    DT_ALIAS(sw1)
-#define SW2_NODE    DT_ALIAS(sw2)
-#define SW3_NODE    DT_ALIAS(sw3)
 #define LED0_NODE   DT_ALIAS(led0)
 
 enum button_evt {
@@ -55,85 +71,103 @@ enum button_evt {
     BUTTON_EVT_RELEASED
 };
 
-typedef void (*button_event_handler_t)(size_t idx, enum button_evt evt);
+typedef void (*button_event_handler_t)(enum button_evt evt);
 
-static const struct gpio_dt_spec leds[] = {
-    GPIO_DT_SPEC_GET_OR(LED0_NODE, gpios, {0}),
-};
+static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
 
-static const struct gpio_dt_spec buttons[] = {
-    GPIO_DT_SPEC_GET_OR(SW0_NODE, gpios, {0}),
-    GPIO_DT_SPEC_GET_OR(SW1_NODE, gpios, {0}),
-    GPIO_DT_SPEC_GET_OR(SW2_NODE, gpios, {0}),
-    GPIO_DT_SPEC_GET_OR(SW3_NODE, gpios, {0}),
-};
+static struct gpio_callback button_cb_data;
 
-static struct gpio_callback button_cb_data[ARRAY_SIZE(buttons)];
-static button_event_handler_t user_cb[ARRAY_SIZE(buttons)];
-static bool button_pressed[ARRAY_SIZE(buttons)] = {false};
+static button_event_handler_t user_cb;
 
-
-static void setup_accept_list_cb(const struct bt_bond_info *info, void *user_data)
+static void cooldown_expired(struct k_work *work)
 {
-	int *bond_cnt = user_data;
+    ARG_UNUSED(work);
 
-	if ((*bond_cnt) < 0) {
-		return;
-	}
-
-	int err = bt_le_filter_accept_list_add(&info->addr);
-	LOG_INF("Added following peer to accept list: %x %x\n", info->addr.a.val[0],
-		info->addr.a.val[1]);
-	if (err) {
-		LOG_INF("Cannot add peer to filter accept list (err: %d)\n", err);
-		(*bond_cnt) = -EIO;
-	} else {
-		(*bond_cnt)++;
-	}
+    int val = gpio_pin_get_dt(&button);
+    enum button_evt evt = val ? BUTTON_EVT_PRESSED : BUTTON_EVT_RELEASED;
+    if (user_cb) {
+        user_cb(evt);
+    }
 }
 
-/* STEP 3.3.2 - Define the function to loop through the bond list */
-static int setup_accept_list(uint8_t local_id)
+static K_WORK_DELAYABLE_DEFINE(cooldown_work, cooldown_expired);
+
+void button_pressed(const struct device *dev, struct gpio_callback *cb,
+                    uint32_t pins)
 {
-	int err = bt_le_filter_accept_list_clear();
-
-	if (err) {
-		LOG_INF("Cannot clear accept list (err: %d)\n", err);
-		return err;
-	}
-
-	int bond_cnt = 0;
-
-	bt_foreach_bond(local_id, setup_accept_list_cb, &bond_cnt);
-
-	return bond_cnt;
+    k_work_reschedule(&cooldown_work, K_MSEC(15));
 }
 
-/* STEP 3.4.1 - Define the function to advertise with the Accept List */
-void advertise_with_acceptlist(struct k_work *work)
+int button_init(button_event_handler_t handler)
 {
-	int err = 0;
-	int allowed_cnt = setup_accept_list(BT_ID_DEFAULT);
-	if (allowed_cnt < 0) {
-		LOG_INF("Acceptlist setup failed (err:%d)\n", allowed_cnt);
-	} else {
-		if (allowed_cnt == 0) {
-			LOG_INF("Advertising with no Accept list \n");
-			err = bt_le_adv_start(BT_LE_ADV_CONN_NO_ACCEPT_LIST, ad, ARRAY_SIZE(ad), sd,
-					      ARRAY_SIZE(sd));
-		} else {
-			LOG_INF("Acceptlist setup number  = %d \n", allowed_cnt);
-			err = bt_le_adv_start(BT_LE_ADV_CONN_ACCEPT_LIST, ad, ARRAY_SIZE(ad), sd,
-					      ARRAY_SIZE(sd));
-		}
-		if (err) {
-			LOG_INF("Advertising failed to start (err %d)\n", err);
-			return;
-		}
-		LOG_INF("Advertising successfully started\n");
-	}
+    if (!handler) {
+        return -EINVAL;
+    }
+
+    user_cb = handler;
+
+    if (!device_is_ready(button.port)) {
+        return -EIO;
+    }
+
+    int err = gpio_pin_configure_dt(&button, GPIO_INPUT);
+    if (err) {
+        return err;
+    }
+
+    err = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_BOTH);
+    if (err) {
+        return err;
+    }
+
+    gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin));
+    err = gpio_add_callback(button.port, &button_cb_data);
+    if (err) {
+        return err;
+    }
+
+    return 0;
 }
-K_WORK_DEFINE(advertise_acceptlist_work, advertise_with_acceptlist);
+
+static char *helper_button_evt_str(enum button_evt evt)
+{
+    int err;
+    switch (evt) {
+    case BUTTON_EVT_PRESSED:
+        err = gpio_pin_toggle_dt(&led);
+        if (err < 0) {
+            return "Error";
+        }
+         err = bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
+			if (err) {
+				LOG_INF("Cannot delete bond (err: %d)\n", err);
+			} else {
+				LOG_INF("Bond deleted succesfully");
+			}
+
+        return "Pressed";
+    case BUTTON_EVT_RELEASED:
+        err = gpio_pin_toggle_dt(&led);
+        if (err < 0) {
+            return "Error";
+        }
+        return "Released";
+    default:
+        return "Unknown";
+    }
+}
+
+static void button_event_handler(enum button_evt evt)
+{
+    printk("Button event: %s\n", helper_button_evt_str(evt));
+}
+
+
+
+
+
+
 
 static void on_connected(struct bt_conn *conn, uint8_t err)
 {
@@ -146,22 +180,28 @@ static void on_connected(struct bt_conn *conn, uint8_t err)
     if (bt_conn_set_security(conn, BT_SECURITY_L2)) {
 		LOG_INF("Failed to set security\n");
 	}
-	err = gpio_pin_toggle_dt(&leds[0]);
-                if (err < 0) {
-                    return err;
-                }
+	err = gpio_pin_toggle_dt(&led);
+        if (err < 0) {
+            return "Error";
+        }
 }
 
 static void on_disconnected(struct bt_conn *conn, uint8_t reason)
 {
 	LOG_INF("Disconnected (reason %u)\n", reason);
 
-	int err = gpio_pin_toggle_dt(&leds[0]);
-                if (err < 0) {
-                    return err;
-                }
+	int err = gpio_pin_toggle_dt(&led);
+        if (err < 0) {
+            return "Error";
+        }
 	/* STEP 3.5 - Start advertising with Accept List */
-	k_work_submit(&advertise_acceptlist_work);
+	err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad),
+				 sd, ARRAY_SIZE(sd));
+	if (err) {
+		LOG_INF("Advertising failed to start (err %d)\n", err);
+		return;
+	}
+    
 }
 
 static void on_security_changed(struct bt_conn *conn, bt_security_t level, enum bt_security_err err)
@@ -204,172 +244,9 @@ static struct bt_conn_auth_cb conn_auth_callbacks = {
 	.cancel = auth_cancel,
 };
 
-void button_pressed_handler(const struct device *dev, struct gpio_callback *cb,
-                            uint32_t pins)
-{
-    size_t idx = 0;
-    for (size_t i = 0; i < ARRAY_SIZE(buttons); i++) {
-        if (cb == &button_cb_data[i]) {
-            idx = i;
-            break;
-        }
-    }
 
-    if (!button_pressed[idx]) {
-        // Button pressed event
-        button_pressed[idx] = true;
-        if (user_cb[idx]) {
-            user_cb[idx](idx, BUTTON_EVT_PRESSED);
-        }
-    } else {
-        // Button released event
-        button_pressed[idx] = false;
-        if (user_cb[idx]) {
-            user_cb[idx](idx, BUTTON_EVT_RELEASED);
-        }
-    }
-}
 
-int button_init(size_t idx, button_event_handler_t handler)
-{
-    if (idx >= ARRAY_SIZE(buttons)) {
-        return -EINVAL;
-    }
 
-    if (!handler) {
-        return -EINVAL;
-    }
-
-    user_cb[idx] = handler;
-
-    if (!device_is_ready(buttons[idx].port)) {
-        LOG_ERR("Button %zu port not ready", idx);
-        return -EIO;
-    }
-
-    int err = gpio_pin_configure_dt(&buttons[idx], GPIO_INPUT);
-    if (err) {
-        LOG_ERR("Failed to configure button %zu: %d", idx, err);
-        return err;
-    }
-
-    err = gpio_pin_interrupt_configure_dt(&buttons[idx], GPIO_INT_EDGE_BOTH);
-    if (err) {
-        LOG_ERR("Failed to configure interrupt for button %zu: %d", idx, err);
-        return err;
-    }
-
-    gpio_init_callback(&button_cb_data[idx], button_pressed_handler, BIT(buttons[idx].pin));
-    err = gpio_add_callback(buttons[idx].port, &button_cb_data[idx]);
-    if (err) {
-        LOG_ERR("Failed to add callback for button %zu: %d", idx, err);
-        return err;
-    }
-
-    LOG_INF("Button %zu initialized", idx);
-
-    // Initialize LED GPIO as output (assuming LEDs are used)
-    if (!device_is_ready(leds[0].port)) {
-        LOG_ERR("LED port not ready");
-        return -EIO;
-    }
-
-    err = gpio_pin_configure_dt(&leds[0], GPIO_OUTPUT_ACTIVE);
-    if (err < 0) {
-        LOG_ERR("Failed to configure LED: %d", err);
-        return err;
-    }
-
-    return 0;
-}
-
-static void button_event_handler(size_t idx, enum button_evt evt)
-{
-    int err;
-    
-    switch (idx) {
-        case 0:
-            if (evt == BUTTON_EVT_PRESSED) {
-
-                err = gpio_pin_toggle_dt(&leds[0]);
-
-                if (err < 0) {
-                    return err;
-                }
-                 err = bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
-			if (err) {
-				LOG_INF("Cannot delete bond (err: %d)\n", err);
-			} else {
-				LOG_INF("Bond deleted succesfully");
-			}
-
-                LOG_INF("Button 1 pressed");
-                
-            } else {
-                err = gpio_pin_toggle_dt(&leds[0]);
-                if (err < 0) {
-                    return err;
-                }
-                LOG_INF("Button 1 released");
-                
-            }
-            break;
-        case 1:
-            if (evt == BUTTON_EVT_PRESSED) {
-
-                err = gpio_pin_toggle_dt(&leds[0]);
-
-                if (err < 0) {
-                    return err;
-                }
-                 err = bt_le_adv_stop();
-			if (err) {
-				LOG_INF("Cannot stop advertising err= %d \n", err);
-				return;
-			}
-			err = bt_le_filter_accept_list_clear();
-			if (err) {
-				LOG_INF("Cannot clear accept list (err: %d)\n", err);
-			} else {
-				LOG_INF("Accept list cleared succesfully");
-			}
-			err = bt_le_adv_start(BT_LE_ADV_CONN_NO_ACCEPT_LIST, ad,
-						   ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-
-			if (err) {
-				LOG_INF("Cannot start open advertising (err: %d)\n", err);
-			} else {
-				LOG_INF("Advertising in pairing mode started");
-			}
-            
-                LOG_INF("Button 2 pressed");
-            } else {
-                LOG_INF("Button 2 released");
-            }
-            break;
-        case 2:
-            if (evt == BUTTON_EVT_PRESSED) {
-                LOG_INF("Button 3 pressed");
-            } else {
-                err = gpio_pin_toggle_dt(&leds[0]);
-                if (err < 0) {
-                    return err;
-                }
-                LOG_INF("Button 3 released");
-            }
-            break;
-        case 3:
-            if (evt == BUTTON_EVT_PRESSED) {
-                LOG_INF("Button 4 pressed");
-            } else {
-                LOG_INF("Button 4 released");
-            }
-            break;
-        default:
-            LOG_ERR("Unknown button %zu event", idx + 1);
-            break;
-    }
-}
 
 void main(void)
 {
@@ -400,16 +277,29 @@ void main(void)
     LOG_INF("settings loaded\n");
 	/* STEP 1.3 - Add setting load function */
 	
-    k_work_submit(&advertise_acceptlist_work);
+    // k_work_submit(&advertise_acceptlist_work);
+    	/* STEP 3.4.3 - Remove the original code that does normal advertising */
+	err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad),
+				 sd, ARRAY_SIZE(sd));
+	if (err) {
+		LOG_INF("Advertising failed to start (err %d)\n", err);
+		return;
+	}
+	LOG_INF("Advertising successfully started\n");
 
+    err = button_init(button_event_handler);
+    if (err) {
+        printk("Button Init failed: %d\n", err);
+        return err;
+    }
 
-    // Initialize buttons
-    for (size_t i = 0; i < ARRAY_SIZE(buttons); i++) {
-        int err = button_init(i, button_event_handler);
-        if (err) {
-            LOG_ERR("Button %zu Init failed: %d", i + 1, err);
-            return;
-        }
+    if (!device_is_ready(led.port)) {
+        return -EIO;
+    }
+
+    err = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
+    if (err < 0) {
+        return err;
     }
 
     LOG_INF("Init succeeded. Waiting for event...");
