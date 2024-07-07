@@ -7,403 +7,577 @@
 #include <zephyr/logging/log.h>
 
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/gatt.h>
-#include <zephyr/bluetooth/uuid.h>
-#include <zephyr/bluetooth/conn.h>
+#include <stdio.h>
+#include <string.h>
+
 #include <zephyr/settings/settings.h>
 
-LOG_MODULE_REGISTER(button_handler, LOG_LEVEL_DBG);
+#include <errno.h>
+#include <zephyr/sys/printk.h>
 
-#define DEVICE_NAME CONFIG_BT_DEVICE_NAME
-#define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
+#if defined(CONFIG_SETTINGS_FILE)
+#include <zephyr/fs/fs.h>
+#include <zephyr/fs/littlefs.h>
+#endif
 
+#define STORAGE_PARTITION	storage_partition
+#define STORAGE_PARTITION_ID	FIXED_PARTITION_ID(STORAGE_PARTITION)
 
-#define BT_LE_ADV_CONN_NO_ACCEPT_LIST                                                              \
-	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME,                        \
-			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
-/* STEP 3.2.2 - Define advertising parameter for when Accept List is used */
-#define BT_LE_ADV_CONN_ACCEPT_LIST                                                                 \
-	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_FILTER_CONN |                    \
-				BT_LE_ADV_OPT_ONE_TIME,                                            \
-			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
+#define GAMMA_DEFAULT_VAl 0
+#define FAIL_MSG "fail (err %d)\n"
+#define SECTION_BEGIN_LINE \
+	"\n=================================================\n"
+/* Default values are assigned to settings values consuments
+ * All of them will be overwritten if storage contain proper key-values
+ */
+uint8_t angle_val;
+uint64_t length_val = 100;
+uint16_t length_1_val = 40;
+uint32_t length_2_val = 60;
+int32_t voltage_val = -3000;
+char source_name_val[6] = "";
 
-static const struct bt_data ad[] = {
-	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-};
-static const struct bt_data sd[] = {
-	BT_DATA_BYTES(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME)};
+int alpha_handle_set(const char *name, size_t len, settings_read_cb read_cb,
+		  void *cb_arg);
+int alpha_handle_commit(void);
+int alpha_handle_export(int (*cb)(const char *name,
+			       const void *value, size_t val_len));
 
+int beta_handle_set(const char *name, size_t len, settings_read_cb read_cb,
+		  void *cb_arg);
+int beta_handle_commit(void);
+int beta_handle_export(int (*cb)(const char *name,
+			       const void *value, size_t val_len));
+int beta_handle_get(const char *name, char *val, int val_len_max);
 
-
-
-
-#define SW0_NODE    DT_ALIAS(sw0)
-#define SW1_NODE    DT_ALIAS(sw1)
-#define SW2_NODE    DT_ALIAS(sw2)
-#define SW3_NODE    DT_ALIAS(sw3)
-#define LED0_NODE   DT_ALIAS(led0)
-
-enum button_evt {
-    BUTTON_EVT_PRESSED,
-    BUTTON_EVT_RELEASED
-};
-
-typedef void (*button_event_handler_t)(size_t idx, enum button_evt evt);
-
-static const struct gpio_dt_spec leds[] = {
-    GPIO_DT_SPEC_GET_OR(LED0_NODE, gpios, {0}),
-};
-
-static const struct gpio_dt_spec buttons[] = {
-    GPIO_DT_SPEC_GET_OR(SW0_NODE, gpios, {0}),
-    GPIO_DT_SPEC_GET_OR(SW1_NODE, gpios, {0}),
-    GPIO_DT_SPEC_GET_OR(SW2_NODE, gpios, {0}),
-    GPIO_DT_SPEC_GET_OR(SW3_NODE, gpios, {0}),
+/* dynamic main tree handler */
+struct settings_handler alph_handler = {
+		.name = "alpha",
+		.h_get = NULL,
+		.h_set = alpha_handle_set,
+		.h_commit = alpha_handle_commit,
+		.h_export = alpha_handle_export
 };
 
-static struct gpio_callback button_cb_data[ARRAY_SIZE(buttons)];
-static button_event_handler_t user_cb[ARRAY_SIZE(buttons)];
-static bool button_pressed[ARRAY_SIZE(buttons)] = {false};
+/* static subtree handler */
+SETTINGS_STATIC_HANDLER_DEFINE(beta, "alpha/beta", beta_handle_get,
+			       beta_handle_set, beta_handle_commit,
+			       beta_handle_export);
 
-
-static void setup_accept_list_cb(const struct bt_bond_info *info, void *user_data)
+int alpha_handle_set(const char *name, size_t len, settings_read_cb read_cb,
+		  void *cb_arg)
 {
-	int *bond_cnt = user_data;
+	const char *next;
+	size_t next_len;
+	int rc;
 
-	if ((*bond_cnt) < 0) {
-		return;
+	if (settings_name_steq(name, "angle/1", &next) && !next) {
+		if (len != sizeof(angle_val)) {
+			return -EINVAL;
+		}
+		rc = read_cb(cb_arg, &angle_val, sizeof(angle_val));
+		printk("<alpha/angle/1> = %d\n", angle_val);
+		return 0;
 	}
 
-	int err = bt_le_filter_accept_list_add(&info->addr);
-	LOG_INF("Added following peer to accept list: %x %x\n", info->addr.a.val[0],
-		info->addr.a.val[1]);
-	if (err) {
-		LOG_INF("Cannot add peer to filter accept list (err: %d)\n", err);
-		(*bond_cnt) = -EIO;
+	next_len = settings_name_next(name, &next);
+
+	if (!next) {
+		return -ENOENT;
+	}
+
+	if (!strncmp(name, "length", next_len)) {
+		next_len = settings_name_next(name, &next);
+
+		if (!next) {
+			rc = read_cb(cb_arg, &length_val, sizeof(length_val));
+			printk("<alpha/length> = %" PRId64 "\n", length_val);
+			return 0;
+		}
+
+		if (!strncmp(next, "1", next_len)) {
+			rc = read_cb(cb_arg, &length_1_val,
+				     sizeof(length_1_val));
+			printk("<alpha/length/1> = %d\n", length_1_val);
+			return 0;
+		}
+
+		if (!strncmp(next, "2", next_len)) {
+			rc = read_cb(cb_arg, &length_2_val,
+				     sizeof(length_2_val));
+			printk("<alpha/length/2> = %d\n", length_2_val);
+			return 0;
+		}
+
+		return -ENOENT;
+	}
+
+	return -ENOENT;
+}
+
+int beta_handle_set(const char *name, size_t len, settings_read_cb read_cb,
+		  void *cb_arg)
+{
+	const char *next;
+	size_t name_len;
+	int rc;
+
+	name_len = settings_name_next(name, &next);
+
+	if (!next) {
+		if (!strncmp(name, "voltage", name_len)) {
+			rc = read_cb(cb_arg, &voltage_val, sizeof(voltage_val));
+			printk("<alpha/beta/voltage> = %d\n", voltage_val);
+			return 0;
+		}
+
+		if (!strncmp(name, "source", name_len)) {
+			if (len > sizeof(source_name_val) - 1) {
+				printk("<alpha/beta/source> is not compatible "
+				       "with the application\n");
+				return -EINVAL;
+			}
+			rc = read_cb(cb_arg, source_name_val,
+				     sizeof(source_name_val));
+			if (rc < 0) {
+				return rc;
+			} else if (rc > 0) {
+				printk("<alpha/beta/source> = %s\n",
+				       source_name_val);
+			}
+			return 0;
+		}
+	}
+
+	return -ENOENT;
+}
+
+int alpha_handle_commit(void)
+{
+	printk("loading all settings under <alpha> handler is done\n");
+	return 0;
+}
+
+int alpha_handle_export(int (*cb)(const char *name,
+			       const void *value, size_t val_len))
+{
+	printk("export keys under <alpha> handler\n");
+	(void)cb("alpha/angle/1", &angle_val, sizeof(angle_val));
+	(void)cb("alpha/length", &length_val, sizeof(length_val));
+	(void)cb("alpha/length/1", &length_1_val, sizeof(length_1_val));
+	(void)cb("alpha/length/2", &length_2_val, sizeof(length_2_val));
+
+	return 0;
+}
+
+int beta_handle_export(int (*cb)(const char *name,
+			       const void *value, size_t val_len))
+{
+	printk("export keys under <beta> handler\n");
+	(void)cb("alpha/beta/voltage", &voltage_val, sizeof(voltage_val));
+	(void)cb("alpha/beta/source", source_name_val, strlen(source_name_val) +
+						       1);
+
+	return 0;
+}
+
+int beta_handle_commit(void)
+{
+	printk("loading all settings under <beta> handler is done\n");
+	return 0;
+}
+
+int beta_handle_get(const char *name, char *val, int val_len_max)
+{
+	const char *next;
+
+	if (settings_name_steq(name, "source", &next) && !next) {
+		val_len_max = MIN(val_len_max, strlen(source_name_val));
+		memcpy(val, source_name_val, val_len_max);
+		return val_len_max;
+	}
+
+	return -ENOENT;
+}
+
+static void example_save_and_load_basic(void)
+{
+	int i, rc;
+	int32_t val_s32;
+
+	printk(SECTION_BEGIN_LINE);
+	printk("basic load and save using registered handlers\n");
+	/* load all key-values at once
+	 * In case a key-value doesn't exist in the storage
+	 * default values should be assigned to settings consuments variable
+	 * before any settings load call
+	 */
+	printk("\nload all key-value pairs using registered handlers\n");
+	settings_load();
+
+	val_s32 = voltage_val - 25;
+	/* save certain key-value directly*/
+	printk("\nsave <alpha/beta/voltage> key directly: ");
+	rc = settings_save_one("alpha/beta/voltage", (const void *)&val_s32,
+			       sizeof(val_s32));
+	if (rc) {
+		printk(FAIL_MSG, rc);
+	}
+
+	printk("OK.\n");
+
+	printk("\nload <alpha/beta> key-value pairs using registered "
+	       "handlers\n");
+	settings_load_subtree("alpha/beta");
+
+	/* save only modified values
+	 * or those that were not saved
+	 * before
+	 */
+	i = strlen(source_name_val);
+	if (i < sizeof(source_name_val) - 1) {
+		source_name_val[i] = 'a' + i;
+		source_name_val[i + 1] = 0;
 	} else {
-		(*bond_cnt)++;
+		source_name_val[0] = 0;
+	}
+
+	angle_val += 1;
+
+	printk("\nsave all key-value pairs using registered handlers\n");
+	settings_save();
+
+	if (++length_1_val > 100) {
+		length_1_val = 0;
+	}
+
+	if (--length_2_val > 100) {
+		length_2_val = 100;
+	}
+
+	/*---------------------------
+	 * save only modified values
+	 * or those that were deleted
+	 * before
+	 */
+	printk("\nload all key-value pairs using registered handlers\n");
+	settings_save();
+}
+
+struct direct_length_data {
+	uint64_t length;
+	uint16_t length_1;
+	uint32_t length_2;
+};
+
+static int direct_loader(const char *name, size_t len, settings_read_cb read_cb,
+			  void *cb_arg, void *param)
+{
+	const char *next;
+	size_t name_len;
+	int rc;
+	struct direct_length_data *dest = (struct direct_length_data *)param;
+
+	printk("direct load: ");
+
+	name_len = settings_name_next(name, &next);
+
+	if (name_len == 0) {
+		rc = read_cb(cb_arg, &(dest->length), sizeof(dest->length));
+		printk("<alpha/length>\n");
+		return 0;
+	}
+
+	name_len = settings_name_next(name, &next);
+	if (next) {
+		printk("nothing\n");
+		return -ENOENT;
+	}
+
+	if (!strncmp(name, "1", name_len)) {
+		rc = read_cb(cb_arg, &(dest->length_1), sizeof(dest->length_1));
+		printk("<alpha/length/1>\n");
+		return 0;
+	}
+
+	if (!strncmp(name, "2", name_len)) {
+		rc = read_cb(cb_arg, &(dest->length_2), sizeof(dest->length_2));
+		printk("<alpha/length/2>\n");
+		return 0;
+	}
+
+	printk("nothing\n");
+	return -ENOENT;
+}
+
+static void example_direct_load_subtree(void)
+{
+	struct direct_length_data dld;
+	int rc;
+
+	/* load subtree directly using call-specific handler `direct_loader'
+	 * This handler loads subtree values to call-specific structure of type
+	 * 'direct_length_data`.
+	 */
+	printk(SECTION_BEGIN_LINE);
+	printk("loading subtree to destination provided by the caller\n\n");
+	rc = settings_load_subtree_direct("alpha/length", direct_loader,
+					  (void *)&dld);
+	if (rc == 0) {
+		printk("  direct.length = %" PRId64 "\n", dld.length);
+		printk("  direct.length_1 = %d\n", dld.length_1);
+		printk("  direct.length_2 = %d\n", dld.length_2);
+	} else {
+		printk("  direct load fails unexpectedly\n");
 	}
 }
 
-/* STEP 3.3.2 - Define the function to loop through the bond list */
-static int setup_accept_list(uint8_t local_id)
-{
-	int err = bt_le_filter_accept_list_clear();
+struct direct_immediate_value {
+	size_t len;
+	void *dest;
+	uint8_t fetched;
+};
 
-	if (err) {
-		LOG_INF("Cannot clear accept list (err: %d)\n", err);
-		return err;
+static int direct_loader_immediate_value(const char *name, size_t len,
+					 settings_read_cb read_cb, void *cb_arg,
+					 void *param)
+{
+	const char *next;
+	size_t name_len;
+	int rc;
+	struct direct_immediate_value *one_value =
+					(struct direct_immediate_value *)param;
+
+	name_len = settings_name_next(name, &next);
+
+	if (name_len == 0) {
+		if (len == one_value->len) {
+			rc = read_cb(cb_arg, one_value->dest, len);
+			if (rc >= 0) {
+				one_value->fetched = 1;
+				printk("immediate load: OK.\n");
+				return 0;
+			}
+
+			printk(FAIL_MSG, rc);
+			return rc;
+		}
+		return -EINVAL;
 	}
 
-	int bond_cnt = 0;
-
-	bt_foreach_bond(local_id, setup_accept_list_cb, &bond_cnt);
-
-	return bond_cnt;
+	/* other keys aren't served by the callback
+	 * Return success in order to skip them
+	 * and keep storage processing.
+	 */
+	return 0;
 }
 
-/* STEP 3.4.1 - Define the function to advertise with the Accept List */
-void advertise_with_acceptlist(struct k_work *work)
+int load_immediate_value(const char *name, void *dest, size_t len)
 {
-	int err = 0;
-	int allowed_cnt = setup_accept_list(BT_ID_DEFAULT);
-	if (allowed_cnt < 0) {
-		LOG_INF("Acceptlist setup failed (err:%d)\n", allowed_cnt);
+	int rc;
+	struct direct_immediate_value dov;
+
+	dov.fetched = 0;
+	dov.len = len;
+	dov.dest = dest;
+
+	rc = settings_load_subtree_direct(name, direct_loader_immediate_value,
+					  (void *)&dov);
+	if (rc == 0) {
+		if (!dov.fetched) {
+			rc = -ENOENT;
+		}
+	}
+
+	return rc;
+}
+
+static void example_without_handler(void)
+{
+	uint8_t val_u8;
+	int rc;
+
+	printk(SECTION_BEGIN_LINE);
+	printk("Service a key-value pair without dedicated handlers\n\n");
+	rc = load_immediate_value("gamma", &val_u8, sizeof(val_u8));
+	if (rc == -ENOENT) {
+		val_u8 = GAMMA_DEFAULT_VAl;
+		printk("<gamma> = %d (default)\n", val_u8);
+	} else if (rc == 0) {
+		printk("<gamma> = %d\n", val_u8);
 	} else {
-		if (allowed_cnt == 0) {
-			LOG_INF("Advertising with no Accept list \n");
-			err = bt_le_adv_start(BT_LE_ADV_CONN_NO_ACCEPT_LIST, ad, ARRAY_SIZE(ad), sd,
-					      ARRAY_SIZE(sd));
+		printk("unexpected"FAIL_MSG, rc);
+	}
+
+	val_u8++;
+
+	printk("save <gamma> key directly: ");
+	rc = settings_save_one("gamma", (const void *)&val_u8,
+			       sizeof(val_u8));
+	if (rc) {
+		printk(FAIL_MSG, rc);
+	} else {
+		printk("OK.\n");
+	}
+}
+
+static void example_initialization(void)
+{
+	int rc;
+
+#if defined(CONFIG_SETTINGS_FILE)
+	FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(cstorage);
+
+	/* mounting info */
+	static struct fs_mount_t littlefs_mnt = {
+	.type = FS_LITTLEFS,
+	.fs_data = &cstorage,
+	.storage_dev = (void *)STORAGE_PARTITION_ID,
+	.mnt_point = "/ff"
+	};
+
+	rc = fs_mount(&littlefs_mnt);
+	if (rc != 0) {
+		printk("mounting littlefs error: [%d]\n", rc);
+	} else {
+
+		rc = fs_unlink(CONFIG_SETTINGS_FILE_PATH);
+		if ((rc != 0) && (rc != -ENOENT)) {
+			printk("can't delete config file%d\n", rc);
 		} else {
-			LOG_INF("Acceptlist setup number  = %d \n", allowed_cnt);
-			err = bt_le_adv_start(BT_LE_ADV_CONN_ACCEPT_LIST, ad, ARRAY_SIZE(ad), sd,
-					      ARRAY_SIZE(sd));
+			printk("FS initialized: OK\n");
 		}
-		if (err) {
-			LOG_INF("Advertising failed to start (err %d)\n", err);
-			return;
-		}
-		LOG_INF("Advertising successfully started\n");
 	}
-}
-K_WORK_DEFINE(advertise_acceptlist_work, advertise_with_acceptlist);
+#endif
 
-static void on_connected(struct bt_conn *conn, uint8_t err)
-{
-	if (err) {
-		LOG_INF("Connection failed (err %u)\n", err);
+	rc = settings_subsys_init();
+	if (rc) {
+		printk("settings subsys initialization: fail (err %d)\n", rc);
 		return;
 	}
 
-	LOG_INF("Connected\n");
+	printk("settings subsys initialization: OK.\n");
 
-	err = gpio_pin_toggle_dt(&leds[0]);
-                if (err < 0) {
-                    return err;
-                }
+	rc = settings_register(&alph_handler);
+	if (rc) {
+		printk("subtree <%s> handler registered: fail (err %d)\n",
+		       alph_handler.name, rc);
+	}
+
+	printk("subtree <%s> handler registered: OK\n", alph_handler.name);
+	printk("subtree <alpha/beta> has static handler\n");
 }
 
-static void on_disconnected(struct bt_conn *conn, uint8_t reason)
+static void example_delete(void)
 {
-	LOG_INF("Disconnected (reason %u)\n", reason);
+	uint64_t val_u64;
+	int rc;
 
-	int err = gpio_pin_toggle_dt(&leds[0]);
-                if (err < 0) {
-                    return err;
-                }
-	/* STEP 3.5 - Start advertising with Accept List */
-	k_work_submit(&advertise_acceptlist_work);
-}
+	printk(SECTION_BEGIN_LINE);
+	printk("Delete a key-value pair\n\n");
 
-static void on_security_changed(struct bt_conn *conn, bt_security_t level, enum bt_security_err err)
-{
-	char addr[BT_ADDR_LE_STR_LEN];
+	rc = load_immediate_value("alpha/length", &val_u64, sizeof(val_u64));
+	if (rc == 0) {
+		printk("  <alpha/length> value exist in the storage\n");
+	}
 
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	if (!err) {
-		LOG_INF("Security changed: %s level %u\n", addr, level);
+	printk("delete <alpha/length>: ");
+	rc = settings_delete("alpha/length");
+	if (rc) {
+		printk(FAIL_MSG, rc);
 	} else {
-		LOG_INF("Security failed: %s level %u err %d\n", addr, level, err);
-	}
-}
-struct bt_conn_cb connection_callbacks = {
-	.connected = on_connected,
-	.disconnected = on_disconnected,
-	.security_changed = on_security_changed,
-};
-static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
-{
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	LOG_INF("Passkey for %s: %06u\n", addr, passkey);
-}
-
-static void auth_cancel(struct bt_conn *conn)
-{
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	LOG_INF("Pairing cancelled: %s\n", addr);
-}
-
-static struct bt_conn_auth_cb conn_auth_callbacks = {
-	.passkey_display = auth_passkey_display,
-	.cancel = auth_cancel,
-};
-
-void button_pressed_handler(const struct device *dev, struct gpio_callback *cb,
-                            uint32_t pins)
-{
-    size_t idx = 0;
-    for (size_t i = 0; i < ARRAY_SIZE(buttons); i++) {
-        if (cb == &button_cb_data[i]) {
-            idx = i;
-            break;
-        }
-    }
-
-    if (!button_pressed[idx]) {
-        // Button pressed event
-        button_pressed[idx] = true;
-        if (user_cb[idx]) {
-            user_cb[idx](idx, BUTTON_EVT_PRESSED);
-        }
-    } else {
-        // Button released event
-        button_pressed[idx] = false;
-        if (user_cb[idx]) {
-            user_cb[idx](idx, BUTTON_EVT_RELEASED);
-        }
-    }
-}
-
-int button_init(size_t idx, button_event_handler_t handler)
-{
-    if (idx >= ARRAY_SIZE(buttons)) {
-        return -EINVAL;
-    }
-
-    if (!handler) {
-        return -EINVAL;
-    }
-
-    user_cb[idx] = handler;
-
-    if (!device_is_ready(buttons[idx].port)) {
-        LOG_ERR("Button %zu port not ready", idx);
-        return -EIO;
-    }
-
-    int err = gpio_pin_configure_dt(&buttons[idx], GPIO_INPUT);
-    if (err) {
-        LOG_ERR("Failed to configure button %zu: %d", idx, err);
-        return err;
-    }
-
-    err = gpio_pin_interrupt_configure_dt(&buttons[idx], GPIO_INT_EDGE_BOTH);
-    if (err) {
-        LOG_ERR("Failed to configure interrupt for button %zu: %d", idx, err);
-        return err;
-    }
-
-    gpio_init_callback(&button_cb_data[idx], button_pressed_handler, BIT(buttons[idx].pin));
-    err = gpio_add_callback(buttons[idx].port, &button_cb_data[idx]);
-    if (err) {
-        LOG_ERR("Failed to add callback for button %zu: %d", idx, err);
-        return err;
-    }
-
-    LOG_INF("Button %zu initialized", idx);
-
-    // Initialize LED GPIO as output (assuming LEDs are used)
-    if (!device_is_ready(leds[0].port)) {
-        LOG_ERR("LED port not ready");
-        return -EIO;
-    }
-
-    err = gpio_pin_configure_dt(&leds[0], GPIO_OUTPUT_ACTIVE);
-    if (err < 0) {
-        LOG_ERR("Failed to configure LED: %d", err);
-        return err;
-    }
-
-    return 0;
-}
-
-static void button_event_handler(size_t idx, enum button_evt evt)
-{
-    int err;
-    switch (idx) {
-        case 0:
-            if (evt == BUTTON_EVT_PRESSED) {
-                err = gpio_pin_toggle_dt(&leds[0]);
-                if (err < 0) {
-                    return err;
-                }
-                int err = bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
-			if (err) {
-				LOG_INF("Cannot delete bond (err: %d)\n", err);
-			} else {
-				LOG_INF("Bond deleted succesfully");
-			}
-
-                LOG_INF("Button 1 pressed");
-                
-            } else {
-                err = gpio_pin_toggle_dt(&leds[0]);
-                if (err < 0) {
-                    return err;
-                }
-                LOG_INF("Button 1 released");
-                
-            }
-            break;
-        case 1:
-            if (evt == BUTTON_EVT_PRESSED) {
-                err = gpio_pin_toggle_dt(&leds[0]);
-                if (err < 0) {
-                    return err;
-                }
-                int err_code = bt_le_adv_stop();
-			if (err_code) {
-				LOG_INF("Cannot stop advertising err= %d \n", err_code);
-				return;
-			}
-			err_code = bt_le_filter_accept_list_clear();
-			if (err_code) {
-				LOG_INF("Cannot clear accept list (err: %d)\n", err_code);
-			} else {
-				LOG_INF("Accept list cleared succesfully");
-			}
-			err_code = bt_le_adv_start(BT_LE_ADV_CONN_NO_ACCEPT_LIST, ad,
-						   ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-
-			if (err_code) {
-				LOG_INF("Cannot start open advertising (err: %d)\n", err_code);
-			} else {
-				LOG_INF("Advertising in pairing mode started");
-			}
-            
-                LOG_INF("Button 2 pressed");
-            } else {
-                LOG_INF("Button 2 released");
-            }
-            break;
-        case 2:
-            if (evt == BUTTON_EVT_PRESSED) {
-                LOG_INF("Button 3 pressed");
-            } else {
-                err = gpio_pin_toggle_dt(&leds[0]);
-                if (err < 0) {
-                    return err;
-                }
-                LOG_INF("Button 3 released");
-            }
-            break;
-        case 3:
-            if (evt == BUTTON_EVT_PRESSED) {
-                LOG_INF("Button 4 pressed");
-            } else {
-                LOG_INF("Button 4 released");
-            }
-            break;
-        default:
-            LOG_ERR("Unknown button %zu event", idx + 1);
-            break;
-    }
-}
-
-void main(void)
-{
-    log_init();
-    LOG_INF("Button Debouncing Sample!");
-    
-    int err = bt_conn_auth_cb_register(&conn_auth_callbacks);
-	if (err) {
-		LOG_INF("Failed to register authorization callbacks.\n");
-		return -1;
+		printk("OK.\n");
 	}
 
-    bt_conn_cb_register(&connection_callbacks);
-    
-	err = bt_enable(NULL);
-	if (err) {
-		LOG_INF("Bluetooth init failed (err %d)\n", err);
-		return -1;
+	rc = load_immediate_value("alpha/length", &val_u64, sizeof(val_u64));
+	if (rc == -ENOENT) {
+		printk("  Can't to load the <alpha/length> value as "
+		       "expected\n");
+	}
+}
+
+void example_runtime_usage(void)
+{
+	int rc;
+	uint8_t injected_str[sizeof(source_name_val)] = "RT";
+
+	printk(SECTION_BEGIN_LINE);
+	printk("Inject the value to the setting destination in runtime\n\n");
+
+	rc = settings_runtime_set("alpha/beta/source", (void *) injected_str,
+				  strlen(injected_str) + 1);
+
+	printk("injected <alpha/beta/source>: ");
+	if (rc) {
+		printk(FAIL_MSG, rc);
+	} else {
+		printk("OK.\n");
 	}
 
-    err = settings_load();
-    if (err) {
-		LOG_INF("settings gay (err %d)\n", err);
-		return -1;
+	printk("  The settings destination off the key <alpha/beta/source> has "
+	       "got value: \"%s\"\n\n", source_name_val);
+
+	/* set settings destination value "by hand" for next example */
+	(void) strcpy(source_name_val, "rtos");
+
+	printk(SECTION_BEGIN_LINE);
+	printk("Read a value from the setting destination in runtime\n\n");
+
+	rc = settings_runtime_get("alpha/beta/source", (void *) injected_str,
+				  strlen(injected_str) + 1);
+	printk("fetched <alpha/beta/source>: ");
+	if (rc < 0) {
+		printk(FAIL_MSG, rc);
+	} else {
+		printk("OK.\n");
 	}
 
-    LOG_INF("Bluetooth initialized\n");
-    
-    LOG_INF("settings loaded\n");
-	/* STEP 1.3 - Add setting load function */
-	
-    k_work_submit(&advertise_acceptlist_work);
+	printk("  String value \"%s\" was retrieved from the settings "
+	       "destination off the key <alpha/beta/source>\n",
+	       source_name_val);
+}
 
+int main(void)
+{
 
-    // Initialize buttons
-    for (size_t i = 0; i < ARRAY_SIZE(buttons); i++) {
-        int err = button_init(i, button_event_handler);
-        if (err) {
-            LOG_ERR("Button %zu Init failed: %d", i + 1, err);
-            return;
-        }
-    }
+	int i;
 
-    LOG_INF("Init succeeded. Waiting for event...");
+	printk("\n*** Settings usage example ***\n\n");
 
-    // Main loop
-    while (1) {
-        k_sleep(K_FOREVER);
-    }
+	/* settings initialization */
+	example_initialization();
+
+	for (i = 0; i < 6; i++) {
+		printk("\n##############\n");
+		printk("# iteration %d", i);
+		printk("\n##############\n");
+
+		/*---------------------------------------------
+		 * basic save and load using registered handler
+		 */
+		example_save_and_load_basic();
+
+		/*-------------------------------------------------
+		 *load subtree directly using call-specific handler
+		 */
+		example_direct_load_subtree();
+
+		/*-------------------------
+		 * delete certain key-value
+		 */
+		example_delete();
+
+		/*---------------------------------------
+		 * a key-value without dedicated handler
+		 */
+		example_without_handler();
+	}
+
+	/*------------------------------------------------------
+	 * write and read settings destination using runtime API
+	 */
+	example_runtime_usage();
+
+	printk("\n*** THE END  ***\n");
+	return 0;
 }
