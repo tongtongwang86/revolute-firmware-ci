@@ -2,7 +2,7 @@ on:
   pull_request:
   push:
     branches:
-      - Test-ButtonLedDebounce
+      - Test-FilterList
   # run on tag creation
   create:
     tags:
