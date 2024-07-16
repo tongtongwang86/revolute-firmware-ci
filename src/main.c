@@ -536,16 +536,18 @@ while (1) {
 
 
 if(degrees != lastDegree){
-		if (deltaDeltadegrees > 0){
-			// state += (deltaDeltadegrees);
-			report[1] = 10;
-			// LOG_INF("right");
 
-		}else{
-			// state += (deltaDeltadegrees);
-			report[1] = -10;
-			// LOG_INF("left");
-		}
+		report[1] = usefulDegrees*50;
+		// if (deltaDeltadegrees > 0){
+		// 	// state += (deltaDeltadegrees);
+		// 	report[1] = deltaDeltadegrees;
+		// 	// LOG_INF("right");
+
+		// }else{
+		// 	// state += (deltaDeltadegrees);
+		// 	report[1] = deltaDeltadegrees;
+		// 	// LOG_INF("left");
+		// }
 		}
 
 		lastDegree = degrees;
@@ -556,24 +558,23 @@ if(degrees != lastDegree){
 	if (gpio_pin_get_dt(&sw1)) {
 				report[1] = -10;
 				LOG_INF("right");
-			}
+	}
 
-			if (gpio_pin_get_dt(&sw0)) {
-				report[1] = 10;
-				LOG_INF("right");
-			}
-		
-			if (gpio_pin_get_dt(&sw2)) {
-				report[0] |= BIT(0);
-				LOG_INF("left click");
-			}
+	if (gpio_pin_get_dt(&sw0)) {
+		report[1] = 10;
+		LOG_INF("right");
+	}
+
+	if (gpio_pin_get_dt(&sw2)) {
+		report[0] |= BIT(0);
+		LOG_INF("left click");
+	}
 
 
-			bt_gatt_notify(NULL, &hog_svc.attrs[5],
-				       report, sizeof(report));
-		}
-		k_sleep(K_MSEC(5));
-  }
+	bt_gatt_notify(NULL, &hog_svc.attrs[5],report, sizeof(report));
+}
+k_sleep(K_MSEC(1));
+}
 	
 
 	return 0;

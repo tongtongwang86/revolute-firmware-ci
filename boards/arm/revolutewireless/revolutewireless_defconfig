@@ -26,7 +26,7 @@ CONFIG_PINCTRL=y
 
 # enable GPIO
 CONFIG_GPIO=y
-CONFIG_BUILD_OUTPUT_UF2=y
+
 
 # additional board options
 # CONFIG_GPIO_AS_PINRESET=y
