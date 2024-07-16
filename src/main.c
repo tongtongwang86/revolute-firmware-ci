@@ -1,11 +1,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/uart.h>
 #include <zephyr/sys/printk.h>
-#include <zephyr/usb/usb_device.h>
-#include <zephyr/usb/usbd.h>
 #include <zephyr/logging/log.h>
-
 
 LOG_MODULE_REGISTER(button_handler, LOG_LEVEL_DBG);
 
@@ -35,10 +31,27 @@ static const struct gpio_dt_spec buttons[] = {
 
 static struct gpio_callback button_cb_data[ARRAY_SIZE(buttons)];
 static button_event_handler_t user_cb[ARRAY_SIZE(buttons)];
-static bool button_pressed[ARRAY_SIZE(buttons)] = {false};
 
-void button_pressed_handler(const struct device *dev, struct gpio_callback *cb,
-                            uint32_t pins)
+struct work_item {
+    struct k_work_delayable work;
+    size_t idx;
+};
+
+static struct work_item work_items[ARRAY_SIZE(buttons)];
+
+static void cooldown_expired(struct k_work *work)
+{
+    struct work_item *item = CONTAINER_OF(work, struct work_item, work.work);
+    size_t idx = item->idx;
+    int val = gpio_pin_get_dt(&buttons[idx]);
+    enum button_evt evt = val ? BUTTON_EVT_PRESSED : BUTTON_EVT_RELEASED;
+
+    if (user_cb[idx]) {
+        user_cb[idx](idx, evt);
+    }
+}
+
+void button_pressed_handler(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
     size_t idx = 0;
     for (size_t i = 0; i < ARRAY_SIZE(buttons); i++) {
@@ -48,19 +61,7 @@ void button_pressed_handler(const struct device *dev, struct gpio_callback *cb,
         }
     }
 
-    if (!button_pressed[idx]) {
-        // Button pressed event
-        button_pressed[idx] = true;
-        if (user_cb[idx]) {
-            user_cb[idx](idx, BUTTON_EVT_PRESSED);
-        }
-    } else {
-        // Button released event
-        button_pressed[idx] = false;
-        if (user_cb[idx]) {
-            user_cb[idx](idx, BUTTON_EVT_RELEASED);
-        }
-    }
+    k_work_reschedule(&work_items[idx].work, K_MSEC(15));
 }
 
 int button_init(size_t idx, button_event_handler_t handler)
@@ -101,6 +102,10 @@ int button_init(size_t idx, button_event_handler_t handler)
 
     LOG_INF("Button %zu initialized", idx);
 
+    // Initialize work items
+    work_items[idx].idx = idx;
+    k_work_init_delayable(&work_items[idx].work, cooldown_expired);
+
     // Initialize LED GPIO as output (assuming LEDs are used)
     if (!device_is_ready(leds[0].port)) {
         LOG_ERR("LED port not ready");
@@ -124,24 +129,22 @@ static void button_event_handler(size_t idx, enum button_evt evt)
             if (evt == BUTTON_EVT_PRESSED) {
                 err = gpio_pin_toggle_dt(&leds[0]);
                 if (err < 0) {
-                    return err;
+                    return;
                 }
                 LOG_INF("Button 1 pressed");
-                
             } else {
                 err = gpio_pin_toggle_dt(&leds[0]);
                 if (err < 0) {
-                    return err;
+                    return;
                 }
                 LOG_INF("Button 1 released");
-                
             }
             break;
         case 1:
             if (evt == BUTTON_EVT_PRESSED) {
                 err = gpio_pin_toggle_dt(&leds[0]);
                 if (err < 0) {
-                    return err;
+                    return;
                 }
                 LOG_INF("Button 2 pressed");
             } else {
@@ -154,7 +157,7 @@ static void button_event_handler(size_t idx, enum button_evt evt)
             } else {
                 err = gpio_pin_toggle_dt(&leds[0]);
                 if (err < 0) {
-                    return err;
+                    return;
                 }
                 LOG_INF("Button 3 released");
             }
@@ -172,9 +175,8 @@ static void button_event_handler(size_t idx, enum button_evt evt)
     }
 }
 
-void main(void)
+int main(void)
 {
-    log_init();
     LOG_INF("Button Debouncing Sample!");
 
     // Initialize buttons
@@ -182,7 +184,7 @@ void main(void)
         int err = button_init(i, button_event_handler);
         if (err) {
             LOG_ERR("Button %zu Init failed: %d", i + 1, err);
-            return;
+            return err;
         }
     }
 
@@ -192,4 +194,6 @@ void main(void)
     while (1) {
         k_sleep(K_FOREVER);
     }
+
+    return 0;
 }
