@@ -302,10 +302,10 @@ static const uint8_t zmk_hid_report_desc[] = {
     HID_REPORT_ID(ZMK_HID_REPORT_ID_CONSUMER),
     HID_USAGE_PAGE(HID_USAGE_CONSUMER),
     HID_LOGICAL_MIN8(0x00),
-    HID_LOGICAL_MAX16(0xFF, 0x0F),
+    HID_LOGICAL_MAX16(0xFF, 0x00),
     HID_USAGE_MIN8(0x00),
-    HID_USAGE_MAX16(0xFF, 0x0F),
-    HID_REPORT_SIZE(0x10),
+    HID_USAGE_MAX8(0xFF),
+    HID_REPORT_SIZE(0x08),
     HID_REPORT_COUNT(0x06),
     HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_ARRAY | ZMK_HID_MAIN_VAL_ABS),
     HID_END_COLLECTION,
@@ -906,14 +906,14 @@ int main(void)
             {
                 
                 // report[1] = -10;
-                report[3] = 0x01;
+                report[0] = 0xE9;
                 LOG_INF("up");
             }
 
             if (button_s.button0)
             {
                 // report[1] = 10;
-                report[3] = 0xFF;
+                report[0] = 0xEA;
                 LOG_INF("down");
             }
 
@@ -923,7 +923,7 @@ int main(void)
             //     LOG_INF("left click");
             // }
 
-            bt_gatt_notify(NULL, &hog_svc.attrs[13], report, sizeof(report));
+            bt_gatt_notify(NULL, &hog_svc.attrs[9], report, sizeof(report));
 
             // 5 for keyboard
             // 9 for consumer
