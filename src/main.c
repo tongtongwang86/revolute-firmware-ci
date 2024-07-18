@@ -27,7 +27,6 @@
 #include <hid_usage_pages.h>
 #include <bluetooth/services/hids.h>
 
-
 // magnetic angle sensor
 #include <zephyr/drivers/sensor.h>
 
@@ -35,6 +34,8 @@ LOG_MODULE_REGISTER(button_handler, LOG_LEVEL_DBG);
 
 #define STACKSIZE 1024
 K_THREAD_STACK_DEFINE(batteryUpdateThread_stack_area, STACKSIZE);
+
+#define IDENT_OFFSET 1 // angle offset in degrees
 
 #define PRIORITY 1
 #define SW0_NODE DT_ALIAS(sw0)
@@ -45,8 +46,7 @@ K_THREAD_STACK_DEFINE(batteryUpdateThread_stack_area, STACKSIZE);
 
 #define REPORT_ID_KEYBOARD 1
 #define REPORT_ID_CONSUMER 2
-#define REPORT_ID_MOUSE    3
-
+#define REPORT_ID_MOUSE 3
 
 #define ZMK_HID_MAIN_VAL_DATA (0x00 << 0)
 #define ZMK_HID_MAIN_VAL_CONST (0x01 << 0)
@@ -79,7 +79,6 @@ K_THREAD_STACK_DEFINE(batteryUpdateThread_stack_area, STACKSIZE);
 #define ZMK_HID_REPORT_ID_CONSUMER 0x02
 #define ZMK_HID_REPORT_ID_MOUSE 0x03
 
-
 enum button_evt
 {
     BUTTON_EVT_PRESSED,
@@ -95,6 +94,23 @@ struct button_states
 };
 
 struct button_states button_s;
+
+struct wheel_states
+{
+    bool clockwise;
+    bool countercw;
+};
+
+struct wheel_states wheel_s;
+
+struct selected_mode
+{
+    bool keyboard;
+    bool consumer;
+    bool mouse;
+};
+
+struct selected_mode s_mode;
 
 static struct k_thread batteryUpdateThread_data;
 
@@ -310,7 +326,6 @@ static const uint8_t zmk_hid_report_desc[] = {
     HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_ARRAY | ZMK_HID_MAIN_VAL_ABS),
     HID_END_COLLECTION,
 
-
     HID_USAGE_PAGE(HID_USAGE_GD),
     HID_USAGE(HID_USAGE_GD_MOUSE),
     HID_COLLECTION(HID_COLLECTION_APPLICATION),
@@ -344,8 +359,6 @@ static const uint8_t zmk_hid_report_desc[] = {
 
 };
 
-
-
 static const struct hids_report input = {
     .id = REPORT_ID_KEYBOARD,
     .type = BT_HIDS_REPORT_TYPE_INPUT,
@@ -364,13 +377,21 @@ static const struct hids_report mouse_input = {
 #define INPUT_REPORT_SIZE 8
 
 static struct bt_hids_info info = {
-    .bcd_hid = 0x0111, /* HID Class Spec 1.11 */
+    .bcd_hid = 0x0111,      /* HID Class Spec 1.11 */
     .b_country_code = 0x00, /* Hardware target country */
     .flags = BT_HIDS_REMOTE_WAKE | BT_HIDS_NORMALLY_CONNECTABLE,
 };
 
-static const uint8_t input_report[] = { /* Example input report */
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+static const uint8_t input_report[] = {
+    /* Example input report */
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
 };
 
 static ssize_t read_hids_info(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset)
@@ -398,11 +419,7 @@ static ssize_t read_hids_mouse_input_report(struct bt_conn *conn, const struct b
     return bt_gatt_attr_read(conn, attr, buf, len, offset, input_report, sizeof(input_report));
 }
 
-// static void input_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
-// {
-//     bool notif_enabled = (value == BT_GATT_CCC_NOTIFY);
-//     printk("Notifications %s\n", notif_enabled ? "enabled" : "disabled");
-// }
+
 
 static ssize_t write_ctrl_point(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len, uint16_t offset, uint8_t flags)
 {
@@ -411,63 +428,18 @@ static ssize_t write_ctrl_point(struct bt_conn *conn, const struct bt_gatt_attr 
 }
 
 static ssize_t read_hids_report_ref(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-                                    void *buf, uint16_t len, uint16_t offset) {
+                                    void *buf, uint16_t len, uint16_t offset)
+{
     return bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data,
                              sizeof(struct hids_report));
 }
 
-// static ssize_t read_info(struct bt_conn *conn,
-//                          const struct bt_gatt_attr *attr, void *buf,
-//                          uint16_t len, uint16_t offset)
-// {
-// return bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data,
-//                              sizeof(struct hids_info));
-// }
-
-// static ssize_t read_report_map(struct bt_conn *conn,
-//                                const struct bt_gatt_attr *attr, void *buf,
-//                                uint16_t len, uint16_t offset)
-// {
-// return bt_gatt_attr_read(conn, attr, buf, len, offset, report_map,
-//                              sizeof(report_map));
-// }
-
-// static ssize_t read_report(struct bt_conn *conn,
-//                            const struct bt_gatt_attr *attr, void *buf,
-//                            uint16_t len, uint16_t offset)
-// {
-//     return bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data,
-//                              sizeof(struct hids_report));
-// }
 
 static void input_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
 {
     simulate_input = (value == BT_GATT_CCC_NOTIFY) ? 1 : 0;
 }
 
-// static ssize_t read_input_report(struct bt_conn *conn,
-//                                  const struct bt_gatt_attr *attr, void *buf,
-//                                  uint16_t len, uint16_t offset)
-// {
-//     return bt_gatt_attr_read(conn, attr, buf, len, offset, NULL, 0);
-// }
-
-// static ssize_t write_ctrl_point(struct bt_conn *conn,
-//                                 const struct bt_gatt_attr *attr,
-//                                 const void *buf, uint16_t len, uint16_t offset,
-//                                 uint8_t flags)
-// {
-//     uint8_t *value = attr->user_data;
-
-//     if (offset + len > sizeof(ctrl_point))
-//     {
-//         return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
-//     }
-
-//     memcpy(value + offset, buf, len);
-
-//     return len;
-// }
 
 #if CONFIG_SAMPLE_BT_USE_AUTHENTICATION
 /* Require encryption using authenticated link-key. */
@@ -480,24 +452,23 @@ static void input_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
 #endif
 
 BT_GATT_SERVICE_DEFINE(hog_svc,
-    BT_GATT_PRIMARY_SERVICE(BT_UUID_HIDS),
-    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_INFO, BT_GATT_CHRC_READ, BT_GATT_PERM_READ, read_hids_info, NULL, &info),
-    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT_MAP, BT_GATT_CHRC_READ, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_map, NULL, NULL),
+                       BT_GATT_PRIMARY_SERVICE(BT_UUID_HIDS),
+                       BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_INFO, BT_GATT_CHRC_READ, BT_GATT_PERM_READ, read_hids_info, NULL, &info),
+                       BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT_MAP, BT_GATT_CHRC_READ, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_map, NULL, NULL),
 
-    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_READ_ENCRYPT, read_hids_input_report, NULL, NULL),
-    BT_GATT_CCC(input_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
-    BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref, NULL, &input),
+                       BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_READ_ENCRYPT, read_hids_input_report, NULL, NULL),
+                       BT_GATT_CCC(input_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
+                       BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref, NULL, &input),
 
-    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_READ_ENCRYPT, read_hids_consumer_input_report, NULL, NULL),
-    BT_GATT_CCC(input_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
-    BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref, NULL, &consumer_input),
+                       BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_READ_ENCRYPT, read_hids_consumer_input_report, NULL, NULL),
+                       BT_GATT_CCC(input_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
+                       BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref, NULL, &consumer_input),
 
-    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_READ_ENCRYPT, read_hids_mouse_input_report, NULL, NULL),
-    BT_GATT_CCC(input_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
-    BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref, NULL, &mouse_input),
+                       BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_READ_ENCRYPT, read_hids_mouse_input_report, NULL, NULL),
+                       BT_GATT_CCC(input_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
+                       BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref, NULL, &mouse_input),
 
-    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_CTRL_POINT, BT_GATT_CHRC_WRITE_WITHOUT_RESP, BT_GATT_PERM_WRITE, NULL, write_ctrl_point, &ctrl_point)
-);
+                       BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_CTRL_POINT, BT_GATT_CHRC_WRITE_WITHOUT_RESP, BT_GATT_PERM_WRITE, NULL, write_ctrl_point, &ctrl_point));
 
 static unsigned char url_data[] = {0x17, '/', '/', 't', 'o', 'n', 'g', 't', 'o',
                                    'n', 'g', 'i', 'n', 'c', '.', 'c', 'o', 'm'};
@@ -707,6 +678,9 @@ static void button_event_handler(size_t idx, enum button_evt evt)
             }
             LOG_INF("Button 0 pressed");
             button_s.button0 = true;
+            s_mode.keyboard = true;
+            s_mode.consumer = false;
+            s_mode.mouse = false;
         }
         else
         {
@@ -729,6 +703,9 @@ static void button_event_handler(size_t idx, enum button_evt evt)
             }
             LOG_INF("Button 1 pressed");
             button_s.button1 = true;
+            s_mode.consumer = true;
+            s_mode.keyboard = false;
+            s_mode.mouse = false;
         }
         else
         {
@@ -741,6 +718,9 @@ static void button_event_handler(size_t idx, enum button_evt evt)
         {
             LOG_INF("Button 2 pressed");
             button_s.button2 = true;
+            s_mode.mouse = true;
+            s_mode.keyboard = false;
+            s_mode.consumer = false;
         }
         else
         {
@@ -842,19 +822,35 @@ int main(void)
     LOG_INF("system started");
 
     // Main loop
+
+    int last_identifier = (as5600_refresh(as) - (as5600_refresh(as) % 12)) / 12;
+    int last_degree = as5600_refresh(as);
+    int usefulDegrees = as5600_refresh(as);
+    int deltaDeltadegrees = 0;
+    int deltadegrees = 0;
+    int lastDeltadegrees = 0;
+    int lastDegree = 0;
+    int lastdeltaDeltadegrees;
     while (1)
     {
-
         int degrees = as5600_refresh(as);
-        int usefulDegrees = as5600_refresh(as);
-        int lastDegree = as5600_refresh(as);
-        int deltadegrees = 0;
-        int lastDeltadegrees = 0;
-        int deltaDeltadegrees = 0;
-        int lastdeltaDeltadegrees = 0;
+
         deltadegrees = (degrees - lastDegree);
         deltaDeltadegrees = (deltadegrees - lastDeltadegrees);
-        // printk ("%d\n",degrees);
+
+        if (degrees - last_degree < -200)
+        {
+            deltadegrees = (degrees - last_degree) + 360 + 50;
+        }
+        else if (degrees - last_degree > 200)
+        {
+            deltadegrees = (degrees - last_degree) - 360 - 50;
+        }
+        else
+        {
+            deltadegrees = (degrees - last_degree);
+        }
+
         if (deltaDeltadegrees < -200)
         {
             usefulDegrees = lastDeltadegrees;
@@ -872,64 +868,106 @@ int main(void)
             // printk("%d\n",usefulDegrees);
         }
 
+        if (last_identifier != (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 &&
+            (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 != 30)
+        {
+
+            wheel_s.clockwise = true;
+        }
+        else
+        {
+
+            wheel_s.clockwise = false;
+        }
+
+        last_identifier = ((degrees + 6 + IDENT_OFFSET) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12;
+        last_degree = degrees;
+        lastDegree = degrees;
+        lastDeltadegrees = deltadegrees;
+        lastdeltaDeltadegrees = deltaDeltadegrees;
+
         if (simulate_input)
         {
-            /* HID Report:
-             * Byte 0: buttons (lower 3 bits)
-             * Byte 1: X axis (int8)
-             * Byte 2: Y axis (int8)
-             */
-            uint8_t report[8] = {0,0,0,0,0,0,0,0};
-            // report[0] = 0x02; //consumer control id
 
-            if (degrees != lastDegree)
+            uint8_t report[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+            if (s_mode.keyboard)
             {
 
-                // report[1] = usefulDegrees * 10;
-                // if (deltaDeltadegrees > 0){
-                // 	// state += (deltaDeltadegrees);
-                // 	report[1] = deltaDeltadegrees;
-                // 	// LOG_INF("right");
+                if (wheel_s.clockwise)
+                {
+                    if (usefulDegrees > 0)
+                    {
+                        report[7] = 0x1D;
+                        LOG_INF("key z");
+                    }
+                    else
+                    {
 
-                // }else{
-                // 	// state += (deltaDeltadegrees);
-                // 	report[1] = deltaDeltadegrees;
-                // 	// LOG_INF("left");
-                // }
+                        report[7] = 0x1B;
+                        LOG_INF("key x");
+                    }
+                }
+
+                bt_gatt_notify(NULL, &hog_svc.attrs[5], report, sizeof(report));
+                uint8_t report[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+                bt_gatt_notify(NULL, &hog_svc.attrs[9], report, sizeof(report));
+                bt_gatt_notify(NULL, &hog_svc.attrs[13], report, sizeof(report));
             }
 
-            lastDegree = degrees;
-            lastDeltadegrees = deltadegrees;
-            lastdeltaDeltadegrees = deltaDeltadegrees;
-
-            if (button_s.button1)
+            else if (s_mode.consumer)
             {
-                
-                // report[1] = -10;
-                report[0] = 0xE9;
-                LOG_INF("up");
+
+                if (wheel_s.clockwise)
+                {
+                    if (usefulDegrees > 0)
+                    {
+
+                        report[0] = 0xE9;
+                        LOG_INF("volume up");
+                    }
+                    else
+                    {
+
+                        report[0] = 0xEA;
+                        LOG_INF("volume down");
+                    }
+                }
+
+                bt_gatt_notify(NULL, &hog_svc.attrs[9], report, sizeof(report));
+                uint8_t report[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+                bt_gatt_notify(NULL, &hog_svc.attrs[5], report, sizeof(report));
+                bt_gatt_notify(NULL, &hog_svc.attrs[13], report, sizeof(report));
             }
 
-            if (button_s.button0)
+            else if (s_mode.mouse)
             {
-                // report[1] = 10;
-                report[0] = 0xEA;
-                LOG_INF("down");
+
+                if (wheel_s.clockwise)
+                {
+
+                    if (usefulDegrees > 0)
+                    {
+                        report[3] = 0x01;
+                        LOG_INF("scroll up");
+                    }
+                    else
+                    {
+                        report[3] = 0xFF;
+                        LOG_INF("scroll down");
+                    }
+                }
+
+                bt_gatt_notify(NULL, &hog_svc.attrs[13], report, sizeof(report));
+                uint8_t report[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+                bt_gatt_notify(NULL, &hog_svc.attrs[5], report, sizeof(report));
+                bt_gatt_notify(NULL, &hog_svc.attrs[9], report, sizeof(report));
             }
-
-            // if (button_s.button2)
-            // {
-            //     report[0] |= BIT(0);
-            //     LOG_INF("left click");
-            // }
-
-            bt_gatt_notify(NULL, &hog_svc.attrs[9], report, sizeof(report));
-
-            // 5 for keyboard
-            // 9 for consumer
-            // 13 for mouse
         }
-    }
 
+        // 5 for keyboard
+        // 9 for consumer
+        // 13 for mouse
+    }
     return 0;
 }
