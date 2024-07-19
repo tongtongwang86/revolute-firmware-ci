@@ -30,377 +30,22 @@
 // magnetic angle sensor
 #include <zephyr/drivers/sensor.h>
 
+#include <math.h>
+
 LOG_MODULE_REGISTER(button_handler, LOG_LEVEL_DBG);
 
 #define STACKSIZE 1024
 K_THREAD_STACK_DEFINE(batteryUpdateThread_stack_area, STACKSIZE);
 
-const int16_t sineLookupTable[] = {
+const int8_t sineLookupTable[] = {
     -1, 2, 4, 6, 8, 11, 13, 15, 17, 19, 22, 24, 26, 28, 30, 32, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59, 61, 63, 65, 67, 69, 71, 73, 74, 76, 78, 80, 81, 83, 85, 86, 88, 90, 91, 93, 94, 96, 97, 99, 100, 101, 103, 104, 105, 106, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 119, 120, 121, 121, 122, 123, 123, 124, 124, 125, 125, 125, 126, 126, 126, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 126, 126, 126, 125, 125, 125, 124, 124, 123, 123, 122, 121, 121, 120, 119, 119, 118, 117, 116, 115, 114, 113, 112, 111, 110, 109, 108, 106, 105, 104, 103, 101, 100, 99, 97, 96, 94, 93, 91, 90, 88, 86, 85, 83, 81, 80, 78, 76, 74, 73, 71, 69, 67, 65, 63, 61, 59, 57, 55, 53, 51, 49, 47, 45, 43, 41, 39, 37, 35, 32, 30, 28, 26, 24, 22, 19, 17, 15, 13, 11, 8, 6, 4, 2, 0, -3, -5, -7, -9, -12, -14, -16, -18, -20, -23, -25, -27, -29, -31, -33, -36, -38, -40, -42, -44, -46, -48, -50, -52, -54, -56, -58, -60, -62, -64, -66, -68, -70, -72, -74, -75, -77, -79, -81, -82, -84, -86, -87, -89, -91, -92, -94, -95, -97, -98, -100, -101, -102, -104, -105, -106, -107, -109, -110, -111, -112, -113, -114, -115, -116, -117, -118, -119, -120, -120, -121, -122, -122, -123, -124, -124, -125, -125, -126, -126, -126, -127, -127, -127, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -127, -127, -127, -126, -126, -126, -125, -125, -124, -124, -123, -122, -122, -121, -120, -120, -119, -118, -117, -116, -115, -114, -113, -112, -111, -110, -109, -107, -106, -105, -104, -102, -101, -100, -98, -97, -95, -94, -92, -91, -89, -87, -86, -84, -82, -81, -79, -77, -75, -74, -72, -70, -68, -66, -64, -62, -60, -58, -56, -54, -52, -50, -48, -46, -44, -42, -40, -38, -36, -33, -31, -29, -27, -25, -23, -20, -18, -16, -14, -12, -9, -7, -5, -3, -1};
 
-const int16_t cosineLookupTable[] = {
-    127,
-    127,
-    127,
-    127,
-    127,
-    127,
-    126,
-    126,
-    126,
-    125,
-    125,
-    125,
-    124,
-    124,
-    123,
-    123,
-    122,
-    121,
-    121,
-    120,
-    119,
-    119,
-    118,
-    117,
-    116,
-    115,
-    114,
-    113,
-    112,
-    111,
-    110,
-    109,
-    108,
-    106,
-    105,
-    104,
-    103,
-    101,
-    100,
-    99,
-    97,
-    96,
-    94,
-    93,
-    91,
-    90,
-    88,
-    86,
-    85,
-    83,
-    81,
-    80,
-    78,
-    76,
-    74,
-    73,
-    71,
-    69,
-    67,
-    65,
-    63,
-    61,
-    59,
-    57,
-    55,
-    53,
-    51,
-    49,
-    47,
-    45,
-    43,
-    41,
-    39,
-    37,
-    35,
-    32,
-    30,
-    28,
-    26,
-    24,
-    22,
-    19,
-    17,
-    15,
-    13,
-    11,
-    8,
-    6,
-    4,
-    2,
-    0,
-    -3,
-    -5,
-    -7,
-    -9,
-    -12,
-    -14,
-    -16,
-    -18,
-    -20,
-    -23,
-    -25,
-    -27,
-    -29,
-    -31,
-    -33,
-    -36,
-    -38,
-    -40,
-    -42,
-    -44,
-    -46,
-    -48,
-    -50,
-    -52,
-    -54,
-    -56,
-    -58,
-    -60,
-    -62,
-    -64,
-    -66,
-    -68,
-    -70,
-    -72,
-    -74,
-    -75,
-    -77,
-    -79,
-    -81,
-    -82,
-    -84,
-    -86,
-    -87,
-    -89,
-    -91,
-    -92,
-    -94,
-    -95,
-    -97,
-    -98,
-    -100,
-    -101,
-    -102,
-    -104,
-    -105,
-    -106,
-    -107,
-    -109,
-    -110,
-    -111,
-    -112,
-    -113,
-    -114,
-    -115,
-    -116,
-    -117,
-    -118,
-    -119,
-    -120,
-    -120,
-    -121,
-    -122,
-    -122,
-    -123,
-    -124,
-    -124,
-    -125,
-    -125,
-    -126,
-    -126,
-    -126,
-    -127,
-    -127,
-    -127,
-    -128,
-    -128,
-    -128,
-    -128,
-    -128,
-    -128,
-    -128,
-    -128,
-    -128,
-    -128,
-    -128,
-    -127,
-    -127,
-    -127,
-    -126,
-    -126,
-    -126,
-    -125,
-    -125,
-    -124,
-    -124,
-    -123,
-    -122,
-    -122,
-    -121,
-    -120,
-    -120,
-    -119,
-    -118,
-    -117,
-    -116,
-    -115,
-    -114,
-    -113,
-    -112,
-    -111,
-    -110,
-    -109,
-    -107,
-    -106,
-    -105,
-    -104,
-    -102,
-    -101,
-    -100,
-    -98,
-    -97,
-    -95,
-    -94,
-    -92,
-    -91,
-    -89,
-    -87,
-    -86,
-    -84,
-    -82,
-    -81,
-    -79,
-    -77,
-    -75,
-    -74,
-    -72,
-    -70,
-    -68,
-    -66,
-    -64,
-    -62,
-    -60,
-    -58,
-    -56,
-    -54,
-    -52,
-    -50,
-    -48,
-    -46,
-    -44,
-    -42,
-    -40,
-    -38,
-    -36,
-    -33,
-    -31,
-    -29,
-    -27,
-    -25,
-    -23,
-    -20,
-    -18,
-    -16,
-    -14,
-    -12,
-    -9,
-    -7,
-    -5,
-    -3,
-    -1,
-    2,
-    4,
-    6,
-    8,
-    11,
-    13,
-    15,
-    17,
-    19,
-    22,
-    24,
-    26,
-    28,
-    30,
-    32,
-    35,
-    37,
-    39,
-    41,
-    43,
-    45,
-    47,
-    49,
-    51,
-    53,
-    55,
-    57,
-    59,
-    61,
-    63,
-    65,
-    67,
-    69,
-    71,
-    73,
-    74,
-    76,
-    78,
-    80,
-    81,
-    83,
-    85,
-    86,
-    88,
-    90,
-    91,
-    93,
-    94,
-    96,
-    97,
-    99,
-    100,
-    101,
-    103,
-    104,
-    105,
-    106,
-    108,
-    109,
-    110,
-    111,
-    112,
-    113,
-    114,
-    115,
-    116,
-    117,
-    118,
-    119,
-    119,
-    120,
-    121,
-    121,
-    122,
-    123,
-    123,
-    124,
-    124,
-    125,
-    125,
-    125,
-    126,
-    126,
-    126,
-    127,
-    127,
-    127,
-    127,
-    127,
-    127,
-};
+const int8_t cosineLookupTable[] = {
+    127, 127, 127, 127, 127, 127, 126, 126, 126, 125, 125, 125, 124, 124, 123, 123, 122, 121, 121, 120, 119, 119, 118, 117, 116, 115, 114, 113, 112, 111, 110, 109, 108, 106, 105, 104, 103, 101, 100, 99, 97, 96, 94, 93, 91, 90, 88, 86, 85, 83, 81, 80, 78, 76, 74, 73, 71, 69, 67, 65, 63, 61, 59, 57, 55, 53, 51, 49, 47, 45, 43, 41, 39, 37, 35, 32, 30, 28, 26, 24, 22, 19, 17, 15, 13, 11, 8, 6, 4, 2, 0, -3, -5, -7, -9, -12, -14, -16, -18, -20, -23, -25, -27, -29, -31, -33, -36, -38, -40, -42, -44, -46, -48, -50, -52, -54, -56, -58, -60, -62, -64, -66, -68, -70, -72, -74, -75, -77, -79, -81, -82, -84, -86, -87, -89, -91, -92, -94, -95, -97, -98, -100, -101, -102, -104, -105, -106, -107, -109, -110, -111, -112, -113, -114, -115, -116, -117, -118, -119, -120, -120, -121, -122, -122, -123, -124, -124, -125, -125, -126, -126, -126, -127, -127, -127, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -127, -127, -127, -126, -126, -126, -125, -125, -124, -124, -123, -122, -122, -121, -120, -120, -119, -118, -117, -116, -115, -114, -113, -112, -111, -110, -109, -107, -106, -105, -104, -102, -101, -100, -98, -97, -95, -94, -92, -91, -89, -87, -86, -84, -82, -81, -79, -77, -75, -74, -72, -70, -68, -66, -64, -62, -60, -58, -56, -54, -52, -50, -48, -46, -44, -42, -40, -38, -36, -33, -31, -29, -27, -25, -23, -20, -18, -16, -14, -12, -9, -7, -5, -3, -1, 2, 4, 6, 8, 11, 13, 15, 17, 19, 22, 24, 26, 28, 30, 32, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59, 61, 63, 65, 67, 69, 71, 73, 74, 76, 78, 80, 81, 83, 85, 86, 88, 90, 91, 93, 94, 96, 97, 99, 100, 101, 103, 104, 105, 106, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 119, 120, 121, 121, 122, 123, 123, 124, 124, 125, 125, 125, 126, 126, 126, 127, 127, 127, 127, 127, 127};
+
+
+const uint8_t arcsine[] = {
+    0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 24, 25, 25, 26, 26, 27, 27, 28, 28, 29, 29, 30, 30, 30, 31, 31, 32, 32, 33, 33, 34, 34, 35, 35, 36, 36, 37, 37, 38, 38, 38, 39, 39, 40, 40, 41, 41, 42, 42, 43, 43, 44, 44, 45, 45, 46, 46, 47, 47, 48, 48, 49, 49, 50, 50, 51, 51, 52, 52, 53, 53, 54, 54, 55, 55, 56, 56, 57, 57, 58, 58, 59, 59, 60, 60, 61, 61, 62, 62, 63, 63, 64, 64, 65, 66, 66, 67, 67, 68, 68, 69, 69, 70, 70, 71, 72, 72, 73, 73, 74, 74, 75, 75, 76, 77, 77, 78, 78, 79, 79, 80, 81, 81, 82, 82, 83, 84, 84, 85, 85, 86, 87, 87, 88, 89, 89, 90, 90, 91, 92, 92, 93, 94, 94, 95, 96, 96, 97, 98, 98, 99, 100, 100, 101, 102, 103, 103, 104, 105, 106, 106, 107, 108, 109, 109, 110, 111, 112, 112, 113, 114, 115, 116, 117, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 137, 138, 139, 141, 142, 143, 145, 146, 148, 149, 151, 153, 155, 157, 160, 162, 166};
 
 #define IDENT_OFFSET 1 // angle offset in degrees
 
@@ -1184,32 +829,24 @@ int main(void)
 
     LOG_INF("system started");
 
-    // Main loop
+    int counter = 0;
     int degrees = as5600_refresh(as);
-    int last_identifier = (as5600_refresh(as) - (as5600_refresh(as) % 12)) / 12;
-    int last_degree = as5600_refresh(as);
-    int usefulDegrees = as5600_refresh(as);
-    int deltaDeltadegrees = 0;
-    int deltadegrees = 0;
-    int lastDeltadegrees = 0;
-    int lastDegree = 0;
-    int lastdeltaDeltadegrees;
-    deltadegrees = (degrees - lastDegree);
-    deltaDeltadegrees = (deltadegrees - lastDeltadegrees);
+    int8_t lastSine = sineLookupTable[degrees];
+    int8_t lastCosine = cosineLookupTable[degrees];
 
-    int16_t lastSine = sineLookupTable[degrees];
-    int16_t lastCosine = cosineLookupTable[degrees];
-
+    uint32_t start_time, end_time, elapsed_time;
+    
     while (1)
     {
 
-        printk("-128,127,");
-
+        // printk("-128,127,");
+        
+        start_time = k_cycle_get_32();
         int degrees = as5600_refresh(as);
-        int16_t Sine = sineLookupTable[degrees];
-        int16_t Cosine = cosineLookupTable[degrees];
-        int16_t deltaCosine = lastCosine - Cosine;
-        int16_t deltaSine = lastSine - Sine;
+        int8_t Sine = sineLookupTable[degrees];
+        int8_t Cosine = cosineLookupTable[degrees];
+        int8_t deltaCosine = lastCosine - Cosine;
+        int8_t deltaSine = lastSine - Sine;
 
         if (Cosine > 90 || Cosine < -90) // use alternate sensing with cosine sine as y axis
         {
@@ -1220,12 +857,14 @@ int main(void)
                 if (deltaSine > 0)
                 { // sine decreasing
 
-                    printk("cw,");
+                    // printk("cw,");
+                    
                 }
                 else
                 { // sine increasing
 
-                    printk("ccw,");
+                    // printk("ccw,");
+                    
                 }
             }
             else // cosine is positive
@@ -1234,12 +873,12 @@ int main(void)
                 if (deltaSine > 0)
                 { // sine decreasing
 
-                    printk("ccw,");
+                    // printk("ccw,");
                 }
                 else
                 { // sine increasing
 
-                    printk("cw,");
+                    // printk("cw,");
                 }
             }
         }
@@ -1252,12 +891,12 @@ int main(void)
                 if (deltaCosine > 0)
                 { // cosine decreasing
 
-                    printk("ccw,");
+                    // printk("ccw,");
                 }
                 else
                 { // cosine increasing
 
-                    printk("cw,");
+                    // printk("cw,");
                 }
             }
             else // sine is negative
@@ -1265,144 +904,40 @@ int main(void)
 
                 if (deltaCosine > 0)
                 { // cosine decreasing
-                    printk("cw,");
+                    // printk("cw,");
                 }
                 else
                 { // cosine increasing
-                    printk("ccw,");
+                    // printk("ccw,");
                 }
             }
         }
 
-        printk("%d,", Sine);
-        printk("%d\n", Cosine);
+        // printk("%d,", Sine);
+        // printk("%d,", Cosine);
+        
+        // printk ("%d",sqrt((deltaSine^2)+(deltaCosine^2)));
+
+        int root = sqrt((deltaSine * deltaSine)+(deltaCosine * deltaCosine));
+        int deltaDegree = arcsine[root];
+        // printk("%d\n", degrees);
+
 
         lastCosine = Cosine;
         lastSine = Sine;
 
-        deltadegrees = (degrees - lastDegree);
-        deltaDeltadegrees = (deltadegrees - lastDeltadegrees);
+      end_time = k_cycle_get_32();
+      elapsed_time = end_time - start_time;
+      uint64_t elapsed_ns = k_cyc_to_ns_ceil64(elapsed_time);
+    //   printk("Elapsed time: %llu ns\n", elapsed_ns);
 
-        if (deltaDeltadegrees < -200)
-        {
-            usefulDegrees = lastDeltadegrees;
-            deltaDeltadegrees = lastdeltaDeltadegrees;
-        }
-        else if (deltaDeltadegrees > 200)
-        {
-            usefulDegrees = lastDeltadegrees;
-            deltaDeltadegrees = lastdeltaDeltadegrees;
-        }
-        else
-        {
-            usefulDegrees = (degrees - lastDegree);
+    //   printk("%d,",root);
+    //   printk ("%d,",deltaSine);
+      printk ("%d\n",deltaDegree);
 
-            // printk("%d\n",usefulDegrees);
-        }
+      
 
-        last_identifier = ((degrees + 6 + IDENT_OFFSET) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12;
-        last_degree = degrees;
-        lastDegree = degrees;
-        lastDeltadegrees = deltadegrees;
-        lastdeltaDeltadegrees = deltaDeltadegrees;
 
-        if (simulate_input)
-        {
-
-            uint8_t report[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-
-            if (degrees != lastDegree)
-            {
-
-                if (usefulDegrees > 0)
-                {
-                }
-                else
-                {
-                }
-            }
-
-            lastDegree = degrees;
-            lastDeltadegrees = deltadegrees;
-            lastdeltaDeltadegrees = deltaDeltadegrees;
-
-            if (s_mode.keyboard)
-            {
-
-                if (wheel_s.clockwise)
-                {
-                    if (usefulDegrees > 0)
-                    {
-                        report[7] = 0x1D;
-                        LOG_INF("key z");
-                    }
-                    else
-                    {
-
-                        report[7] = 0x1B;
-                        LOG_INF("key x");
-                    }
-                }
-
-                bt_gatt_notify(NULL, &hog_svc.attrs[5], report, sizeof(report));
-                uint8_t report[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-                bt_gatt_notify(NULL, &hog_svc.attrs[9], report, sizeof(report));
-                bt_gatt_notify(NULL, &hog_svc.attrs[13], report, sizeof(report));
-            }
-
-            else if (s_mode.consumer)
-            {
-
-                if (wheel_s.clockwise)
-                {
-                    if (usefulDegrees > 0)
-                    {
-
-                        report[0] = 0xE9;
-                        LOG_INF("volume up");
-                    }
-                    else
-                    {
-
-                        report[0] = 0xEA;
-                        LOG_INF("volume down");
-                    }
-                }
-
-                bt_gatt_notify(NULL, &hog_svc.attrs[9], report, sizeof(report));
-                uint8_t report[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-                bt_gatt_notify(NULL, &hog_svc.attrs[5], report, sizeof(report));
-                bt_gatt_notify(NULL, &hog_svc.attrs[13], report, sizeof(report));
-            }
-
-            else if (s_mode.mouse)
-            {
-
-                if (wheel_s.clockwise)
-                {
-
-                    if (usefulDegrees > 0)
-                    {
-                        report[3] = 0x01;
-                        LOG_INF("scroll up");
-                    }
-                    else
-                    {
-                        report[3] = 0xFF;
-                        LOG_INF("scroll down");
-                    }
-                }
-
-                bt_gatt_notify(NULL, &hog_svc.attrs[13], report, sizeof(report));
-                uint8_t report[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-                bt_gatt_notify(NULL, &hog_svc.attrs[5], report, sizeof(report));
-                bt_gatt_notify(NULL, &hog_svc.attrs[9], report, sizeof(report));
-            }
-        }
-
-        // 5 for keyboard
-        // 9 for consumer
-        // 13 for mouse
     }
     return 0;
 }
