@@ -35,6 +35,12 @@ LOG_MODULE_REGISTER(button_handler, LOG_LEVEL_DBG);
 #define STACKSIZE 1024
 K_THREAD_STACK_DEFINE(batteryUpdateThread_stack_area, STACKSIZE);
 
+const int16_t sineLookupTable[] = {
+-1,2,4,6,8,11,13,15,17,19,22,24,26,28,30,32,35,37,39,41,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,74,76,78,80,81,83,85,86,88,90,91,93,94,96,97,99,100,101,103,104,105,106,108,109,110,111,112,113,114,115,116,117,118,119,119,120,121,121,122,123,123,124,124,125,125,125,126,126,126,127,127,127,127,127,127,127,127,127,127,127,126,126,126,125,125,125,124,124,123,123,122,121,121,120,119,119,118,117,116,115,114,113,112,111,110,109,108,106,105,104,103,101,100,99,97,96,94,93,91,90,88,86,85,83,81,80,78,76,74,73,71,69,67,65,63,61,59,57,55,53,51,49,47,45,43,41,39,37,35,32,30,28,26,24,22,19,17,15,13,11,8,6,4,2,0,-3,-5,-7,-9,-12,-14,-16,-18,-20,-23,-25,-27,-29,-31,-33,-36,-38,-40,-42,-44,-46,-48,-50,-52,-54,-56,-58,-60,-62,-64,-66,-68,-70,-72,-74,-75,-77,-79,-81,-82,-84,-86,-87,-89,-91,-92,-94,-95,-97,-98,-100,-101,-102,-104,-105,-106,-107,-109,-110,-111,-112,-113,-114,-115,-116,-117,-118,-119,-120,-120,-121,-122,-122,-123,-124,-124,-125,-125,-126,-126,-126,-127,-127,-127,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-127,-127,-127,-126,-126,-126,-125,-125,-124,-124,-123,-122,-122,-121,-120,-120,-119,-118,-117,-116,-115,-114,-113,-112,-111,-110,-109,-107,-106,-105,-104,-102,-101,-100,-98,-97,-95,-94,-92,-91,-89,-87,-86,-84,-82,-81,-79,-77,-75,-74,-72,-70,-68,-66,-64,-62,-60,-58,-56,-54,-52,-50,-48,-46,-44,-42,-40,-38,-36,-33,-31,-29,-27,-25,-23,-20,-18,-16,-14,-12,-9,-7,-5,-3,-1};
+
+const int16_t cosineLookupTable[] = {
+127,127,127,127,127,127,126,126,126,125,125,125,124,124,123,123,122,121,121,120,119,119,118,117,116,115,114,113,112,111,110,109,108,106,105,104,103,101,100,99,97,96,94,93,91,90,88,86,85,83,81,80,78,76,74,73,71,69,67,65,63,61,59,57,55,53,51,49,47,45,43,41,39,37,35,32,30,28,26,24,22,19,17,15,13,11,8,6,4,2,0,-3,-5,-7,-9,-12,-14,-16,-18,-20,-23,-25,-27,-29,-31,-33,-36,-38,-40,-42,-44,-46,-48,-50,-52,-54,-56,-58,-60,-62,-64,-66,-68,-70,-72,-74,-75,-77,-79,-81,-82,-84,-86,-87,-89,-91,-92,-94,-95,-97,-98,-100,-101,-102,-104,-105,-106,-107,-109,-110,-111,-112,-113,-114,-115,-116,-117,-118,-119,-120,-120,-121,-122,-122,-123,-124,-124,-125,-125,-126,-126,-126,-127,-127,-127,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-127,-127,-127,-126,-126,-126,-125,-125,-124,-124,-123,-122,-122,-121,-120,-120,-119,-118,-117,-116,-115,-114,-113,-112,-111,-110,-109,-107,-106,-105,-104,-102,-101,-100,-98,-97,-95,-94,-92,-91,-89,-87,-86,-84,-82,-81,-79,-77,-75,-74,-72,-70,-68,-66,-64,-62,-60,-58,-56,-54,-52,-50,-48,-46,-44,-42,-40,-38,-36,-33,-31,-29,-27,-25,-23,-20,-18,-16,-14,-12,-9,-7,-5,-3,-1,2,4,6,8,11,13,15,17,19,22,24,26,28,30,32,35,37,39,41,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,74,76,78,80,81,83,85,86,88,90,91,93,94,96,97,99,100,101,103,104,105,106,108,109,110,111,112,113,114,115,116,117,118,119,119,120,121,121,122,123,123,124,124,125,125,125,126,126,126,127,127,127,127,127,127,};
+
 #define IDENT_OFFSET 1 // angle offset in degrees
 
 #define PRIORITY 1
@@ -348,21 +354,6 @@ static const uint8_t zmk_hid_report_desc[] = {
     HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
     HID_USAGE(HID_USAGE_GD_X),
     HID_USAGE(HID_USAGE_GD_Y),
-        HID_LOGICAL_MIN8(-0x7F),
-        HID_LOGICAL_MAX8(0x7F),
-        HID_REPORT_SIZE(0x08),
-        HID_REPORT_COUNT(0x02),
-        HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_REL),
-        // Adding Resolution Multiplier for the Wheel
-        HID_USAGE(HID_USAGE_GD_RESOLUTION_MULTIPLIER),
-        HID_LOGICAL_MIN8(0x00),
-        HID_LOGICAL_MAX8(0x0F),
-        0x35, 0x01, //Physical Minimum (1)
-        0x45, 0x10, //Physical Maximum (16)
-        HID_REPORT_SIZE(0x04),
-        HID_REPORT_COUNT(0x10),
-        HID_FEATURE(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
-        // Wheel Control
     HID_USAGE(HID_USAGE_GD_WHEEL),
     HID_LOGICAL_MIN8(-0x7F),
     HID_LOGICAL_MAX8(0x7F),
@@ -837,7 +828,7 @@ int main(void)
     LOG_INF("system started");
 
     // Main loop
-
+    int degrees = as5600_refresh(as);
     int last_identifier = (as5600_refresh(as) - (as5600_refresh(as) % 12)) / 12;
     int last_degree = as5600_refresh(as);
     int usefulDegrees = as5600_refresh(as);
@@ -846,54 +837,141 @@ int main(void)
     int lastDeltadegrees = 0;
     int lastDegree = 0;
     int lastdeltaDeltadegrees;
+    deltadegrees = (degrees-lastDegree);
+	deltaDeltadegrees = (deltadegrees-lastDeltadegrees);
+
+
+    int16_t lastSine = sineLookupTable[degrees];
+    int16_t lastCosine = cosineLookupTable[degrees];
+
     while (1)
     {
+
+        
+
+        
+        printk("-128,127,");
+
+
         int degrees = as5600_refresh(as);
+        int16_t Sine = sineLookupTable[degrees];
+        int16_t Cosine = cosineLookupTable[degrees];
+        int16_t deltaCosine = lastCosine - Cosine ;
+        int16_t deltaSine = lastSine - Sine ;
+
+
+        if (Cosine > 90 ||Cosine < -90 ){
+
+
+            if (Cosine > 0){
+
+                 if (deltaSine>0){ // sine decreasing 
+
+           printk("cw,");
+
+
+           } else { // cosine increasing  
+
+
+            printk("ccw,");
+
+           }
+
+
+            }else{
+
+
+                                 if (deltaSine>0){ // sine decreasing 
+
+           printk("ccw,");
+
+
+           } else { // cosine increasing  
+
+
+            printk("cw,");
+
+           }
+
+
+
+            }
+ 
+
+
+
+
+
+
+        } else {
+
+
+        if (Sine > 0){ // sine is positive
+           
+           if (deltaCosine>0){ // cosine decreasing 
+
+           printk("ccw,");
+
+
+           } else { // cosine increasing  
+
+
+            printk("cw,");
+
+           }
+
+
+        } else {
+
+          if (deltaCosine>0){ // cosine decreasing 
+          printk("cw,");
+
+
+           } else { // cosine increasing  
+        printk("ccw,");
+
+
+
+           }            
+
+
+        }
+
+        }
+        
+
+
+        printk("%d,",Sine);
+        printk("%d\n",Cosine);
+
+        lastCosine = Cosine;
+        lastSine = Sine;
+
+
+
 
         deltadegrees = (degrees - lastDegree);
         deltaDeltadegrees = (deltadegrees - lastDeltadegrees);
 
-        if (degrees - last_degree < -200)
-        {
-            deltadegrees = (degrees - last_degree) + 360 + 50;
-        }
-        else if (degrees - last_degree > 200)
-        {
-            deltadegrees = (degrees - last_degree) - 360 - 50;
-        }
-        else
-        {
-            deltadegrees = (degrees - last_degree);
-        }
+        if (deltaDeltadegrees < -200){
+			usefulDegrees = lastDeltadegrees ;
+			deltaDeltadegrees = lastdeltaDeltadegrees;
 
-        if (deltaDeltadegrees < -200)
-        {
-            usefulDegrees = lastDeltadegrees;
-            deltaDeltadegrees = lastdeltaDeltadegrees;
-        }
-        else if (deltaDeltadegrees > 200)
-        {
-            usefulDegrees = lastDeltadegrees;
-            deltaDeltadegrees = lastdeltaDeltadegrees;
-        }
-        else
-        {
-            usefulDegrees = (degrees - lastDegree);
+			} else if(deltaDeltadegrees > 200) {
+				usefulDegrees = lastDeltadegrees ;
+				deltaDeltadegrees = lastdeltaDeltadegrees;
 
-            // printk("%d\n",usefulDegrees);
-        }
+			}else{
+				usefulDegrees = (degrees-lastDegree) ;
 
-        if (last_identifier != (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 &&
-            (((degrees + 6 + IDENT_OFFSET)) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12 != 30)
-        {
+				// printk("%d\n",usefulDegrees);
 
-            wheel_s.clockwise = true;
-        }
-        else
-        {
+			}
 
-            wheel_s.clockwise = false;
-        }
+
+
+
+
 
         last_identifier = ((degrees + 6 + IDENT_OFFSET) - ((degrees + 6 + IDENT_OFFSET) % 12)) / 12;
         last_degree = degrees;
@@ -905,6 +983,27 @@ int main(void)
         {
 
             uint8_t report[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+
+
+                        if(degrees != lastDegree){
+
+                    if (usefulDegrees>0){
+
+                    }else{
+                        
+                    }
+
+	
+		}
+
+		lastDegree = degrees;
+		lastDeltadegrees = deltadegrees;
+		lastdeltaDeltadegrees = deltaDeltadegrees;
+
+
+
+
 
             if (s_mode.keyboard)
             {
