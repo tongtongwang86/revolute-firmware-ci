@@ -888,9 +888,11 @@ double last_speed = 0;
 int direction = 0; // 1 for clockwise, -1 for counterclockwise, 0 for no movement
 double continuous_counter = 0; // Continuous counter for the wheel position
 double speed_threshold = 100; // Threshold for significant speed changes
+double dead_zone = 5; // Dead zone in degrees
 
 
-double predictive_update(double new_degree) {
+
+int predictive_update(double new_degree) {
     double current_time = k_cycle_get_32();
     double time_diff = current_time - last_time;
     
@@ -900,6 +902,12 @@ double predictive_update(double new_degree) {
         delta_degree -= 360;
     } else if (delta_degree < -180) {
         delta_degree += 360;
+    }
+
+    // Ignore minor changes within the dead zone
+    if (abs(delta_degree) < dead_zone) {
+        direction = 0;
+        return (int)continuous_counter;
     }
     
     double current_speed = delta_degree / time_diff;
@@ -922,8 +930,9 @@ double predictive_update(double new_degree) {
     last_degree = new_degree;
     last_time = current_time;
     
-    return continuous_counter;
+    return (int)continuous_counter;
 }
+
 
 void print_direction() {
     if (direction == 1) {
@@ -1046,14 +1055,9 @@ int main(void)
     // Example usage
     double new_degree = as5600_refresh(as);
     double current_position = predictive_update(new_degree);
-    printk("Current Position: %.2f\n", current_position);
+    printk("Continuous Counter: %d\n", current_position);
     print_direction();
 
-    // Simulate another reading after some time
-    // sleep(1);
-    // new_degree = 10; // Another example new degree reading
-    // current_position = predictive_update(new_degree);
-    // printf("Current Position: %.2f\n", current_position);
 
 
       
