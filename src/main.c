@@ -386,36 +386,51 @@ static const uint8_t zmk_hid_report_desc[] = {
     HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_ARRAY | ZMK_HID_MAIN_VAL_ABS),
     HID_END_COLLECTION,
 
-    HID_USAGE_PAGE(HID_USAGE_GD),
-    HID_USAGE(HID_USAGE_GD_MOUSE),
-    HID_COLLECTION(HID_COLLECTION_APPLICATION),
+HID_USAGE_PAGE(HID_USAGE_GD),
+HID_USAGE(HID_USAGE_GD_MOUSE),
+HID_COLLECTION(HID_COLLECTION_APPLICATION),
     HID_REPORT_ID(ZMK_HID_REPORT_ID_MOUSE),
     HID_USAGE(HID_USAGE_GD_POINTER),
     HID_COLLECTION(HID_COLLECTION_PHYSICAL),
-    HID_USAGE_PAGE(HID_USAGE_BUTTON),
-    HID_USAGE_MIN8(0x1),
-    HID_USAGE_MAX8(0x05),
-    HID_LOGICAL_MIN8(0x00),
-    HID_LOGICAL_MAX8(0x01),
-    HID_REPORT_SIZE(0x01),
-    HID_REPORT_COUNT(0x5),
-    HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
-    // Constant padding for the last 3 bits.
-    HID_REPORT_SIZE(0x03),
-    HID_REPORT_COUNT(0x01),
-    HID_INPUT(ZMK_HID_MAIN_VAL_CONST | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
-    // Some OSes ignore pointer devices without X/Y data.
-    HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
-    HID_USAGE(HID_USAGE_GD_X),
-    HID_USAGE(HID_USAGE_GD_Y),
-    HID_USAGE(HID_USAGE_GD_WHEEL),
-    HID_LOGICAL_MIN8(-0x7F),
-    HID_LOGICAL_MAX8(0x7F),
-    HID_REPORT_SIZE(0x08),
-    HID_REPORT_COUNT(0x03),
-    HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_REL),
+        HID_USAGE_PAGE(HID_USAGE_BUTTON),
+        HID_USAGE_MIN8(0x1),
+        HID_USAGE_MAX8(0x05),
+        HID_LOGICAL_MIN8(0x00),
+        HID_LOGICAL_MAX8(0x01),
+        HID_REPORT_SIZE(0x01),
+        HID_REPORT_COUNT(0x05),
+        HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
+        // Constant padding for the last 3 bits.
+        HID_REPORT_SIZE(0x03),
+        HID_REPORT_COUNT(0x01),
+        HID_INPUT(ZMK_HID_MAIN_VAL_CONST | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
+        // Some OSes ignore pointer devices without X/Y data.
+        HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
+        HID_USAGE(HID_USAGE_GD_X),
+        HID_USAGE(HID_USAGE_GD_Y),
+        HID_LOGICAL_MIN8(-0x7F),
+        HID_LOGICAL_MAX8(0x7F),
+        HID_REPORT_SIZE(0x08),
+        HID_REPORT_COUNT(0x02),
+        HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_REL),
+        // Adding Resolution Multiplier for the Wheel
+        HID_USAGE(HID_USAGE_GD_RESOLUTION_MULTIPLIER),
+        HID_LOGICAL_MIN8(0x00),
+        HID_LOGICAL_MAX8(0xFF), // 0x0Fdefault
+        0x35,0x01, //physical min 8
+        0x45,0x02, //physical max 8 //0x10 default
+        HID_REPORT_SIZE(0x04),
+        HID_REPORT_COUNT(0x01),
+        HID_FEATURE(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
+        // Wheel Control
+        HID_USAGE(HID_USAGE_GD_WHEEL),
+        HID_LOGICAL_MIN8(-0x7F),
+        HID_LOGICAL_MAX8(0x7F),
+        HID_REPORT_SIZE(0x08),
+        HID_REPORT_COUNT(0x01),
+        HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_REL),
     HID_END_COLLECTION,
-    HID_END_COLLECTION,
+HID_END_COLLECTION,
 
 };
 
@@ -1069,11 +1084,11 @@ int main(void)
     // Example usage
     double new_degree = as5600_refresh(as);
     int current_position = predictive_update(new_degree);
-    printk("%d\n", last_position - current_position);
+    // printk("%d\n", last_position - current_position);
     // print_direction();
     
     if (direction == 1) {
-        printk("cw\n");
+        // printk("cw\n");
         int err = gpio_pin_set_dt(&leds[0], 1);
         if (err < 0) {
             // Handle the error
@@ -1082,14 +1097,14 @@ int main(void)
 
 
         struct zmk_hid_mouse_report_body report = {
-            .report = {0, 0, 0, (last_position - current_position), 0, 0, 0, 0}
+            .report = {0, 0, 0, (last_position - current_position), (last_position - current_position), 0, 0, 0}
         };
     trigger_button(&report);
 
 
 
     } else if (direction == -1) {
-        printk("ccw\n");
+        // printk("ccw\n");
          int err = gpio_pin_set_dt(&leds[0], 0);
         if (err < 0) {
             // Handle the error
@@ -1097,13 +1112,13 @@ int main(void)
         }
 
         struct zmk_hid_mouse_report_body report = {
-            .report = {0, 0, 0, (last_position - current_position), 0, 0, 0, 0}
+            .report = {0, 0, 0, (last_position - current_position) , (last_position - current_position), 0, 0, 0}
         };
     trigger_button(&report);
 
 
     } else {
-        printk("no\n");
+        // printk("no\n");
     }
 
 
