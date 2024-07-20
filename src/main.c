@@ -91,6 +91,40 @@ const uint8_t arcsine[] = {
 #define ZMK_HID_REPORT_ID_CONSUMER 0x02
 #define ZMK_HID_REPORT_ID_MOUSE 0x03
 
+struct zmk_hid_keyboard_report_body {
+    uint8_t modifiers;
+    uint8_t _reserved;
+    uint8_t keys[6];
+
+} __packed;
+
+struct zmk_hid_consumer_report_body {
+
+    uint8_t keys[6];
+
+} __packed;
+
+// struct zmk_hid_mouse_report_body {
+//     uint8_t buttons;
+//     int8_t d_x;
+//     int8_t d_y;
+//     int8_t d_wheel;
+// } __packed;
+
+struct zmk_hid_mouse_report_body {
+    uint8_t report[8];
+};
+
+#define MOUSE_MSGQ_ARRAY_SIZE 32
+#define BUTTON_0 0x01 // Example definition, update according to your hardware
+
+
+K_MSGQ_DEFINE(button_action_msgq, sizeof(struct zmk_hid_mouse_report_body), MOUSE_MSGQ_ARRAY_SIZE, 4);
+
+struct k_work button_action_work;
+
+bool connectd = false;
+
 enum button_evt
 {
     BUTTON_EVT_PRESSED,
@@ -105,6 +139,8 @@ struct button_states
     bool button3;
 };
 
+
+
 struct button_states button_s;
 
 struct wheel_states
@@ -113,7 +149,7 @@ struct wheel_states
     bool countercw;
 };
 
-struct wheel_states wheel_s;
+
 
 struct selected_mode
 {
@@ -175,6 +211,41 @@ int getbatterylevel(const struct device *dev)
 
     return state_of_charge.val1;
 }
+
+void print_report(struct zmk_hid_mouse_report_body *report) {
+    printk("report.report: ");
+    for (int i = 0; i < 8; i++) {
+        printk("%02x ", report->report[i]);
+    }
+    printk("\n");
+}
+
+void button_action_work_handler(struct k_work *work) {
+    /* Process everything in the message queue */
+    struct zmk_hid_mouse_report_body report;
+
+    while (k_msgq_num_used_get(&button_action_msgq)) {
+        uint32_t button_states;
+        k_msgq_get(&button_action_msgq, &report, K_NO_WAIT);
+        /* Run some function based on which button was pressed */
+   
+        // print_report(&report);
+        printk("%02x\n",report.report[0]);
+        /* Give the scheduler a chance to run other tasks */
+        k_yield();
+    }
+}
+
+void trigger_button(struct zmk_hid_mouse_report_body *report)
+{
+    /* add the current button states to the message queue */
+    k_msgq_put(&button_action_msgq, report, K_NO_WAIT);
+    /* Queue the worker to process the buttons */
+    k_work_submit(&button_action_work);
+}
+
+
+
 
 void batteryUpdateThread()
 {
@@ -449,6 +520,9 @@ static void input_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
     simulate_input = (value == BT_GATT_CCC_NOTIFY) ? 1 : 0;
 }
 
+
+
+
 #if CONFIG_SAMPLE_BT_USE_AUTHENTICATION
 /* Require encryption using authenticated link-key. */
 #define SAMPLE_BT_PERM_READ BT_GATT_PERM_READ_AUTHEN
@@ -506,6 +580,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
     }
 
     LOG_INF("Connected %s\n", addr);
+    
 
     if (bt_conn_set_security(conn, BT_SECURITY_L2))
     {
@@ -519,7 +594,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
     char addr[BT_ADDR_LE_STR_LEN];
 
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
+    connectd = false;
     LOG_INF("Disconnected from %s (reason 0x%02x)\n", addr, reason);
 
     err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
@@ -536,6 +611,7 @@ static void security_changed(struct bt_conn *conn, bt_security_t level,
     char addr[BT_ADDR_LE_STR_LEN];
 
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+    connectd = true;
 
     if (!err)
     {
@@ -724,6 +800,7 @@ static void button_event_handler(size_t idx, enum button_evt evt)
     case 2:
         if (evt == BUTTON_EVT_PRESSED)
         {
+
             LOG_INF("Button 2 pressed");
             button_s.button2 = true;
             s_mode.mouse = true;
@@ -766,6 +843,105 @@ static void button_event_handler(size_t idx, enum button_evt evt)
     default:
         LOG_ERR("Unknown button %zu event", idx + 1);
         break;
+    }
+}
+
+typedef enum {
+    CLOCKWISE,
+    COUNTER_CLOCKWISE
+} RotationDirection;
+
+// Function to determine rotation direction using alternate sensing
+RotationDirection determineDirectionAlternate(int8_t Cosine, int8_t deltaSine) {
+    if (Cosine > 0) {
+        return (deltaSine > 0) ? CLOCKWISE : COUNTER_CLOCKWISE;
+    } else {
+        return (deltaSine > 0) ? COUNTER_CLOCKWISE : CLOCKWISE;
+    }
+}
+
+// Function to determine rotation direction using primary sensing
+RotationDirection determineDirectionPrimary(int8_t Sine, int8_t deltaCosine) {
+    if (Sine > 0) {
+        return (deltaCosine > 0) ? COUNTER_CLOCKWISE : CLOCKWISE;
+    } else {
+        return (deltaCosine > 0) ? CLOCKWISE : COUNTER_CLOCKWISE;
+    }
+}
+
+RotationDirection determineWheelDirection(int degrees, int8_t lastSine, int8_t lastCosine) {
+    int8_t Sine = sineLookupTable[degrees];
+    int8_t Cosine = cosineLookupTable[degrees];
+    int8_t deltaCosine = lastCosine - Cosine;
+    int8_t deltaSine = lastSine - Sine;
+
+    if (Cosine > 80 || Cosine < -80) {
+        return determineDirectionAlternate(Cosine, deltaSine);
+    } else {
+        return determineDirectionPrimary(Sine, deltaCosine);
+    }
+}
+
+double last_degree = 0;
+double last_time = 0;
+double last_speed = 0;
+int direction = 0; // 1 for clockwise, -1 for counterclockwise, 0 for no movement
+double continuous_counter = 0; // Continuous counter for the wheel position
+double speed_threshold = 100; // Threshold for significant speed changes
+
+
+double predictive_update(double new_degree) {
+    double current_time = k_cycle_get_32();
+    double time_diff = current_time - last_time;
+    
+    // Calculate the current speed
+    double delta_degree = new_degree - last_degree;
+    if (delta_degree > 180) {
+        delta_degree -= 360;
+    } else if (delta_degree < -180) {
+        delta_degree += 360;
+    }
+    
+    double current_speed = delta_degree / time_diff;
+    
+    // Detect direction change and significant speed changes
+    int new_direction = (current_speed > 0) ? 1 : (current_speed < 0) ? -1 : 0;
+    if (new_direction != direction || abs(current_speed) > speed_threshold) {
+        // Adjust speed calculation on direction change or significant speed change
+        last_speed = current_speed;
+        direction = new_direction;
+    } else {
+        // Smooth speed calculation using weighted average
+        last_speed = (last_speed * 0.7) + (current_speed * 0.3);
+    }
+    
+    // Update the continuous counter
+    continuous_counter += delta_degree;
+    
+    // Update the last known values
+    last_degree = new_degree;
+    last_time = current_time;
+    
+    return continuous_counter;
+}
+
+void print_direction() {
+    if (direction == 1) {
+        printk("cw\n");
+        int err = gpio_pin_set_dt(&leds[0], 1);
+        if (err < 0) {
+            // Handle the error
+            return;
+        }
+    } else if (direction == -1) {
+        printk("ccw\n");
+         int err = gpio_pin_set_dt(&leds[0], 0);
+        if (err < 0) {
+            // Handle the error
+            return;
+        }
+    } else {
+        printk("no\n");
     }
 }
 
@@ -827,113 +1003,58 @@ int main(void)
         LOG_INF("Bluetooth authentication callbacks registered.\n");
     }
 
+    k_work_init(&button_action_work, button_action_work_handler); // start button work queue
+
     LOG_INF("system started");
 
-    int counter = 0;
+
     int degrees = as5600_refresh(as);
+
     int8_t lastSine = sineLookupTable[degrees];
     int8_t lastCosine = cosineLookupTable[degrees];
 
-    uint32_t start_time, end_time, elapsed_time;
-    
+
+    last_time = k_cycle_get_32();
     while (1)
     {
+        // int degrees = as5600_refresh(as);
 
-        // printk("-128,127,");
+//         RotationDirection direction = determineWheelDirection(degrees, lastSine, lastCosine);
         
-        start_time = k_cycle_get_32();
-        int degrees = as5600_refresh(as);
-        int8_t Sine = sineLookupTable[degrees];
-        int8_t Cosine = cosineLookupTable[degrees];
-        int8_t deltaCosine = lastCosine - Cosine;
-        int8_t deltaSine = lastSine - Sine;
+//             lastSine = sineLookupTable[degrees];
+//     lastCosine = cosineLookupTable[degrees];
 
-        if (Cosine > 90 || Cosine < -90) // use alternate sensing with cosine sine as y axis
-        {
+//         bool isClockwise = (direction == CLOCKWISE);
 
-            if (Cosine > 0) // cosine is negative
-            {
-
-                if (deltaSine > 0)
-                { // sine decreasing
-
-                    // printk("cw,");
-                    
-                }
-                else
-                { // sine increasing
-
-                    // printk("ccw,");
-                    
-                }
-            }
-            else // cosine is positive
-            {
-
-                if (deltaSine > 0)
-                { // sine decreasing
-
-                    // printk("ccw,");
-                }
-                else
-                { // sine increasing
-
-                    // printk("cw,");
-                }
-            }
-        }
-        else // use primary sensing with sine sine as y axis
-        {
-
-            if (Sine > 0) // sine is positive
-            {
-
-                if (deltaCosine > 0)
-                { // cosine decreasing
-
-                    // printk("ccw,");
-                }
-                else
-                { // cosine increasing
-
-                    // printk("cw,");
-                }
-            }
-            else // sine is negative
-            {
-
-                if (deltaCosine > 0)
-                { // cosine decreasing
-                    // printk("cw,");
-                }
-                else
-                { // cosine increasing
-                    // printk("ccw,");
-                }
-            }
-        }
-
-        // printk("%d,", Sine);
-        // printk("%d,", Cosine);
-        
-        // printk ("%d",sqrt((deltaSine^2)+(deltaCosine^2)));
-
-        int root = sqrt((deltaSine * deltaSine)+(deltaCosine * deltaCosine));
-        int deltaDegree = arcsine[root];
-        // printk("%d\n", degrees);
+//     // Example usage of isClockwise
+//     if (isClockwise) {
+//              int err = gpio_pin_set_dt(&leds[0], 1);
+// if (err < 0) {
+//     // Handle the error
+//     return;
+// }
+//     } else {
+//              int err = gpio_pin_set_dt(&leds[0], 0);
+// if (err < 0) {
+//     // Handle the error
+//     return;
+// }
+//     }
 
 
-        lastCosine = Cosine;
-        lastSine = Sine;
+    
+    // Example usage
+    double new_degree = as5600_refresh(as);
+    double current_position = predictive_update(new_degree);
+    printk("Current Position: %.2f\n", current_position);
+    print_direction();
 
-      end_time = k_cycle_get_32();
-      elapsed_time = end_time - start_time;
-      uint64_t elapsed_ns = k_cyc_to_ns_ceil64(elapsed_time);
-    //   printk("Elapsed time: %llu ns\n", elapsed_ns);
+    // Simulate another reading after some time
+    // sleep(1);
+    // new_degree = 10; // Another example new degree reading
+    // current_position = predictive_update(new_degree);
+    // printf("Current Position: %.2f\n", current_position);
 
-    //   printk("%d,",root);
-    //   printk ("%d,",deltaSine);
-      printk ("%d\n",deltaDegree);
 
       
 
@@ -941,3 +1062,8 @@ int main(void)
     }
     return 0;
 }
+
+
+
+
+
