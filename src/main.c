@@ -220,29 +220,6 @@ void print_report(struct zmk_hid_mouse_report_body *report) {
     printk("\n");
 }
 
-void button_action_work_handler(struct k_work *work) {
-    /* Process everything in the message queue */
-    struct zmk_hid_mouse_report_body report;
-
-    while (k_msgq_num_used_get(&button_action_msgq)) {
-        uint32_t button_states;
-        k_msgq_get(&button_action_msgq, &report, K_NO_WAIT);
-        /* Run some function based on which button was pressed */
-   
-        // print_report(&report);
-        printk("%02x\n",report.report[0]);
-        /* Give the scheduler a chance to run other tasks */
-        k_yield();
-    }
-}
-
-void trigger_button(struct zmk_hid_mouse_report_body *report)
-{
-    /* add the current button states to the message queue */
-    k_msgq_put(&button_action_msgq, report, K_NO_WAIT);
-    /* Queue the worker to process the buttons */
-    k_work_submit(&button_action_work);
-}
 
 
 
@@ -552,6 +529,8 @@ BT_GATT_SERVICE_DEFINE(hog_svc,
 
                        BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_CTRL_POINT, BT_GATT_CHRC_WRITE_WITHOUT_RESP, BT_GATT_PERM_WRITE, NULL, write_ctrl_point, &ctrl_point));
 
+
+
 static unsigned char url_data[] = {0x17, '/', '/', 't', 'o', 'n', 'g', 't', 'o',
                                    'n', 'g', 'i', 'n', 'c', '.', 'c', 'o', 'm'};
 
@@ -846,6 +825,39 @@ static void button_event_handler(size_t idx, enum button_evt evt)
     }
 }
 
+void button_action_work_handler(struct k_work *work) {
+    /* Process everything in the message queue */
+    struct zmk_hid_mouse_report_body report;
+
+    while (k_msgq_num_used_get(&button_action_msgq)) {
+        uint32_t button_states;
+        k_msgq_get(&button_action_msgq, &report, K_NO_WAIT);
+        /* Run some function based on which button was pressed */
+         if (simulate_input)
+        {
+            bt_gatt_notify(NULL, &hog_svc.attrs[13], report.report, sizeof(report.report));
+
+
+        }
+
+   
+        // print_report(&report);
+        // printk("%02x\n",report.report[3]);
+        /* Give the scheduler a chance to run other tasks */
+        k_yield();
+    }
+}
+
+void trigger_button(struct zmk_hid_mouse_report_body *report)
+{
+    /* add the current button states to the message queue */
+    k_msgq_put(&button_action_msgq, report, K_NO_WAIT);
+    /* Queue the worker to process the buttons */
+    k_work_submit(&button_action_work);
+}
+
+
+
 typedef enum {
     CLOCKWISE,
     COUNTER_CLOCKWISE
@@ -888,7 +900,7 @@ double last_speed = 0;
 int direction = 0; // 1 for clockwise, -1 for counterclockwise, 0 for no movement
 double continuous_counter = 0; // Continuous counter for the wheel position
 double speed_threshold = 100; // Threshold for significant speed changes
-double dead_zone = 5; // Dead zone in degrees
+double dead_zone = 2; // Dead zone in degrees
 
 
 
@@ -1024,6 +1036,8 @@ int main(void)
 
 
     last_time = k_cycle_get_32();
+    double new_degree = as5600_refresh(as);
+    int last_position = predictive_update(new_degree);
     while (1)
     {
         // int degrees = as5600_refresh(as);
@@ -1054,10 +1068,47 @@ int main(void)
     
     // Example usage
     double new_degree = as5600_refresh(as);
-    double current_position = predictive_update(new_degree);
-    printk("Continuous Counter: %d\n", current_position);
-    print_direction();
+    int current_position = predictive_update(new_degree);
+    printk("%d\n", last_position - current_position);
+    // print_direction();
+    
+    if (direction == 1) {
+        printk("cw\n");
+        int err = gpio_pin_set_dt(&leds[0], 1);
+        if (err < 0) {
+            // Handle the error
+            return;
+        }
 
+
+        struct zmk_hid_mouse_report_body report = {
+            .report = {0, 0, 0, (last_position - current_position), 0, 0, 0, 0}
+        };
+    trigger_button(&report);
+
+
+
+    } else if (direction == -1) {
+        printk("ccw\n");
+         int err = gpio_pin_set_dt(&leds[0], 0);
+        if (err < 0) {
+            // Handle the error
+            return;
+        }
+
+        struct zmk_hid_mouse_report_body report = {
+            .report = {0, 0, 0, (last_position - current_position), 0, 0, 0, 0}
+        };
+    trigger_button(&report);
+
+
+    } else {
+        printk("no\n");
+    }
+
+
+
+    last_position = current_position;
 
 
       
