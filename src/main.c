@@ -418,7 +418,7 @@ HID_COLLECTION(HID_COLLECTION_APPLICATION),
         HID_LOGICAL_MIN8(0x00),
         HID_LOGICAL_MAX8(0xFF), // 0x0Fdefault
         0x35,0x01, //physical min 8
-        0x45,0x02, //physical max 8 //0x10 default
+        0x45,0x04, //physical max 8 //0x10 default
         HID_REPORT_SIZE(0x04),
         HID_REPORT_COUNT(0x01),
         HID_FEATURE(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
@@ -1055,29 +1055,6 @@ int main(void)
     int last_position = predictive_update(new_degree);
     while (1)
     {
-        // int degrees = as5600_refresh(as);
-
-//         RotationDirection direction = determineWheelDirection(degrees, lastSine, lastCosine);
-        
-//             lastSine = sineLookupTable[degrees];
-//     lastCosine = cosineLookupTable[degrees];
-
-//         bool isClockwise = (direction == CLOCKWISE);
-
-//     // Example usage of isClockwise
-//     if (isClockwise) {
-//              int err = gpio_pin_set_dt(&leds[0], 1);
-// if (err < 0) {
-//     // Handle the error
-//     return;
-// }
-//     } else {
-//              int err = gpio_pin_set_dt(&leds[0], 0);
-// if (err < 0) {
-//     // Handle the error
-//     return;
-// }
-//     }
 
 
     
@@ -1097,7 +1074,7 @@ int main(void)
 
 
         struct zmk_hid_mouse_report_body report = {
-            .report = {0, 0, 0, (last_position - current_position), (last_position - current_position), 0, 0, 0}
+            .report = {0, 0, 0, (last_position - current_position), (last_position - current_position) * (last_position - current_position), 0, 0, 0}
         };
     trigger_button(&report);
 
@@ -1112,7 +1089,7 @@ int main(void)
         }
 
         struct zmk_hid_mouse_report_body report = {
-            .report = {0, 0, 0, (last_position - current_position) , (last_position - current_position), 0, 0, 0}
+            .report = {0, 0, 0, (last_position - current_position) , (last_position - current_position) * (last_position - current_position), 0, 0, 0}
         };
     trigger_button(&report);
 
