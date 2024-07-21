@@ -43,7 +43,6 @@ const int8_t sineLookupTable[] = {
 const int8_t cosineLookupTable[] = {
     127, 127, 127, 127, 127, 127, 126, 126, 126, 125, 125, 125, 124, 124, 123, 123, 122, 121, 121, 120, 119, 119, 118, 117, 116, 115, 114, 113, 112, 111, 110, 109, 108, 106, 105, 104, 103, 101, 100, 99, 97, 96, 94, 93, 91, 90, 88, 86, 85, 83, 81, 80, 78, 76, 74, 73, 71, 69, 67, 65, 63, 61, 59, 57, 55, 53, 51, 49, 47, 45, 43, 41, 39, 37, 35, 32, 30, 28, 26, 24, 22, 19, 17, 15, 13, 11, 8, 6, 4, 2, 0, -3, -5, -7, -9, -12, -14, -16, -18, -20, -23, -25, -27, -29, -31, -33, -36, -38, -40, -42, -44, -46, -48, -50, -52, -54, -56, -58, -60, -62, -64, -66, -68, -70, -72, -74, -75, -77, -79, -81, -82, -84, -86, -87, -89, -91, -92, -94, -95, -97, -98, -100, -101, -102, -104, -105, -106, -107, -109, -110, -111, -112, -113, -114, -115, -116, -117, -118, -119, -120, -120, -121, -122, -122, -123, -124, -124, -125, -125, -126, -126, -126, -127, -127, -127, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -127, -127, -127, -126, -126, -126, -125, -125, -124, -124, -123, -122, -122, -121, -120, -120, -119, -118, -117, -116, -115, -114, -113, -112, -111, -110, -109, -107, -106, -105, -104, -102, -101, -100, -98, -97, -95, -94, -92, -91, -89, -87, -86, -84, -82, -81, -79, -77, -75, -74, -72, -70, -68, -66, -64, -62, -60, -58, -56, -54, -52, -50, -48, -46, -44, -42, -40, -38, -36, -33, -31, -29, -27, -25, -23, -20, -18, -16, -14, -12, -9, -7, -5, -3, -1, 2, 4, 6, 8, 11, 13, 15, 17, 19, 22, 24, 26, 28, 30, 32, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59, 61, 63, 65, 67, 69, 71, 73, 74, 76, 78, 80, 81, 83, 85, 86, 88, 90, 91, 93, 94, 96, 97, 99, 100, 101, 103, 104, 105, 106, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 119, 120, 121, 121, 122, 123, 123, 124, 124, 125, 125, 125, 126, 126, 126, 127, 127, 127, 127, 127, 127};
 
-
 const uint8_t arcsine[] = {
     0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 24, 25, 25, 26, 26, 27, 27, 28, 28, 29, 29, 30, 30, 30, 31, 31, 32, 32, 33, 33, 34, 34, 35, 35, 36, 36, 37, 37, 38, 38, 38, 39, 39, 40, 40, 41, 41, 42, 42, 43, 43, 44, 44, 45, 45, 46, 46, 47, 47, 48, 48, 49, 49, 50, 50, 51, 51, 52, 52, 53, 53, 54, 54, 55, 55, 56, 56, 57, 57, 58, 58, 59, 59, 60, 60, 61, 61, 62, 62, 63, 63, 64, 64, 65, 66, 66, 67, 67, 68, 68, 69, 69, 70, 70, 71, 72, 72, 73, 73, 74, 74, 75, 75, 76, 77, 77, 78, 78, 79, 79, 80, 81, 81, 82, 82, 83, 84, 84, 85, 85, 86, 87, 87, 88, 89, 89, 90, 90, 91, 92, 92, 93, 94, 94, 95, 96, 96, 97, 98, 98, 99, 100, 100, 101, 102, 103, 103, 104, 105, 106, 106, 107, 108, 109, 109, 110, 111, 112, 112, 113, 114, 115, 116, 117, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 137, 138, 139, 141, 142, 143, 145, 146, 148, 149, 151, 153, 155, 157, 160, 162, 166};
 
@@ -91,14 +90,16 @@ const uint8_t arcsine[] = {
 #define ZMK_HID_REPORT_ID_CONSUMER 0x02
 #define ZMK_HID_REPORT_ID_MOUSE 0x03
 
-struct zmk_hid_keyboard_report_body {
+struct zmk_hid_keyboard_report_body
+{
     uint8_t modifiers;
     uint8_t _reserved;
     uint8_t keys[6];
 
 } __packed;
 
-struct zmk_hid_consumer_report_body {
+struct zmk_hid_consumer_report_body
+{
 
     uint8_t keys[6];
 
@@ -111,13 +112,13 @@ struct zmk_hid_consumer_report_body {
 //     int8_t d_wheel;
 // } __packed;
 
-struct zmk_hid_mouse_report_body {
-    uint8_t report[8];
+struct zmk_hid_mouse_report_body
+{
+    int8_t report[8];
 };
 
 #define MOUSE_MSGQ_ARRAY_SIZE 32
 #define BUTTON_0 0x01 // Example definition, update according to your hardware
-
 
 K_MSGQ_DEFINE(button_action_msgq, sizeof(struct zmk_hid_mouse_report_body), MOUSE_MSGQ_ARRAY_SIZE, 4);
 
@@ -139,8 +140,6 @@ struct button_states
     bool button3;
 };
 
-
-
 struct button_states button_s;
 
 struct wheel_states
@@ -148,8 +147,6 @@ struct wheel_states
     bool clockwise;
     bool countercw;
 };
-
-
 
 struct selected_mode
 {
@@ -212,17 +209,15 @@ int getbatterylevel(const struct device *dev)
     return state_of_charge.val1;
 }
 
-void print_report(struct zmk_hid_mouse_report_body *report) {
+void print_report(struct zmk_hid_mouse_report_body *report)
+{
     printk("report.report: ");
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 8; i++)
+    {
         printk("%02x ", report->report[i]);
     }
     printk("\n");
 }
-
-
-
-
 
 void batteryUpdateThread()
 {
@@ -386,51 +381,53 @@ static const uint8_t zmk_hid_report_desc[] = {
     HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_ARRAY | ZMK_HID_MAIN_VAL_ABS),
     HID_END_COLLECTION,
 
-HID_USAGE_PAGE(HID_USAGE_GD),
-HID_USAGE(HID_USAGE_GD_MOUSE),
-HID_COLLECTION(HID_COLLECTION_APPLICATION),
+    HID_USAGE_PAGE(HID_USAGE_GD),
+    HID_USAGE(HID_USAGE_GD_MOUSE),
+    HID_COLLECTION(HID_COLLECTION_APPLICATION),
     HID_REPORT_ID(ZMK_HID_REPORT_ID_MOUSE),
     HID_USAGE(HID_USAGE_GD_POINTER),
     HID_COLLECTION(HID_COLLECTION_PHYSICAL),
-        HID_USAGE_PAGE(HID_USAGE_BUTTON),
-        HID_USAGE_MIN8(0x1),
-        HID_USAGE_MAX8(0x05),
-        HID_LOGICAL_MIN8(0x00),
-        HID_LOGICAL_MAX8(0x01),
-        HID_REPORT_SIZE(0x01),
-        HID_REPORT_COUNT(0x05),
-        HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
-        // Constant padding for the last 3 bits.
-        HID_REPORT_SIZE(0x03),
-        HID_REPORT_COUNT(0x01),
-        HID_INPUT(ZMK_HID_MAIN_VAL_CONST | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
-        // Some OSes ignore pointer devices without X/Y data.
-        HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
-        HID_USAGE(HID_USAGE_GD_X),
-        HID_USAGE(HID_USAGE_GD_Y),
-        HID_LOGICAL_MIN8(-0x7F),
-        HID_LOGICAL_MAX8(0x7F),
-        HID_REPORT_SIZE(0x08),
-        HID_REPORT_COUNT(0x02),
-        HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_REL),
-        // Adding Resolution Multiplier for the Wheel
-        HID_USAGE(HID_USAGE_GD_RESOLUTION_MULTIPLIER),
-        HID_LOGICAL_MIN8(0x00),
-        HID_LOGICAL_MAX8(0xFF), // 0x0Fdefault
-        0x35,0x01, //physical min 8
-        0x45,0x04, //physical max 8 //0x10 default
-        HID_REPORT_SIZE(0x04),
-        HID_REPORT_COUNT(0x01),
-        HID_FEATURE(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
-        // Wheel Control
-        HID_USAGE(HID_USAGE_GD_WHEEL),
-        HID_LOGICAL_MIN8(-0x7F),
-        HID_LOGICAL_MAX8(0x7F),
-        HID_REPORT_SIZE(0x08),
-        HID_REPORT_COUNT(0x01),
-        HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_REL),
+    HID_USAGE_PAGE(HID_USAGE_BUTTON),
+    HID_USAGE_MIN8(0x1),
+    HID_USAGE_MAX8(0x05),
+    HID_LOGICAL_MIN8(0x00),
+    HID_LOGICAL_MAX8(0x01),
+    HID_REPORT_SIZE(0x01),
+    HID_REPORT_COUNT(0x05),
+    HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
+    // Constant padding for the last 3 bits.
+    HID_REPORT_SIZE(0x03),
+    HID_REPORT_COUNT(0x01),
+    HID_INPUT(ZMK_HID_MAIN_VAL_CONST | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
+    // Some OSes ignore pointer devices without X/Y data.
+    HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
+    HID_USAGE(HID_USAGE_GD_X),
+    HID_USAGE(HID_USAGE_GD_Y),
+    HID_LOGICAL_MIN8(-0x7F),
+    HID_LOGICAL_MAX8(0x7F),
+    HID_REPORT_SIZE(0x08),
+    HID_REPORT_COUNT(0x02),
+    HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_REL),
+    // Adding Resolution Multiplier for the Wheel
+    HID_USAGE(HID_USAGE_GD_RESOLUTION_MULTIPLIER),
+    HID_LOGICAL_MIN8(0x00),
+    HID_LOGICAL_MAX8(0xFF), // 0x0Fdefault
+    0x35,
+    0x01, // physical min 8
+    0x45,
+    0x10, // physical max 8 //0x10 default
+    HID_REPORT_SIZE(0x04),
+    HID_REPORT_COUNT(0x01),
+    HID_FEATURE(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
+    // Wheel Control
+    HID_USAGE(HID_USAGE_GD_WHEEL),
+    HID_LOGICAL_MIN8(-0x7F),
+    HID_LOGICAL_MAX8(0x7F),
+    HID_REPORT_SIZE(0x08),
+    HID_REPORT_COUNT(0x01),
+    HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_REL),
     HID_END_COLLECTION,
-HID_END_COLLECTION,
+    HID_END_COLLECTION,
 
 };
 
@@ -512,9 +509,6 @@ static void input_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
     simulate_input = (value == BT_GATT_CCC_NOTIFY) ? 1 : 0;
 }
 
-
-
-
 #if CONFIG_SAMPLE_BT_USE_AUTHENTICATION
 /* Require encryption using authenticated link-key. */
 #define SAMPLE_BT_PERM_READ BT_GATT_PERM_READ_AUTHEN
@@ -544,8 +538,6 @@ BT_GATT_SERVICE_DEFINE(hog_svc,
 
                        BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_CTRL_POINT, BT_GATT_CHRC_WRITE_WITHOUT_RESP, BT_GATT_PERM_WRITE, NULL, write_ctrl_point, &ctrl_point));
 
-
-
 static unsigned char url_data[] = {0x17, '/', '/', 't', 'o', 'n', 'g', 't', 'o',
                                    'n', 'g', 'i', 'n', 'c', '.', 'c', 'o', 'm'};
 
@@ -574,7 +566,6 @@ static void connected(struct bt_conn *conn, uint8_t err)
     }
 
     LOG_INF("Connected %s\n", addr);
-    
 
     if (bt_conn_set_security(conn, BT_SECURITY_L2))
     {
@@ -779,6 +770,9 @@ static void button_event_handler(size_t idx, enum button_evt evt)
             {
                 return;
             }
+            struct zmk_hid_mouse_report_body report = {
+                .report = {0, 0, 0, 1, 127, 0, 0, 0}};
+            trigger_button(&report);
             LOG_INF("Button 1 pressed");
             button_s.button1 = true;
             s_mode.consumer = true;
@@ -794,6 +788,10 @@ static void button_event_handler(size_t idx, enum button_evt evt)
     case 2:
         if (evt == BUTTON_EVT_PRESSED)
         {
+
+            struct zmk_hid_mouse_report_body report = {
+                .report = {0, 0, 0, 1, 2, 0, 0, 0}};
+            trigger_button(&report);
 
             LOG_INF("Button 2 pressed");
             button_s.button2 = true;
@@ -840,22 +838,21 @@ static void button_event_handler(size_t idx, enum button_evt evt)
     }
 }
 
-void button_action_work_handler(struct k_work *work) {
+void button_action_work_handler(struct k_work *work)
+{
     /* Process everything in the message queue */
     struct zmk_hid_mouse_report_body report;
 
-    while (k_msgq_num_used_get(&button_action_msgq)) {
+    while (k_msgq_num_used_get(&button_action_msgq))
+    {
         uint32_t button_states;
         k_msgq_get(&button_action_msgq, &report, K_NO_WAIT);
         /* Run some function based on which button was pressed */
-         if (simulate_input)
+        if (simulate_input)
         {
             bt_gatt_notify(NULL, &hog_svc.attrs[13], report.report, sizeof(report.report));
-
-
         }
 
-   
         // print_report(&report);
         // printk("%02x\n",report.report[3]);
         /* Give the scheduler a chance to run other tasks */
@@ -871,40 +868,51 @@ void trigger_button(struct zmk_hid_mouse_report_body *report)
     k_work_submit(&button_action_work);
 }
 
-
-
-typedef enum {
+typedef enum
+{
     CLOCKWISE,
     COUNTER_CLOCKWISE
 } RotationDirection;
 
 // Function to determine rotation direction using alternate sensing
-RotationDirection determineDirectionAlternate(int8_t Cosine, int8_t deltaSine) {
-    if (Cosine > 0) {
+RotationDirection determineDirectionAlternate(int8_t Cosine, int8_t deltaSine)
+{
+    if (Cosine > 0)
+    {
         return (deltaSine > 0) ? CLOCKWISE : COUNTER_CLOCKWISE;
-    } else {
+    }
+    else
+    {
         return (deltaSine > 0) ? COUNTER_CLOCKWISE : CLOCKWISE;
     }
 }
 
 // Function to determine rotation direction using primary sensing
-RotationDirection determineDirectionPrimary(int8_t Sine, int8_t deltaCosine) {
-    if (Sine > 0) {
+RotationDirection determineDirectionPrimary(int8_t Sine, int8_t deltaCosine)
+{
+    if (Sine > 0)
+    {
         return (deltaCosine > 0) ? COUNTER_CLOCKWISE : CLOCKWISE;
-    } else {
+    }
+    else
+    {
         return (deltaCosine > 0) ? CLOCKWISE : COUNTER_CLOCKWISE;
     }
 }
 
-RotationDirection determineWheelDirection(int degrees, int8_t lastSine, int8_t lastCosine) {
+RotationDirection determineWheelDirection(int degrees, int8_t lastSine, int8_t lastCosine)
+{
     int8_t Sine = sineLookupTable[degrees];
     int8_t Cosine = cosineLookupTable[degrees];
     int8_t deltaCosine = lastCosine - Cosine;
     int8_t deltaSine = lastSine - Sine;
 
-    if (Cosine > 80 || Cosine < -80) {
+    if (Cosine > 80 || Cosine < -80)
+    {
         return determineDirectionAlternate(Cosine, deltaSine);
-    } else {
+    }
+    else
+    {
         return determineDirectionPrimary(Sine, deltaCosine);
     }
 }
@@ -912,71 +920,85 @@ RotationDirection determineWheelDirection(int degrees, int8_t lastSine, int8_t l
 double last_degree = 0;
 double last_time = 0;
 double last_speed = 0;
-int direction = 0; // 1 for clockwise, -1 for counterclockwise, 0 for no movement
+int direction = 0;             // 1 for clockwise, -1 for counterclockwise, 0 for no movement
 double continuous_counter = 0; // Continuous counter for the wheel position
-double speed_threshold = 100; // Threshold for significant speed changes
-double dead_zone = 2; // Dead zone in degrees
+double speed_threshold = 100;  // Threshold for significant speed changes
+double dead_zone = 2;          // Dead zone in degrees
 
-
-
-int predictive_update(double new_degree) {
+int predictive_update(double new_degree)
+{
     double current_time = k_cycle_get_32();
     double time_diff = current_time - last_time;
-    
+
     // Calculate the current speed
     double delta_degree = new_degree - last_degree;
-    if (delta_degree > 180) {
+    if (delta_degree > 180)
+    {
         delta_degree -= 360;
-    } else if (delta_degree < -180) {
+    }
+    else if (delta_degree < -180)
+    {
         delta_degree += 360;
     }
 
     // Ignore minor changes within the dead zone
-    if (abs(delta_degree) < dead_zone) {
+    if (abs(delta_degree) < dead_zone)
+    {
         direction = 0;
         return (int)continuous_counter;
     }
-    
+
     double current_speed = delta_degree / time_diff;
-    
+
     // Detect direction change and significant speed changes
-    int new_direction = (current_speed > 0) ? 1 : (current_speed < 0) ? -1 : 0;
-    if (new_direction != direction || abs(current_speed) > speed_threshold) {
+    int new_direction = (current_speed > 0) ? 1 : (current_speed < 0) ? -1
+                                                                      : 0;
+    if (new_direction != direction || abs(current_speed) > speed_threshold)
+    {
         // Adjust speed calculation on direction change or significant speed change
         last_speed = current_speed;
         direction = new_direction;
-    } else {
+    }
+    else
+    {
         // Smooth speed calculation using weighted average
         last_speed = (last_speed * 0.7) + (current_speed * 0.3);
     }
-    
+
     // Update the continuous counter
     continuous_counter += delta_degree;
-    
+
     // Update the last known values
     last_degree = new_degree;
     last_time = current_time;
-    
+
     return (int)continuous_counter;
 }
 
-
-void print_direction() {
-    if (direction == 1) {
+void print_direction()
+{
+    if (direction == 1)
+    {
         printk("cw\n");
         int err = gpio_pin_set_dt(&leds[0], 1);
-        if (err < 0) {
+        if (err < 0)
+        {
             // Handle the error
             return;
         }
-    } else if (direction == -1) {
+    }
+    else if (direction == -1)
+    {
         printk("ccw\n");
-         int err = gpio_pin_set_dt(&leds[0], 0);
-        if (err < 0) {
+        int err = gpio_pin_set_dt(&leds[0], 0);
+        if (err < 0)
+        {
             // Handle the error
             return;
         }
-    } else {
+    }
+    else
+    {
         printk("no\n");
     }
 }
@@ -1043,74 +1065,104 @@ int main(void)
 
     LOG_INF("system started");
 
-
     int degrees = as5600_refresh(as);
 
     int8_t lastSine = sineLookupTable[degrees];
     int8_t lastCosine = cosineLookupTable[degrees];
 
-
     last_time = k_cycle_get_32();
     double new_degree = as5600_refresh(as);
     int last_position = predictive_update(new_degree);
+
+    int start_time = k_cycle_get_32();
+    int last_report_time = k_cycle_get_32();
+    int sum = 0;
+    int countr = 0;
+    int change;
+    int8_t cappedValue;
+
     while (1)
     {
 
-
-    
-    // Example usage
-    double new_degree = as5600_refresh(as);
-    int current_position = predictive_update(new_degree);
-    // printk("%d\n", last_position - current_position);
-    // print_direction();
-    
-    if (direction == 1) {
-        // printk("cw\n");
-        int err = gpio_pin_set_dt(&leds[0], 1);
-        if (err < 0) {
-            // Handle the error
-            return;
-        }
+        // Example usage
+        double new_degree = as5600_refresh(as);
+        int current_position = predictive_update(new_degree);
 
 
-        struct zmk_hid_mouse_report_body report = {
-            .report = {0, 0, 0, (last_position - current_position), (last_position - current_position) * (last_position - current_position), 0, 0, 0}
-        };
-    trigger_button(&report);
+            change = (last_position - current_position);
 
-
-
-    } else if (direction == -1) {
-        // printk("ccw\n");
-         int err = gpio_pin_set_dt(&leds[0], 0);
-        if (err < 0) {
-            // Handle the error
-            return;
-        }
-
-        struct zmk_hid_mouse_report_body report = {
-            .report = {0, 0, 0, (last_position - current_position) , (last_position - current_position) * (last_position - current_position), 0, 0, 0}
-        };
-    trigger_button(&report);
-
-
+                if (change > INT8_MAX) {
+        cappedValue = INT8_MAX;
+    } else if (change < INT8_MIN) {
+        cappedValue = INT8_MIN;
     } else {
-        // printk("no\n");
+        cappedValue = (int8_t)change;
     }
 
 
+    
 
-    last_position = current_position;
+        if (k_cyc_to_ms_ceil64(k_cycle_get_32() - last_report_time) < 15)
+        {
+
+            int err = gpio_pin_set_dt(&leds[0], 0);
+
+            if (err < 0)
+            {
+                // Handle the error
+                return;
+            }
+        }
+        else
+        {
+
+            // if (direction == 1) {
+
+           
+
+           
+
+            // } else if (direction == -1) {
+
+           
+
+            // }
+
+            // printk("%d\n", (last_position - current_position));
+            
 
 
-      
+                 struct zmk_hid_mouse_report_body report = {
+                    .report = {0, cappedValue , 0, 0 , 0 , 0, 0, 0}
+                };
+            trigger_button(&report);
+
+            printk("%d, %d, %d\n",report.report[1],last_position,current_position);
+  
+
+            
+            last_position = current_position;
+
+            last_report_time = k_cycle_get_32();
 
 
+
+
+
+
+
+
+
+
+        }
+
+        // printk("a");
+        int elapsed_time = k_cycle_get_32() - start_time;
+        uint64_t elapsed_ns = k_cyc_to_ns_ceil64(elapsed_time);
+
+        // printk("%llu \n", elapsed_ns);
+
+        start_time = k_cycle_get_32();
     }
     return 0;
 }
-
-
-
-
-
