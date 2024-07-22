@@ -193,15 +193,7 @@ static void button_event_handler(size_t idx, enum button_evt evt)
             LOG_INF("Button 3 pressed");
             button_s.button3 = true;
 
-            int err_code = bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
-            if (err_code)
-            {
-                LOG_INF("Cannot delete bond (err: %d)\n", err);
-            }
-            else
-            {
-                LOG_INF("Bond deleted succesfully");
-            }
+
         }
         else
         {

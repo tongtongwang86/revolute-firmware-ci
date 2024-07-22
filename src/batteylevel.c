@@ -1,3 +1,4 @@
+#include <zephyr/bluetooth/services/bas.h>
 #define STACKSIZE 1024
 static struct k_thread batteryUpdateThread_data;
 
