@@ -2,7 +2,7 @@ on:
   pull_request:
   push:
     branches:
-      - Test-SensorPolling
+      - Test-LBS
   # run on tag creation
   create:
     tags:
