@@ -4,6 +4,7 @@
 #include "ble.h"
 #include "gpio.h"
 #include "hog.h"
+#include "batterylevel.h"
 
 LOG_MODULE_REGISTER(Revolute, LOG_LEVEL_DBG);
 
@@ -120,6 +121,7 @@ int main(void)
     // Initialize BLE
     enableBle();
     startAdv();
+    batteryThreadinit();
 
     // Initialize buttons
     for (size_t i = 0; i < 4; i++)
