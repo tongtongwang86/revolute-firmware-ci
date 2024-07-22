@@ -15,6 +15,7 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/settings/settings.h>
 
+#include <zephyr/bluetooth/services/dis.h>
 #include <zephyr/bluetooth/services/bas.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/hci.h>
@@ -22,6 +23,7 @@
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/usb/class/usb_hid.h>
+
 
 #include <hid_usage.h>
 #include <hid_usage_pages.h>
@@ -45,6 +47,9 @@ const int8_t cosineLookupTable[] = {
 
 const uint8_t arcsine[] = {
     0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 24, 25, 25, 26, 26, 27, 27, 28, 28, 29, 29, 30, 30, 30, 31, 31, 32, 32, 33, 33, 34, 34, 35, 35, 36, 36, 37, 37, 38, 38, 38, 39, 39, 40, 40, 41, 41, 42, 42, 43, 43, 44, 44, 45, 45, 46, 46, 47, 47, 48, 48, 49, 49, 50, 50, 51, 51, 52, 52, 53, 53, 54, 54, 55, 55, 56, 56, 57, 57, 58, 58, 59, 59, 60, 60, 61, 61, 62, 62, 63, 63, 64, 64, 65, 66, 66, 67, 67, 68, 68, 69, 69, 70, 70, 71, 72, 72, 73, 73, 74, 74, 75, 75, 76, 77, 77, 78, 78, 79, 79, 80, 81, 81, 82, 82, 83, 84, 84, 85, 85, 86, 87, 87, 88, 89, 89, 90, 90, 91, 92, 92, 93, 94, 94, 95, 96, 96, 97, 98, 98, 99, 100, 100, 101, 102, 103, 103, 104, 105, 106, 106, 107, 108, 109, 109, 110, 111, 112, 112, 113, 114, 115, 116, 117, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 137, 138, 139, 141, 142, 143, 145, 146, 148, 149, 151, 153, 155, 157, 160, 162, 166};
+
+
+
 
 #define IDENT_OFFSET 1 // angle offset in degrees
 
@@ -89,6 +94,13 @@ const uint8_t arcsine[] = {
 #define ZMK_HID_REPORT_ID_LEDS 0x01
 #define ZMK_HID_REPORT_ID_CONSUMER 0x02
 #define ZMK_HID_REPORT_ID_MOUSE 0x03
+
+#define REV_SVC_UUID  BT_UUID_DECLARE_128(0x00001523, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
+#define REV_READ_UUID BT_UUID_DECLARE_128(0x00001524, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
+#define REV_WRITE_UUID BT_UUID_DECLARE_128(0x00001525, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
+
+ uint16_t read_value = 0;
+
 
 struct zmk_hid_keyboard_report_body
 {
@@ -409,27 +421,29 @@ static const uint8_t zmk_hid_report_desc[] = {
     HID_REPORT_COUNT(0x02),
     HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_REL),
     // Adding Resolution Multiplier for the Wheel
+    HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
     HID_USAGE(HID_USAGE_GD_RESOLUTION_MULTIPLIER),
     HID_LOGICAL_MIN8(0x00),
-    HID_LOGICAL_MAX8(0xFF), // 0x0Fdefault
-    0x35,
-    0x01, // physical min 8
-    0x45,
-    0x10, // physical max 8 //0x10 default
+    HID_LOGICAL_MAX8(0x0F), // 0x0Fdefault
+    0x35,0x01, // physical min 8
+    0x45,0xFF, // physical max 8 //0x10 default
     HID_REPORT_SIZE(0x04),
     HID_REPORT_COUNT(0x01),
     HID_FEATURE(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
     // Wheel Control
+    HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
     HID_USAGE(HID_USAGE_GD_WHEEL),
     HID_LOGICAL_MIN8(-0x7F),
     HID_LOGICAL_MAX8(0x7F),
-    HID_REPORT_SIZE(0x08),
     HID_REPORT_COUNT(0x01),
+    HID_REPORT_SIZE(0x08),
     HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_REL),
     HID_END_COLLECTION,
     HID_END_COLLECTION,
 
 };
+
+
 
 static const struct hids_report input = {
     .id = REPORT_ID_KEYBOARD,
@@ -519,6 +533,36 @@ static void input_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
 #define SAMPLE_BT_PERM_WRITE BT_GATT_PERM_WRITE_ENCRYPT
 #endif
 
+ssize_t read_callback(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset) {
+    const uint16_t *value = attr->user_data;
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, value, sizeof(*value));
+}
+
+ssize_t write_callback(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len, uint16_t offset, uint8_t flags) {
+    uint8_t *value = attr->user_data;
+
+    if (offset + len > sizeof(*value)) {
+        return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
+    }
+
+    memcpy(value + offset, buf, len);
+
+    // Print the received data
+    printk("Received data: ");
+    for (int i = 0; i < len; i++) {
+        printk("%02x ", ((uint8_t *)buf)[i]);
+    }
+    printk("\n");
+
+    return len;
+}
+
+BT_GATT_SERVICE_DEFINE(rev_svc,
+    BT_GATT_PRIMARY_SERVICE(REV_SVC_UUID),
+    BT_GATT_CHARACTERISTIC(REV_READ_UUID, BT_GATT_CHRC_READ, BT_GATT_PERM_READ, read_callback, NULL, &read_value),
+    BT_GATT_CHARACTERISTIC(REV_WRITE_UUID, BT_GATT_CHRC_WRITE, BT_GATT_PERM_WRITE, NULL, write_callback, NULL),
+);
+
 BT_GATT_SERVICE_DEFINE(hog_svc,
                        BT_GATT_PRIMARY_SERVICE(BT_UUID_HIDS),
                        BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_INFO, BT_GATT_CHRC_READ, BT_GATT_PERM_READ, read_hids_info, NULL, &info),
@@ -538,8 +582,13 @@ BT_GATT_SERVICE_DEFINE(hog_svc,
 
                        BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_CTRL_POINT, BT_GATT_CHRC_WRITE_WITHOUT_RESP, BT_GATT_PERM_WRITE, NULL, write_ctrl_point, &ctrl_point));
 
+
 static unsigned char url_data[] = {0x17, '/', '/', 't', 'o', 'n', 'g', 't', 'o',
                                    'n', 'g', 'i', 'n', 'c', '.', 'c', 'o', 'm'};
+
+
+
+
 
 static const struct bt_data ad[] = {
     BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
@@ -547,10 +596,17 @@ static const struct bt_data ad[] = {
     BT_DATA_BYTES(BT_DATA_UUID16_ALL,
                   BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),
                   BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)),
+   
+
+
 };
 
 static const struct bt_data sd[] = {
-    BT_DATA(BT_DATA_URI, url_data, sizeof(url_data)),
+    // BT_DATA(BT_DATA_URI, url_data, sizeof(url_data)),
+    // BT_DATA_BYTES(BT_DATA_UUID128_ALL,BT_UUID_128_ENCODE(0x00000000, 0x0000, 0x1000, 0x8000, 0x00805F9B34FB)),
+    BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_128_ENCODE(0x00001523, 0x1212, 0xefde, 0x1523, 0x785feabcd133)),
+
+
 };
 
 static void connected(struct bt_conn *conn, uint8_t err)
@@ -1066,6 +1122,7 @@ int main(void)
     LOG_INF("system started");
 
     int degrees = as5600_refresh(as);
+    
 
     int8_t lastSine = sineLookupTable[degrees];
     int8_t lastCosine = cosineLookupTable[degrees];
@@ -1086,6 +1143,7 @@ int main(void)
 
         // Example usage
         double new_degree = as5600_refresh(as);
+        read_value = new_degree;
         int current_position = predictive_update(new_degree);
 
 
@@ -1133,11 +1191,11 @@ int main(void)
 
 
                  struct zmk_hid_mouse_report_body report = {
-                    .report = {0, cappedValue , 0, 0 , 0 , 0, 0, 0}
+                    .report = {0, 0 , 0 , cappedValue , 0 , 0, 0, 0}
                 };
             trigger_button(&report);
 
-            printk("%d, %d, %d\n",report.report[1],last_position,current_position);
+            // printk("%d, %d, %d\n",report.report[1],last_position,current_position);
   
 
             
