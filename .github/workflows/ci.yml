@@ -2,7 +2,7 @@ on:
   pull_request:
   push:
     branches:
-      - Test-LBS
+      - Test-AdvCon
   # run on tag creation
   create:
     tags:
