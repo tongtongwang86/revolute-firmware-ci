@@ -5,6 +5,11 @@
 #include "gpio.h"
 #include "hog.h"
 #include "batterylevel.h"
+#include "revsvc.h"
+#include "sensor_poll.h"
+
+
+
 
 LOG_MODULE_REGISTER(Revolute, LOG_LEVEL_DBG);
 
@@ -122,7 +127,8 @@ int main(void)
     enableBle();
     startAdv();
     batteryThreadinit();
-
+    
+    // bt_gatt_service_register(&rev_svc);
     // Initialize buttons
     for (size_t i = 0; i < 4; i++)
     {
@@ -132,7 +138,8 @@ int main(void)
     k_work_init(&keyboard_bt_action_work, keyboard_bt_action_work_handler); // start button work queue
     k_work_init(&mouse_bt_action_work, mouse_bt_action_work_handler);       // start button work queue
     k_work_init(&consumer_bt_action_work, consumer_bt_action_work_handler); // start button work queue
-
+    k_work_init(&revolute_bt_action_work, revolute_bt_action_work_handler); // start button work queue
+    SensorThreadinit();
     while (1)
     {
         int err = gpio_pin_toggle_dt(&led);

@@ -7,6 +7,7 @@ struct k_work button_action_work;
 struct k_work keyboard_bt_action_work;
 struct k_work mouse_bt_action_work;
 struct k_work consumer_bt_action_work;
+struct k_work revolute_bt_action_work;
 
 static uint8_t input_report[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
@@ -247,4 +248,28 @@ void mouse_bt_action_work_handler(struct k_work *work) {
 void mouse_bt_submit(struct hid_mouse_report_body *report) {
     k_msgq_put(&mouse_action_msgq, report, K_NO_WAIT);
     k_work_submit(&mouse_bt_action_work);
+}
+
+
+
+
+K_MSGQ_DEFINE(revolute_action_msgq, sizeof(struct hid_revolute_report_body), REVOLUTE_MSGQ_ARRAY_SIZE, 4);
+
+void revolute_bt_action_work_handler(struct k_work *work) {
+    struct hid_revolute_report_body report;
+    while (k_msgq_num_used_get(&revolute_action_msgq)) {
+        k_msgq_get(&revolute_action_msgq, &report, K_NO_WAIT);
+        if (simulate_input) {
+
+            uint8_t rep[8] = {report.report[0],report.report[1],report.report[2],report.report[3],report.report[4],report.report[5],report.report[6],report.report[7]};
+            // printk("%d",report.id);
+            bt_gatt_notify(NULL, &hog_svc.attrs[report.id], rep, sizeof(rep));
+        }
+        k_yield();
+    }
+}
+
+void revolute_bt_submit(struct hid_revolute_report_body *report) {
+    k_msgq_put(&revolute_action_msgq, report, K_NO_WAIT);
+    k_work_submit(&revolute_bt_action_work);
 }

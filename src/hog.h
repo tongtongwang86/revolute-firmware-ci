@@ -19,6 +19,8 @@
 #define KEYBOARD_MSGQ_ARRAY_SIZE 32
 #define CONSUMER_MSGQ_ARRAY_SIZE 32
 
+#define REVOLUTE_MSGQ_ARRAY_SIZE 32
+
 struct hids_report
 {
     uint8_t id;   /* report id */
@@ -40,6 +42,12 @@ struct hid_mouse_report_body {
     int8_t d_y;
     int8_t d_wheel;
 } __packed;
+
+struct hid_revolute_report_body {
+    int id;
+    uint8_t report[8];
+} __packed;
+
 
 #define REPORT_ID_KEYBOARD 1
 #define REPORT_ID_CONSUMER 2
@@ -90,20 +98,22 @@ enum {
     HIDS_NORMALLY_CONNECTABLE = BIT(1),
 };
 
-extern struct k_work button_action_work;
+
 extern struct k_work keyboard_bt_action_work;
 extern struct k_work mouse_bt_action_work;
 extern struct k_work consumer_bt_action_work;
+extern struct k_work revolute_bt_action_work;
 
 extern struct bt_hids_info info;
 extern uint8_t simulate_input;
 extern uint8_t ctrl_point;
 
-void button_action_work_handler(struct k_work *work);
+
 
 void keyboard_bt_action_work_handler(struct k_work *work);
 void mouse_bt_action_work_handler(struct k_work *work);
 void consumer_bt_action_work_handler(struct k_work *work);
+void revolute_bt_action_work_handler(struct k_work *work);
 
 
 

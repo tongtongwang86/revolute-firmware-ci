@@ -1,19 +1,18 @@
+#include "revsvc.h"
+
+LOG_MODULE_REGISTER(RevSVC, LOG_LEVEL_DBG);
+
+
 uint16_t read_value = 0;
 
-#define REV_SVC_UUID  BT_UUID_DECLARE_128(0x00001523, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
-#define REV_READ_UUID BT_UUID_DECLARE_128(0x00001524, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
-#define REV_WRITE_UUID BT_UUID_DECLARE_128(0x00001525, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
-
-
-void print_report(struct zmk_hid_mouse_report_body *report)
-{
-    printk("report.report: ");
-    for (int i = 0; i < 8; i++)
-    {
-        printk("%02x ", report->report[i]);
-    }
-    printk("\n");
-}
+struct config_profile config = {
+    .mode = 13, // 5 for keyboard, 9 for consumer, 13 for mouse
+    .identPerRev = 12,
+    .deadzone = 2,
+    .upReport = {0,0,0,1,0,0,0,0},
+    .downReport = {0,0,0,1,0,0,0,0},
+    
+};
 
 ssize_t read_callback(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset) {
     const uint16_t *value = attr->user_data;
