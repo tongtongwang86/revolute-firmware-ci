@@ -151,6 +151,7 @@ void spinUpdateThread(void)
 
         if (config.mode == 13 && (config.upReport[0] == 0 && config.downReport[0] == 0))
         {
+            // change = ceil((double)change/ (double)config.identPerRev);
 
             if (change > INT8_MAX)
             {

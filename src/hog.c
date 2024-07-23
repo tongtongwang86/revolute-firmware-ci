@@ -105,23 +105,25 @@ static const uint8_t zmk_hid_report_desc[] = {
     HID_REPORT_COUNT(0x02),
     HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_REL),
     // Adding Resolution Multiplier for the Wheel
-    HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
+    HID_COLLECTION(HID_COLLECTION_LOGICAL),
     HID_USAGE(HID_USAGE_GD_RESOLUTION_MULTIPLIER),
     HID_LOGICAL_MIN8(0x00),
-    HID_LOGICAL_MAX8(0x0F), // 0x0Fdefault
+    HID_LOGICAL_MAX8(0x7f), // 0x0Fdefault
     0x35,0x01, // physical min 8
-    0x45,0xFF, // physical max 8 //0x10 default
-    HID_REPORT_SIZE(0x04),
+    0x45,0x02, // physical max 8 //0x10 default
+    HID_REPORT_SIZE(0x02),
     HID_REPORT_COUNT(0x01),
     HID_FEATURE(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
     // Wheel Control
-    HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
-    HID_USAGE(HID_USAGE_GD_WHEEL),
-    HID_LOGICAL_MIN8(-0x7F),
-    HID_LOGICAL_MAX8(0x7F),
-    HID_REPORT_COUNT(0x01),
-    HID_REPORT_SIZE(0x08),
-    HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_REL),
+
+    0x09, 0x38,        //         USAGE (Wheel)
+    0x15, 0x81,        //         LOGICAL_MINIMUM (-127)
+    0x25, 0x7f,        //         LOGICAL_MAXIMUM (127)
+    0x35, -1,        //         PHYSICAL_MINIMUM (0)
+    0x45, 1,        //         PHYSICAL_MAXIMUM (0)
+    0x75, 0x08,        //         REPORT_SIZE (8)
+    0x81, 0x06,        //         INPUT (Data,Var,Rel)
+    HID_END_COLLECTION,
     HID_END_COLLECTION,
     HID_END_COLLECTION,
 };
