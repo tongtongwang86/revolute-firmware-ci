@@ -4,8 +4,6 @@ if BOARD_REVOLUTEWIRELESS
 config BOARD
 	default "revolutewireless"
 
-
-
 if USB_DEVICE_STACK
 
 # Enable UART driver, needed for CDC ACM
