@@ -148,7 +148,7 @@ int main(void)
             return 0;
         }
 
-        LOG_INF("a");
+        // LOG_INF("a");
 
         k_msleep(1000);
     }

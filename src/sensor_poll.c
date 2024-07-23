@@ -68,7 +68,7 @@ int predictive_update(double new_degree)
     }
 
     // Ignore minor changes within the dead zone
-    if (abs(delta_degree) < dead_zone)
+    if (abs(delta_degree) < config.deadzone)
     {
         direction = 0;
         return (int)continuous_counter;
@@ -122,7 +122,7 @@ double last_time = 0;
 double last_speed = 0;
 int direction = 0;
 double speed_threshold = 100;
-double dead_zone = 2;
+
 double continuous_counter = 0;
 
 void spinUpdateThread(void)
@@ -145,6 +145,7 @@ void spinUpdateThread(void)
     while (1)
     {
         new_degree = as5600_refresh(as);
+        angle_value = new_degree;
         int degrees = (int)new_degree;
         int current_position = predictive_update(new_degree);
         change = (last_position - current_position);
@@ -168,7 +169,7 @@ void spinUpdateThread(void)
 
             if (config.upReport[1] == 1 && config.downReport[1] == 1)
             {
-                
+
                 report.id = config.mode;
                 report.report[0] = 0;
                 report.report[1] = cappedValue;
@@ -211,9 +212,9 @@ void spinUpdateThread(void)
             if (last_ident != (((degrees + (config.identPerRev / 2) + IDENT_OFFSET)) - ((degrees + (config.identPerRev / 2) + IDENT_OFFSET) % config.identPerRev)) / config.identPerRev &&
                 (((degrees + (config.identPerRev / 2) + IDENT_OFFSET)) - ((degrees + (config.identPerRev / 2) + IDENT_OFFSET) % config.identPerRev)) / config.identPerRev != 30)
             {
-                printk("tick");
 
-                if (direction == 1)
+
+                if (change > 0)
                 {
                     // clock wise
                     LOG_INF("tick cw");
@@ -226,8 +227,10 @@ void spinUpdateThread(void)
                     report.report[5] = config.upReport[5];
                     report.report[6] = config.upReport[6];
                     report.report[7] = config.upReport[7];
+
+                    last_position = current_position;
                 }
-                else if (direction == -1)
+                else if (change < 0)
                 {
                     LOG_INF("tick ccw");
                     // counter clockwise
@@ -240,11 +243,12 @@ void spinUpdateThread(void)
                     report.report[5] = config.downReport[5];
                     report.report[6] = config.downReport[6];
                     report.report[7] = config.downReport[7];
+
+                    last_position = current_position;
                 }
                 else
                 {
                     // below dead zone
-                
                 }
 
                 last_ident = ((degrees + (config.identPerRev / 2) + IDENT_OFFSET) - ((degrees + (config.identPerRev / 2) + IDENT_OFFSET) % config.identPerRev)) / config.identPerRev;
@@ -256,33 +260,33 @@ void spinUpdateThread(void)
         }
         else
         { // send bluetooth at 60 hz
-           
-            
 
             if (config.mode == 13 && (config.upReport[0] == 0 && config.downReport[0] == 0))
-        {
+            {
 
-            revolute_bt_submit(&report);
+                revolute_bt_submit(&report);
 
+                last_position = current_position;
+            }
+            else
+            {
+                revolute_bt_submit(&report);
 
-        }else{
-            revolute_bt_submit(&report);
-
+                // k_msleep(3);
                 report.id = config.mode;
-                    report.report[0] = 0;
-                    report.report[1] = 0;
-                    report.report[2] = 0;
-                    report.report[3] = 0;
-                    report.report[4] = 0;
-                    report.report[5] = 0;
-                    report.report[6] = 0;
-                    report.report[7] = 0;
-                    revolute_bt_submit(&report);
+                report.report[0] = 0;
+                report.report[1] = 0;
+                report.report[2] = 0;
+                report.report[3] = 0;
+                report.report[4] = 0;
+                report.report[5] = 0;
+                report.report[6] = 0;
+                report.report[7] = 0;
+                revolute_bt_submit(&report);
 
-        }
+                last_position = current_position;
+            }
 
-
-            last_position = current_position;
             last_report_time = k_cycle_get_32();
         }
     }

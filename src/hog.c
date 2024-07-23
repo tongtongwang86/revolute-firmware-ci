@@ -266,6 +266,7 @@ void revolute_bt_action_work_handler(struct k_work *work) {
             uint8_t rep[8] = {report.report[0],report.report[1],report.report[2],report.report[3],report.report[4],report.report[5],report.report[6],report.report[7]};
             // printk("%d",report.id);
             bt_gatt_notify(NULL, &hog_svc.attrs[report.id], rep, sizeof(rep));
+
         }
         k_yield();
     }
