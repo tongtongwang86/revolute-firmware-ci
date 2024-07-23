@@ -2,7 +2,7 @@ on:
   pull_request:
   push:
     branches:
-      - Test-AdvCon
+      - Main
   # run on tag creation
   create:
     tags:
@@ -100,12 +100,6 @@ jobs:
           cd build
           cd zephyr
           ls
-
-      - name: 📦 Save BIN
-        uses: actions/upload-artifact@v4
-        with:
-          name: ZephyrBin
-          path: zephyr-workspace/build/zephyr/zephyr.bin
 
       - name: 📦 Save HEX
         uses: actions/upload-artifact@v4
