@@ -209,8 +209,12 @@ void spinUpdateThread(void)
         else
         {
 
-            if (last_ident != (((degrees + (config.identPerRev / 2) + IDENT_OFFSET)) - ((degrees + (config.identPerRev / 2) + IDENT_OFFSET) % config.identPerRev)) / config.identPerRev &&
-                (((degrees + (config.identPerRev / 2) + IDENT_OFFSET)) - ((degrees + (config.identPerRev / 2) + IDENT_OFFSET) % config.identPerRev)) / config.identPerRev != 30)
+    int DegreesPerIdent = 360/config.identPerRev;
+    int adjustedDegrees = degrees + (DegreesPerIdent / 2) + IDENT_OFFSET;
+    int CurrentIdent = (adjustedDegrees - (adjustedDegrees % DegreesPerIdent)) / DegreesPerIdent;
+
+
+            if (last_ident != CurrentIdent && CurrentIdent != config.identPerRev)
             {
 
 
@@ -251,7 +255,7 @@ void spinUpdateThread(void)
                     // below dead zone
                 }
 
-                last_ident = ((degrees + (config.identPerRev / 2) + IDENT_OFFSET) - ((degrees + (config.identPerRev / 2) + IDENT_OFFSET) % config.identPerRev)) / config.identPerRev;
+                last_ident = CurrentIdent;
             }
         }
 

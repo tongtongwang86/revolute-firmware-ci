@@ -6,8 +6,8 @@ LOG_MODULE_REGISTER(RevSVC, LOG_LEVEL_DBG);
 
 
 struct config_profile config = {
-    .mode = 13, // 5 for keyboard, 9 for consumer, 13 for mouse
-    .identPerRev = 12,
+    .mode = 5, // 5 for keyboard, 9 for consumer, 13 for mouse
+    .identPerRev = 30,
     .deadzone = 0,
     .upReport = {0,0,0,0,0,0,0,HID_KEY_Z},
     .downReport = {0,0,0,0,0,0,0,HID_KEY_X},
@@ -54,9 +54,9 @@ ssize_t write_callback_resolution(struct bt_conn *conn, const struct bt_gatt_att
     }
 
     memcpy((uint8_t *)value + offset, buf, len);
-    config.identPerRev = *value;
+    config.identPerRev = (int)(*value);
 
-    printk("Received resolution: %02x\n", *value);
+    printk("Received resolution: %d\n", (int)(*value));
 
     return len;
 }
