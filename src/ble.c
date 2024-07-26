@@ -1,4 +1,5 @@
 #include "ble.h"
+#include <zephyr/settings/settings.h>
 
 LOG_MODULE_REGISTER(BLE, LOG_LEVEL_DBG);
 
@@ -119,7 +120,9 @@ void enableBle(void)
         return;
     }
 
-    settings_load();
+    // settings_load();
+    load_config();
+    // config_init();
 }
 
 // Function to start advertising

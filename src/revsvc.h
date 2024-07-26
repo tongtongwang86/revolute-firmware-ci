@@ -41,7 +41,8 @@ ssize_t read_callback(struct bt_conn *conn, const struct bt_gatt_attr *attr, voi
 ssize_t write_callback(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len, uint16_t offset, uint8_t flags);
 
 
-
+void save_config(void);
+void load_config(void);
 
 
 
