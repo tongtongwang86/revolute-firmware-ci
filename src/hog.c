@@ -30,6 +30,11 @@ static const struct hids_report mouse_input = {
     .type = BT_HIDS_REPORT_TYPE_INPUT,
 };
 
+static const struct hids_report controller_input = {
+    .id = REPORT_ID_CONTROLLER,
+    .type = BT_HIDS_REPORT_TYPE_INPUT,
+};
+
 struct bt_hids_info info = {
     .bcd_hid = 0x0111,      /* HID Class Spec 1.11 */
     .b_country_code = 0x00, /* Hardware target country */
@@ -123,9 +128,66 @@ static const uint8_t zmk_hid_report_desc[] = {
     0x45, 1,        //         PHYSICAL_MAXIMUM (0)
     0x75, 0x08,        //         REPORT_SIZE (8)
     0x81, 0x06,        //         INPUT (Data,Var,Rel)
+
+
+        0x05, 0x0c,        //         USAGE_PAGE (Consumer Devices)
+
+            HID_USAGE(HID_USAGE_GD_RESOLUTION_MULTIPLIER),
+    HID_LOGICAL_MIN8(0x00),
+    HID_LOGICAL_MAX8(0x7f), // 0x0Fdefault
+    0x35,0x01, // physical min 8
+    0x45,0x02, // physical max 8 //0x10 default
+    HID_REPORT_SIZE(0x02),
+    HID_REPORT_COUNT(0x01),
+    HID_FEATURE(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
+
+    0x0a, 0x38, 0x02,  //         USAGE (AC Pan)
+    0x15, 0x81,        //         LOGICAL_MINIMUM (-127)
+    0x25, 0x7f,        //         LOGICAL_MAXIMUM (127)
+    0x35, 0,        //         PHYSICAL_MINIMUM (0)
+    0x45, 1,        //         PHYSICAL_MAXIMUM (0)
+    0x75, 0x08,        //         REPORT_SIZE (8)
+    0x81, 0x06,        //         INPUT (Data,Var,Rel)
     HID_END_COLLECTION,
     HID_END_COLLECTION,
     HID_END_COLLECTION,
+
+
+
+      0x05, 0x01,        // USAGE_PAGE (Generic Desktop)
+    0x09, 0x05,        // USAGE (Game Pad)
+    0xa1, 0x01,        // COLLECTION (Application)
+    HID_REPORT_ID(ZMK_HID_REPORT_ID_CONTROLLER),
+    // Axes
+    0x05, 0x01,        //   USAGE_PAGE (Generic Desktop)
+    0x09, 0x30,        //   USAGE (X)
+    0x09, 0x31,        //   USAGE (Y)
+    0x09, 0x32,        //   USAGE (Z)
+    0x09, 0x33,        //   USAGE (Rx)
+    0x15, 0x81,        //   LOGICAL_MINIMUM (-127)
+    0x25, 0x7f,        //   LOGICAL_MAXIMUM (127)
+    0x75, 0x08,        //   REPORT_SIZE (8)
+    0x95, 0x04,        //   REPORT_COUNT (4)
+    0x81, 0x02,        //   INPUT (Data,Var,Abs)
+    
+    // Buttons
+    0x05, 0x09,        //   USAGE_PAGE (Button)
+    0x19, 0x01,        //   USAGE_MINIMUM (Button 1)
+    0x29, 0x10,        //   USAGE_MAXIMUM (Button 16)
+    0x15, 0x00,        //   LOGICAL_MINIMUM (0)
+    0x25, 0x01,        //   LOGICAL_MAXIMUM (1)
+    0x75, 0x01,        //   REPORT_SIZE (1)
+    0x95, 0x10,        //   REPORT_COUNT (16)
+    0x81, 0x02,        //   INPUT (Data,Var,Abs)
+    
+    // Padding
+    0x75, 0x08,        //   REPORT_SIZE (8)
+    0x95, 0x01,        //   REPORT_COUNT (1)
+    0x81, 0x03,        //   INPUT (Cnst,Var,Abs)
+    
+    0xc0               // END_COLLECTION
+
+
 };
 
 
@@ -149,6 +211,10 @@ static ssize_t read_hids_mouse_input_report(struct bt_conn *conn, const struct b
     return bt_gatt_attr_read(conn, attr, buf, len, offset, input_report, sizeof(input_report));
 }
 
+static ssize_t read_hids_controller_input_report(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset) {
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, input_report, sizeof(input_report));
+}
+
 static ssize_t write_ctrl_point(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len, uint16_t offset, uint8_t flags) {
     printk("Control point written\n");
     return len;
@@ -165,16 +231,27 @@ static void input_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value) {
 BT_GATT_SERVICE_DEFINE(hog_svc,
     BT_GATT_PRIMARY_SERVICE(BT_UUID_HIDS),
     BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_INFO, BT_GATT_CHRC_READ, BT_GATT_PERM_READ, read_hids_info, NULL, &info),
+
     BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT_MAP, BT_GATT_CHRC_READ, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_map, NULL, NULL),
+
     BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_READ_ENCRYPT, read_hids_input_report, NULL, NULL),
     BT_GATT_CCC(input_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
     BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref, NULL, &input),
+
     BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_READ_ENCRYPT, read_hids_consumer_input_report, NULL, NULL),
     BT_GATT_CCC(input_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
     BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref, NULL, &consumer_input),
+
     BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_READ_ENCRYPT, read_hids_mouse_input_report, NULL, NULL),
     BT_GATT_CCC(input_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
     BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref, NULL, &mouse_input),
+
+
+    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_READ_ENCRYPT, read_hids_controller_input_report, NULL, NULL),
+    BT_GATT_CCC(input_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
+    BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref, NULL, &controller_input),
+
+
     BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_CTRL_POINT, BT_GATT_CHRC_WRITE_WITHOUT_RESP, BT_GATT_PERM_WRITE, NULL, write_ctrl_point, &ctrl_point),
 );
 

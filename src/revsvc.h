@@ -12,6 +12,8 @@
 #define REV_SVC_UUID          BT_UUID_DECLARE_128(0x00001523, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
 // read int
 #define REV_ANGLE_UUID        BT_UUID_DECLARE_128(0x00001524, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
+
+#define REV_READCONFIG_UUID        BT_UUID_DECLARE_128(0x00001522, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
 // send uint8 in hex
 #define REV_MODE_UUID         BT_UUID_DECLARE_128(0x00001525, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
 // send uint8 in hex

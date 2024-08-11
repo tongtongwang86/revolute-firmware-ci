@@ -52,6 +52,7 @@ struct hid_revolute_report_body {
 #define REPORT_ID_KEYBOARD 1
 #define REPORT_ID_CONSUMER 2
 #define REPORT_ID_MOUSE 3
+#define REPORT_ID_CONTROLLER 4
 
 #define ZMK_HID_MAIN_VAL_DATA (0x00 << 0)
 #define ZMK_HID_MAIN_VAL_CONST (0x01 << 0)
@@ -84,6 +85,7 @@ struct hid_revolute_report_body {
 #define ZMK_HID_REPORT_ID_LEDS 0x01
 #define ZMK_HID_REPORT_ID_CONSUMER 0x02
 #define ZMK_HID_REPORT_ID_MOUSE 0x03
+#define ZMK_HID_REPORT_ID_CONTROLLER 0x04
 
 #define INPUT_REPORT_SIZE 8
 

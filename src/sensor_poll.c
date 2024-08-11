@@ -125,6 +125,42 @@ double speed_threshold = 100;
 
 double continuous_counter = 0;
 
+bool determineUseDiscrete(void){
+    bool useDiscrete;
+
+    switch (config.mode)
+    {
+
+    case 13:
+        if (config.upReport[0] == 0 && config.downReport[0] == 0)
+        {
+            useDiscrete = false;
+        }else{
+            useDiscrete = true;
+        }
+        
+        break;
+
+    case 3:
+        useDiscrete = true;
+        break;
+
+    case 5:
+        useDiscrete = true;
+        break;
+    
+
+    default:
+        break;
+    }
+    
+
+
+
+
+return useDiscrete;
+}
+
 void spinUpdateThread(void)
 {
     const struct device *const as = DEVICE_DT_GET(DT_INST(0, ams_as5600));
@@ -150,9 +186,10 @@ void spinUpdateThread(void)
         int current_position = predictive_update(new_degree);
         change = (last_position - current_position);
 
-        if (config.mode == 13 && (config.upReport[0] == 0 && config.downReport[0] == 0))
+// handle special cases for continous reports
+        if (determineUseDiscrete() == false)
         {
-            // change = ceil((double)change/ (double)config.identPerRev);
+
 
             if (change > INT8_MAX)
             {
@@ -201,6 +238,18 @@ void spinUpdateThread(void)
                 report.report[2] = 0;
                 report.report[3] = cappedValue;
                 report.report[4] = 0;
+                report.report[5] = 0;
+                report.report[6] = 0;
+                report.report[7] = 0;
+            }
+            else if (config.upReport[4] == 1 && config.downReport[4] == 1)
+            {
+                report.id = config.mode;
+                report.report[0] = 0;
+                report.report[1] = 0;
+                report.report[2] = 0;
+                report.report[3] = 0;
+                report.report[4] = cappedValue;
                 report.report[5] = 0;
                 report.report[6] = 0;
                 report.report[7] = 0;
@@ -265,7 +314,7 @@ void spinUpdateThread(void)
         else
         { // send bluetooth at 60 hz
 
-            if (config.mode == 13 && (config.upReport[0] == 0 && config.downReport[0] == 0))
+            if (determineUseDiscrete() == false)
             {
 
                 revolute_bt_submit(&report);

@@ -7,11 +7,11 @@ LOG_MODULE_REGISTER(RevSVC, LOG_LEVEL_DBG);
 
 
 struct config_profile config = {
-    .mode = 5, // 5 for keyboard, 9 for consumer, 13 for mouse
+    .mode = 13, // 5 for keyboard, 9 for consumer, 13 for mouse 17 for controller
     .identPerRev = 30,
     .deadzone = 0,
-    .upReport = {0,0,0,0,0,0,0,HID_KEY_Z},
-    .downReport = {0,0,0,0,0,0,0,HID_KEY_X},
+    .upReport = {0,0,0,0,1,0,0,0},
+    .downReport = {0,0,0,0,1,0,0,0},
     
 };
 
@@ -77,6 +77,12 @@ uint16_t angle_value = 0; // This will hold the angle value to be read
 ssize_t read_callback_angle(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset) {
     const uint16_t *value = attr->user_data;
     return bt_gatt_attr_read(conn, attr, buf, len, offset, value, sizeof(*value));
+}
+
+ssize_t read_callback_config(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset)
+{
+    const struct config_profile *config_data = attr->user_data;
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, config_data, sizeof(struct config_profile));
 }
 
 ssize_t write_callback_mode(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len, uint16_t offset, uint8_t flags) {
@@ -170,6 +176,8 @@ ssize_t write_callback_downreport(struct bt_conn *conn, const struct bt_gatt_att
 BT_GATT_SERVICE_DEFINE(rev_svc,
     BT_GATT_PRIMARY_SERVICE(REV_SVC_UUID),
 
+    BT_GATT_CHARACTERISTIC(REV_READCONFIG_UUID, BT_GATT_CHRC_READ, BT_GATT_PERM_READ_ENCRYPT, read_callback_config, NULL, &config),
+
     BT_GATT_CHARACTERISTIC(REV_ANGLE_UUID, BT_GATT_CHRC_READ, BT_GATT_PERM_READ_ENCRYPT, read_callback_angle, NULL, &angle_value),
 
     BT_GATT_CHARACTERISTIC(REV_MODE_UUID, BT_GATT_CHRC_WRITE, BT_GATT_PERM_WRITE_ENCRYPT, NULL, write_callback_mode, &config.mode),
@@ -181,4 +189,6 @@ BT_GATT_SERVICE_DEFINE(rev_svc,
     BT_GATT_CHARACTERISTIC(REV_UPREPORT_UUID, BT_GATT_CHRC_WRITE, BT_GATT_PERM_WRITE_ENCRYPT, NULL, write_callback_upreport, config.upReport),
 
     BT_GATT_CHARACTERISTIC(REV_DOWNREPORT_UUID, BT_GATT_CHRC_WRITE, BT_GATT_PERM_WRITE_ENCRYPT, NULL, write_callback_downreport, config.downReport),
+
+    
 );
