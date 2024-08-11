@@ -1,157 +1,40 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/logging/log.h>
-#include "ble.h"
-#include "gpio.h"
-#include "hog.h"
-#include "batterylevel.h"
-#include "revsvc.h"
-#include "sensor_poll.h"
-
-
-
-
+#include <zephyr/drivers/sensor.h>
+#include <zephyr/drivers/i2c.h>
 LOG_MODULE_REGISTER(Revolute, LOG_LEVEL_DBG);
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/i2c.h>
+#include <zephyr/sys/printk.h>
 
-// Event handler for button events
-static void button_event_handler(size_t idx, enum button_evt evt)
-{
-    int err;
-    switch (idx)
-    {
-    case 0:
-        if (evt == BUTTON_EVT_PRESSED)
-        {
+#define I2C_NODE DT_NODELABEL(i2c0) // Referencing the i2c0 node
 
-            struct hid_mouse_report_body report = {
+void main(void) {
+    const struct device *i2c_dev = DEVICE_DT_GET(I2C_NODE);
 
-                .buttons = 0b00000001,
-                .d_x = 0x00,
-                .d_y = 0x00,
-                .d_wheel = 0x00,
-            };
-
-            mouse_bt_submit(&report);
-
-            LOG_INF("Button 0 pressed");
-        }
-        else
-        {
-            LOG_INF("Button 0 released");
-
-            struct hid_mouse_report_body report = {
-
-                .buttons = 0b00000000,
-                .d_x = 0x00,
-                .d_y = 0x00,
-                .d_wheel = 0x00,
-            };
-
-            mouse_bt_submit(&report);
-        }
-        break;
-    case 1:
-        if (evt == BUTTON_EVT_PRESSED)
-        {
-            err = gpio_pin_toggle_dt(&led);
-            if (err < 0)
-            {
-                return;
-            }
-
-            struct hid_keyboard_report_body report = {
-
-                .modifiers = 0b10000000, // | RGUI| RALT| RSHIFT| RCONTROL | LGUI| LALT| LSHIFT| LCONTROL|
-                .keys = HID_KEY_Z,
-
-            };
-            keyboard_bt_submit(&report);
-
-            LOG_INF("Button 1 pressed");
-        }
-        else
-        {
-            struct hid_keyboard_report_body report = {
-
-                .modifiers = 0b00000000, // | RGUI| RALT| RSHIFT| RCONTROL | LGUI| LALT| LSHIFT| LCONTROL|
-                .keys = 0,
-
-            };
-            keyboard_bt_submit(&report);
-
-            LOG_INF("Button 1 released");
-        }
-        break;
-    case 2:
-        if (evt == BUTTON_EVT_PRESSED)
-        {
-            struct hid_consumer_report_body report = {
-                .keys = HID_USAGE_CONSUMER_VOLUME_DECREMENT,
-            };
-            consumer_bt_submit(&report);
-
-            LOG_INF("Button 2 pressed");
-        }
-        else
-        {
-            struct hid_consumer_report_body report = {
-                .keys = 0,
-            };
-            consumer_bt_submit(&report);
-            LOG_INF("Button 2 released");
-        }
-        break;
-    case 3:
-        if (evt == BUTTON_EVT_PRESSED)
-        {
-            deleteBond();
-            LOG_INF("Button 3 pressed");
-        }
-        else
-        {
-            LOG_INF("Button 3 released");
-        }
-        break;
-    default:
-        LOG_ERR("Unknown button %zu event", idx);
-        break;
-    }
-}
-
-int main(void)
-{
-    // Initialize LEDs
-    ledInit();
-
-    // Initialize BLE
-    enableBle();
-    startAdv();
-    batteryThreadinit();
-    
-    // bt_gatt_service_register(&rev_svc);
-    // Initialize buttons
-    for (size_t i = 0; i < 4; i++)
-    {
-        button_init(i, button_event_handler);
+    if (!device_is_ready(i2c_dev)) {
+        printk("I2C device not found\n");
+        return;
     }
 
-    k_work_init(&keyboard_bt_action_work, keyboard_bt_action_work_handler); // start button work queue
-    k_work_init(&mouse_bt_action_work, mouse_bt_action_work_handler);       // start button work queue
-    k_work_init(&consumer_bt_action_work, consumer_bt_action_work_handler); // start button work queue
-    k_work_init(&revolute_bt_action_work, revolute_bt_action_work_handler); // start button work queue
-    SensorThreadinit();
-    while (1)
-    {
-        int err = gpio_pin_toggle_dt(&led);
-        if (err < 0)
-        {
-            return 0;
+    printk("I2C device found: %s\n", i2c_dev->name);
+
+    for (uint8_t addr = 0x03; addr <= 0x77; addr++) {
+        struct i2c_msg msgs[1];
+        uint8_t dummy = 0;
+
+        msgs[0].buf = &dummy;
+        msgs[0].len = 1U;
+        msgs[0].flags = I2C_MSG_WRITE | I2C_MSG_STOP;
+
+        int ret = i2c_transfer(i2c_dev, msgs, 1, addr);
+
+        if (ret == 0) {
+            printk("I2C device found at address: 0x%02X\n", addr);
         }
-
-        // LOG_INF("a");
-
-        k_msleep(1000);
     }
 
-    return 0;
+    printk("I2C scan complete.\n");
 }

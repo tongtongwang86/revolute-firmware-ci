@@ -92,6 +92,7 @@
 		sw3 = &button_down;
 		asdir = &AS5600_DIR;
 		asout = &AS5600_OUT;
+		my-i2c = &i2c0;
 
 	};
 };
@@ -138,7 +139,8 @@
 
 
 &i2c0 {
-
+	label = "I2C_0";
+	compatible = "nordic,nrf-twim";
 	status = "okay";
 	pinctrl-0 = <&i2c0_default>;
 	clock-frequency = <I2C_BITRATE_FAST>;
@@ -158,6 +160,12 @@
 		design-capacity = <40>;
 		taper-current = <45>;
 		terminate-voltage = <3000>;
+	};
+	
+	st_lsm6dso@6a {
+		compatible = "st,lsm6dso";
+		reg = <0x6a>;
+		irq-gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
 	};
 
 };
