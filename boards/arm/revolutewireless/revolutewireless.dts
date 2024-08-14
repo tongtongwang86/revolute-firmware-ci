@@ -162,9 +162,9 @@
 		terminate-voltage = <3000>;
 	};
 	
-	st_lsm6dso@6a {
+	st_lsm6dso@6b {
 		compatible = "st,lsm6dso";
-		reg = <0x6a>;
+		reg = <0x6b>;
 		irq-gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
 	};
 
