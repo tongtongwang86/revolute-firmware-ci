@@ -5,7 +5,10 @@
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/mgmt/mcumgr/transport/smp_bt.h>
+
+LOG_MODULE_REGISTER(Revolute, LOG_LEVEL_DBG);
 
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS 2500
