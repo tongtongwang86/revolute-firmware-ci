@@ -105,7 +105,7 @@ static void test_polling_mode(const struct device *dev)
 
 	while (1) {
 		fetch_and_display(dev);
-		k_sleep(K_MSEC(1000));
+		k_sleep(K_MSEC(1));
 	}
 }
 #endif
