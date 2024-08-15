@@ -11,19 +11,22 @@ from pygame.locals import *
 # Set up the serial connection (adjust '/dev/tty.usbmodem...' to your device's serial port)
 ser = serial.Serial('/dev/tty.usbmodem101', 9600, timeout=1)
 
-# Function to parse the serial data
+# Function to parse the serial data for quaternions
 def parse_data(line):
     try:
         data = line.decode('utf-8').strip().split(',')
-        x = float(data[0].split(':')[1])
-        y = float(data[1].split(':')[1])
-        z = float(data[2].split(':')[1])
-        return x, y, z
+        r = float(data[0].split(':')[1])
+        i = float(data[1].split(':')[1])
+        j = float(data[2].split(':')[1])
+        k = float(data[3].split(':')[1])
+        return r, i, j, k
     except:
-        return None, None, None
+        return None, None, None, None
 
-def euler_to_radians(roll, pitch, yaw):
-    return np.radians([roll, pitch, yaw])
+def swap_quaternion_axes(q):
+    """ Swap yaw with pitch, roll with yaw, and pitch with roll. """
+    r, i, j, k = q
+    return r, j, k, i  # Swap roll (i) with yaw (k), yaw (k) with pitch (j), and pitch (j) with roll (i)
 
 def draw_colored_cube():
     glBegin(GL_QUADS)
@@ -83,7 +86,8 @@ def main():
     glEnable(GL_DEPTH_TEST)
     glDepthFunc(GL_LESS)
 
-    roll, pitch, yaw = 0, 0, 0
+    # Initialize the 4x4 identity matrix
+    rotation_matrix = np.identity(4)
 
     try:
         while True:
@@ -95,15 +99,24 @@ def main():
 
             if ser.in_waiting > 0:
                 line = ser.readline()
-                x, y, z = parse_data(line)
-                if x is not None and y is not None and z is not None:
-                    roll, pitch, yaw = euler_to_radians(x, y, z)
+                r, i, j, k = parse_data(line)
+                if r is not None and i is not None and j is not None and k is not None:
+                    # Swap yaw with pitch, roll with yaw, and pitch with roll
+                    r, i, j, k = swap_quaternion_axes((r, i, j, k))
+
+                    # Create a rotation object using the swapped quaternion
+                    rotation = R.from_quat([i, j, k, r])
+                    # Convert quaternion to 3x3 rotation matrix
+                    rotation_matrix_3x3 = rotation.as_matrix()
+
+                    # Expand to 4x4 matrix
+                    rotation_matrix[:3, :3] = rotation_matrix_3x3
+                    rotation_matrix[3, :] = [0, 0, 0, 1]
 
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glPushMatrix()
-            glRotatef(np.degrees(-pitch), 1, 0, 0)  # Normal X-axis rotation (Pitch)
-            glRotatef(np.degrees(-yaw), 0, 1, 0)    # Inverted Y-axis rotation (Yaw)
-            glRotatef(np.degrees(-roll), 0, 0, 1)    # Inverted Z-axis rotation (Roll)
+            # Apply the 4x4 rotation matrix
+            glMultMatrixf(rotation_matrix.T)  # Transpose because OpenGL expects column-major order
             draw_colored_cube()
             glPopMatrix()
 

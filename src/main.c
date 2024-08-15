@@ -30,7 +30,6 @@ typedef struct {
 
 static double dt = 100; // Time step (100 ms)
 
-
 // Define the quaternion struct
 typedef struct quaternion {
     float q1; // Real component
@@ -77,12 +76,14 @@ void quat_sub(quaternion *result, quaternion q1, quaternion q2) {
     result->q4 = q1.q4 - q2.q4;
 }
 
-void quat_Normalization(quaternion *q) {
+void quat_normalization(quaternion *q) {
     float norm = sqrt(q->q1 * q->q1 + q->q2 * q->q2 + q->q3 * q->q3 + q->q4 * q->q4);
-    q->q1 /= norm;
-    q->q2 /= norm;
-    q->q3 /= norm;
-    q->q4 /= norm;
+    if (norm > 0) {
+        q->q1 /= norm;
+        q->q2 /= norm;
+        q->q3 /= norm;
+        q->q4 /= norm;
+    }
 }
 
 // Madgwick Filter Implementation
@@ -102,7 +103,7 @@ void imu_filter(float ax, float ay, float az, float gx, float gy, float gz) {
     q_w = quat_mult(q_est_prev, q_w);  // equation (12)
 
     // Normalize the acceleration quaternion to be a unit quaternion
-    quat_Normalization(&q_a);
+    quat_normalization(&q_a);
 
     // Compute the gradient
     float F_g[3] = {
@@ -125,25 +126,14 @@ void imu_filter(float ax, float ay, float az, float gx, float gy, float gz) {
     };
 
     // Normalize the gradient
-    quat_Normalization(&gradient);
+    quat_normalization(&gradient);
 
     // Sensor fusion
     quat_scalar(&gradient, BETA); // Multiply normalized gradient by beta
     quat_sub(&q_est_dot, q_w, gradient); // Subtract above from q_w
     quat_scalar(&q_est_dot, DELTA_T);
     quat_add(&q_est, q_est_prev, q_est_dot); // Integrate orientation rate to find position
-    quat_Normalization(&q_est); // Normalize the orientation of the estimate
-}
-
-// Convert quaternion to Euler angles
-void eulerAngles(quaternion q, float* roll, float* pitch, float* yaw) {
-    *yaw = atan2f(2 * (q.q2 * q.q3 - q.q1 * q.q4), 2 * (q.q1 * q.q1 + q.q2 * q.q2) - 1);
-    *pitch = -asinf(2 * (q.q2 * q.q4 + q.q1 * q.q3));
-    *roll = atan2f(2 * (q.q3 * q.q4 - q.q1 * q.q2), 2 * (q.q1 * q.q1 + q.q4 * q.q4) - 1);
-
-    *yaw *= (180.0f / M_PI);
-    *pitch *= (180.0f / M_PI);
-    *roll *= (180.0f / M_PI);
+    quat_normalization(&q_est); // Normalize the orientation of the estimate
 }
 
 sensorData getSensorData(const struct device *dev) {
@@ -225,12 +215,13 @@ static void displayMadgwickFilter(sensorData input) {
     imu_filter(input.x, input.y, input.z, input.rx, input.ry, input.rz);
 
     // Compute the Euler angles from the quaternion
-    float roll, pitch, yaw;
-    eulerAngles(q_est, &roll, &pitch, &yaw);
+    // float roll, pitch, yaw;
+    // eulerAngles(q_est, &roll, &pitch, &yaw);
 
     // Print the roll, pitch, and yaw
     // printf("roll: %f, pitch: %f, yaw: %f\n", roll, pitch, yaw);
-    printf("x:%f,y:%f,z:%f\n", roll, pitch, yaw);
+    // printf("x:%f,y:%f,z:%f\n", roll, pitch, yaw);q_est.q1
+    printf("r:%f,i:%f,j:%f,k:%f\n", q_est.q1, q_est.q2, q_est.q3,q_est.q4);
 }
 
 static void displayData(sensorData input){
