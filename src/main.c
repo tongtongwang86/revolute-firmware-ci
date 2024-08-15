@@ -23,66 +23,128 @@ typedef struct {
 } sensorData;
 
 typedef struct {
-    double angle;       // Angle estimate
-    double bias;        // Bias estimate
-    double rate;        // Rate estimate
-    double P[2][2];     // Error covariance matrix
-} KalmanState;
-
-static const double Q_angle = 0.001;
-static const double Q_bias = 0.003;
-static const double R_measure = 0.03;
+    double roll;
+    double pitch;
+    double yaw;
+} orientation;
 
 static double dt = 100; // Time step (100 ms)
 
-void initKalman(KalmanState *state, double initialAngle) {
-    state->angle = initialAngle;
-    state->bias = 0;
-    state->P[0][0] = 0;
-    state->P[0][1] = 0;
-    state->P[1][0] = 0;
-    state->P[1][1] = 0;
+
+// Define the quaternion struct
+typedef struct quaternion {
+    float q1; // Real component
+    float q2; // i component
+    float q3; // j component
+    float q4; // k component
+} quaternion;
+
+// Global variables
+quaternion q_est = { 1, 0, 0, 0}; // Initialize with the unit vector with real component = 1
+
+// Define constants
+const float BETA = 0.1f;  // Madgwick filter gain
+const float DELTA_T = 0.1f;  // Sampling time in seconds (100 ms)
+
+// Quaternion operations
+quaternion quat_mult(quaternion L, quaternion R) {
+    quaternion product;
+    product.q1 = (L.q1 * R.q1) - (L.q2 * R.q2) - (L.q3 * R.q3) - (L.q4 * R.q4);
+    product.q2 = (L.q1 * R.q2) + (L.q2 * R.q1) + (L.q3 * R.q4) - (L.q4 * R.q3);
+    product.q3 = (L.q1 * R.q3) - (L.q2 * R.q4) + (L.q3 * R.q1) + (L.q4 * R.q2);
+    product.q4 = (L.q1 * R.q4) + (L.q2 * R.q3) - (L.q3 * R.q2) + (L.q4 * R.q1);
+    return product;
 }
 
-double kalmanFilter(KalmanState *state, double newRate, double newAngle) {
-    // Predict step
-    state->rate = newRate - state->bias;
-    state->angle += dt * state->rate;
-
-    // Update error covariance
-    state->P[0][0] += dt * (dt * state->P[1][1] - state->P[0][1] - state->P[1][0] + Q_angle);
-    state->P[0][1] -= dt * state->P[1][1];
-    state->P[1][0] -= dt * state->P[1][1];
-    state->P[1][1] += Q_bias * dt;
-
-    // Calculate Kalman gain
-    double S = state->P[0][0] + R_measure;
-    double K[2];
-    K[0] = state->P[0][0] / S;
-    K[1] = state->P[1][0] / S;
-
-    // Update estimate
-    double y = newAngle - state->angle;
-    state->angle += K[0] * y;
-    state->bias += K[1] * y;
-
-    // Update error covariance matrix
-    double P00_temp = state->P[0][0];
-    double P01_temp = state->P[0][1];
-
-    state->P[0][0] -= K[0] * P00_temp;
-    state->P[0][1] -= K[0] * P01_temp;
-    state->P[1][0] -= K[1] * P00_temp;
-    state->P[1][1] -= K[1] * P01_temp;
-
-    return state->angle;
+void quat_scalar(quaternion *q, float scalar) {
+    q->q1 *= scalar;
+    q->q2 *= scalar;
+    q->q3 *= scalar;
+    q->q4 *= scalar;
 }
 
-void calculateAnglesFromAccel(sensorData input, double *roll, double *pitch) {
-    *roll = atan2(input.y, input.z) * 180 / M_PI;
-    *pitch = atan2(-input.x, sqrt(input.y * input.y + input.z * input.z)) * 180 / M_PI;
+void quat_add(quaternion *result, quaternion q1, quaternion q2) {
+    result->q1 = q1.q1 + q2.q1;
+    result->q2 = q1.q2 + q2.q2;
+    result->q3 = q1.q3 + q2.q3;
+    result->q4 = q1.q4 + q2.q4;
 }
 
+void quat_sub(quaternion *result, quaternion q1, quaternion q2) {
+    result->q1 = q1.q1 - q2.q1;
+    result->q2 = q1.q2 - q2.q2;
+    result->q3 = q1.q3 - q2.q3;
+    result->q4 = q1.q4 - q2.q4;
+}
+
+void quat_Normalization(quaternion *q) {
+    float norm = sqrt(q->q1 * q->q1 + q->q2 * q->q2 + q->q3 * q->q3 + q->q4 * q->q4);
+    q->q1 /= norm;
+    q->q2 /= norm;
+    q->q3 /= norm;
+    q->q4 /= norm;
+}
+
+// Madgwick Filter Implementation
+void imu_filter(float ax, float ay, float az, float gx, float gy, float gz) {
+    quaternion q_est_prev = q_est;
+    quaternion q_est_dot = {0}; // Placeholder in equations 42 and 43
+    quaternion q_a = {0, ax, ay, az}; // Raw acceleration values, needs to be normalized
+    quaternion q_w;
+
+    // Integrate angular velocity to obtain position in angles
+    q_w.q1 = 0;
+    q_w.q2 = gx;
+    q_w.q3 = gy;
+    q_w.q4 = gz;
+
+    quat_scalar(&q_w, 0.5);  // equation (12) dq/dt = (1/2)q*w
+    q_w = quat_mult(q_est_prev, q_w);  // equation (12)
+
+    // Normalize the acceleration quaternion to be a unit quaternion
+    quat_Normalization(&q_a);
+
+    // Compute the gradient
+    float F_g[3] = {
+        2 * (q_est_prev.q2 * q_est_prev.q4 - q_est_prev.q1 * q_est_prev.q3) - q_a.q2,
+        2 * (q_est_prev.q1 * q_est_prev.q2 + q_est_prev.q3 * q_est_prev.q4) - q_a.q3,
+        2 * (0.5 - q_est_prev.q2 * q_est_prev.q2 - q_est_prev.q3 * q_est_prev.q3) - q_a.q4
+    };
+
+    float J_g[3][4] = {
+        {-2 * q_est_prev.q3, 2 * q_est_prev.q4, -2 * q_est_prev.q1, 2 * q_est_prev.q2},
+        {2 * q_est_prev.q2, 2 * q_est_prev.q1, 2 * q_est_prev.q4, 2 * q_est_prev.q3},
+        {0, -4 * q_est_prev.q2, -4 * q_est_prev.q3, 0}
+    };
+
+    quaternion gradient = {
+        J_g[0][0] * F_g[0] + J_g[1][0] * F_g[1] + J_g[2][0] * F_g[2],
+        J_g[0][1] * F_g[0] + J_g[1][1] * F_g[1] + J_g[2][1] * F_g[2],
+        J_g[0][2] * F_g[0] + J_g[1][2] * F_g[1] + J_g[2][2] * F_g[2],
+        J_g[0][3] * F_g[0] + J_g[1][3] * F_g[1] + J_g[2][3] * F_g[2]
+    };
+
+    // Normalize the gradient
+    quat_Normalization(&gradient);
+
+    // Sensor fusion
+    quat_scalar(&gradient, BETA); // Multiply normalized gradient by beta
+    quat_sub(&q_est_dot, q_w, gradient); // Subtract above from q_w
+    quat_scalar(&q_est_dot, DELTA_T);
+    quat_add(&q_est, q_est_prev, q_est_dot); // Integrate orientation rate to find position
+    quat_Normalization(&q_est); // Normalize the orientation of the estimate
+}
+
+// Convert quaternion to Euler angles
+void eulerAngles(quaternion q, float* roll, float* pitch, float* yaw) {
+    *yaw = atan2f(2 * (q.q2 * q.q3 - q.q1 * q.q4), 2 * (q.q1 * q.q1 + q.q2 * q.q2) - 1);
+    *pitch = -asinf(2 * (q.q2 * q.q4 + q.q1 * q.q3));
+    *roll = atan2f(2 * (q.q3 * q.q4 - q.q1 * q.q2), 2 * (q.q1 * q.q1 + q.q4 * q.q4) - 1);
+
+    *yaw *= (180.0f / M_PI);
+    *pitch *= (180.0f / M_PI);
+    *roll *= (180.0f / M_PI);
+}
 
 sensorData getSensorData(const struct device *dev) {
     sensorData result;
@@ -158,34 +220,27 @@ static void getCalibrationResults(const struct device *dev){
 
 }
 
+static void displayMadgwickFilter(sensorData input) {
+    // Update the Madgwick filter with the current sensor data
+    imu_filter(input.x, input.y, input.z, input.rx, input.ry, input.rz);
+
+    // Compute the Euler angles from the quaternion
+    float roll, pitch, yaw;
+    eulerAngles(q_est, &roll, &pitch, &yaw);
+
+    // Print the roll, pitch, and yaw
+    // printf("roll: %f, pitch: %f, yaw: %f\n", roll, pitch, yaw);
+    printf("x:%f,y:%f,z:%f\n", roll, pitch, yaw);
+}
+
 static void displayData(sensorData input){
+
 
     printf("x:%f,y:%f,z:%f,rx:%f,ry:%f,rz:%f,\n", input.x, input.y, input.z, input.rx, input.ry, input.rz);
 
 }
 
 
-    KalmanState rollState;
-    KalmanState pitchState;
-
-
-static void displayDataKalman(sensorData input) {
-    double accelRoll, accelPitch;
-
-    // Calculate angles from accelerometer data
-    calculateAnglesFromAccel(input, &accelRoll, &accelPitch);
-
-    // Integrate gyroscope data (convert from radians to degrees)
-    double gyroRollRate = input.rx * 180 / M_PI;
-    double gyroPitchRate = input.ry * 180 / M_PI;
-
-    // Apply Kalman filter to combine gyro and accelerometer data
-    double roll = kalmanFilter(&rollState, gyroRollRate, accelRoll);
-    double pitch = kalmanFilter(&pitchState, gyroPitchRate, accelPitch);
-
-    // Display the filtered roll and pitch angles
-    printf("r:%f, p:%f\n", roll, pitch);
-}
 
 
 static int set_sampling_freq(const struct device *dev)
@@ -245,12 +300,11 @@ static void test_polling_mode(const struct device *dev)
 	}
     k_sleep(K_MSEC(1000));
     getCalibrationResults(dev);
-
 	while (1) {
         sensorData value;
 		value = getSensorData(dev);
+        displayMadgwickFilter(value);
         // displayData(value);
-        displayDataKalman(value);
 		k_sleep(K_MSEC(dt));
 	}
 }

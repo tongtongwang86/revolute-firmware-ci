@@ -25,40 +25,51 @@ def parse_data(line):
 def euler_to_radians(roll, pitch, yaw):
     return np.radians([roll, pitch, yaw])
 
-def draw_cylinder(radius=1.0, height=1.0, num_slices=32):
-    # Draw top face (different color)
-    glColor3f(1.0, 0.0, 0.0)  # Red color
-    glBegin(GL_TRIANGLE_FAN)
-    glVertex3f(0.0, height / 2, 0.0)  # Center of the top face
-    for i in range(num_slices + 1):
-        angle = 2 * np.pi * i / num_slices
-        x = radius * np.cos(angle)
-        y = height / 2
-        z = radius * np.sin(angle)
-        glVertex3f(x, y, z)
-    glEnd()
+def draw_colored_cube():
+    glBegin(GL_QUADS)
 
-    # Draw bottom face (different color)
-    glColor3f(0.0, 0.0, 1.0)  # Blue color
-    glBegin(GL_TRIANGLE_FAN)
-    glVertex3f(0.0, -height / 2, 0.0)  # Center of the bottom face
-    for i in range(num_slices + 1):
-        angle = 2 * np.pi * i / num_slices
-        x = radius * np.cos(angle)
-        y = -height / 2
-        z = radius * np.sin(angle)
-        glVertex3f(x, y, z)
-    glEnd()
+    # Front face (red)
+    glColor3f(1.0, 0.0, 0.0)
+    glVertex3f(-1.0, -1.0,  1.0)
+    glVertex3f( 1.0, -1.0,  1.0)
+    glVertex3f( 1.0,  1.0,  1.0)
+    glVertex3f(-1.0,  1.0,  1.0)
 
-    # Draw the side faces
-    glColor3f(0.0, 1.0, 0.0)  # Green color
-    glBegin(GL_QUAD_STRIP)
-    for i in range(num_slices + 1):
-        angle = 2 * np.pi * i / num_slices
-        x = radius * np.cos(angle)
-        z = radius * np.sin(angle)
-        glVertex3f(x, -height / 2, z)  # Bottom vertex
-        glVertex3f(x, height / 2, z)   # Top vertex
+    # Back face (green)
+    glColor3f(0.0, 1.0, 0.0)
+    glVertex3f(-1.0, -1.0, -1.0)
+    glVertex3f(-1.0,  1.0, -1.0)
+    glVertex3f( 1.0,  1.0, -1.0)
+    glVertex3f( 1.0, -1.0, -1.0)
+
+    # Top face (blue)
+    glColor3f(0.0, 0.0, 1.0)
+    glVertex3f(-1.0,  1.0, -1.0)
+    glVertex3f(-1.0,  1.0,  1.0)
+    glVertex3f( 1.0,  1.0,  1.0)
+    glVertex3f( 1.0,  1.0, -1.0)
+
+    # Bottom face (yellow)
+    glColor3f(1.0, 1.0, 0.0)
+    glVertex3f(-1.0, -1.0, -1.0)
+    glVertex3f( 1.0, -1.0, -1.0)
+    glVertex3f( 1.0, -1.0,  1.0)
+    glVertex3f(-1.0, -1.0,  1.0)
+
+    # Right face (magenta)
+    glColor3f(1.0, 0.0, 1.0)
+    glVertex3f( 1.0, -1.0, -1.0)
+    glVertex3f( 1.0,  1.0, -1.0)
+    glVertex3f( 1.0,  1.0,  1.0)
+    glVertex3f( 1.0, -1.0,  1.0)
+
+    # Left face (cyan)
+    glColor3f(0.0, 1.0, 1.0)
+    glVertex3f(-1.0, -1.0, -1.0)
+    glVertex3f(-1.0, -1.0,  1.0)
+    glVertex3f(-1.0,  1.0,  1.0)
+    glVertex3f(-1.0,  1.0, -1.0)
+
     glEnd()
 
 def main():
@@ -67,6 +78,10 @@ def main():
     pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
     gluPerspective(45, (display[0] / display[1]), 0.1, 50.0)
     glTranslatef(0.0, 0.0, -5)
+
+    # Enable depth testing
+    glEnable(GL_DEPTH_TEST)
+    glDepthFunc(GL_LESS)
 
     roll, pitch, yaw = 0, 0, 0
 
@@ -86,10 +101,10 @@ def main():
 
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glPushMatrix()
-            glRotatef(np.degrees(-pitch), 1, 0, 0)
-            glRotatef(np.degrees(yaw), 0, 1, 0)
-            glRotatef(np.degrees(roll), 0, 0, 1)
-            draw_cylinder()
+            glRotatef(np.degrees(-pitch), 1, 0, 0)  # Normal X-axis rotation (Pitch)
+            glRotatef(np.degrees(-yaw), 0, 1, 0)    # Inverted Y-axis rotation (Yaw)
+            glRotatef(np.degrees(-roll), 0, 0, 1)    # Inverted Z-axis rotation (Roll)
+            draw_colored_cube()
             glPopMatrix()
 
             pygame.display.flip()
