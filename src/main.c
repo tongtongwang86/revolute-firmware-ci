@@ -1,4 +1,6 @@
 #define M_PI   3.14159265358979323846264338327950288
+#include "ble.h"
+#include "revsvc.h"
 #include <stdio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
@@ -27,8 +29,6 @@ typedef struct {
     double pitch;
     double yaw;
 } orientation;
-
-static double dt = 100; // Time step (100 ms)
 
 // Define the quaternion struct
 typedef struct quaternion {
@@ -260,30 +260,7 @@ static int set_sampling_freq(const struct device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_LSM6DSO_TRIGGER
-static void trigger_handler(const struct device *dev,
-			    const struct sensor_trigger *trig)
-{
-	fetch_and_display(dev);
-}
 
-static void test_trigger_mode(const struct device *dev)
-{
-	struct sensor_trigger trig;
-
-	if (set_sampling_freq(dev) != 0)
-		return;
-
-	trig.type = SENSOR_TRIG_DATA_READY;
-	trig.chan = SENSOR_CHAN_ACCEL_XYZ;
-
-	if (sensor_trigger_set(dev, &trig, trigger_handler) != 0) {
-		printk("Could not set sensor type and channel\n");
-		return;
-	}
-}
-
-#else
 static void test_polling_mode(const struct device *dev)
 {
 	if (set_sampling_freq(dev) != 0) {
@@ -296,14 +273,19 @@ static void test_polling_mode(const struct device *dev)
 		value = getSensorData(dev);
         displayMadgwickFilter(value);
         // displayData(value);
-		k_sleep(K_MSEC(dt));
+        int err = rev_send_gyro(q_est.q1, q_est.q2, q_est.q3,q_est.q4);
+        printk("%d\n",err);
+		k_sleep(K_SECONDS(DELTA_T));
 	}
 }
-#endif
+
 
 
 int main(void)
 {
+    enableBle();
+    startAdv();
+
 	const struct device *const dev = DEVICE_DT_GET_ONE(st_lsm6dso);
 
 	if (!device_is_ready(dev)) {
@@ -311,12 +293,8 @@ int main(void)
 		return 0;
 	}
 
-#ifdef CONFIG_LSM6DSO_TRIGGER
-	printk("Testing LSM6DSO sensor in trigger mode.\n\n");
-	test_trigger_mode(dev);
-#else
+
 	printk("Testing LSM6DSO sensor in polling mode.\n\n");
 	test_polling_mode(dev);
-#endif
 	return 0;
 }

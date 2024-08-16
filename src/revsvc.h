@@ -9,6 +9,7 @@
 
 
 
+
 #define REV_SVC_UUID          BT_UUID_DECLARE_128(0x00001523, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
 // read int
 #define REV_ANGLE_UUID        BT_UUID_DECLARE_128(0x00001524, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
@@ -26,25 +27,14 @@
 // example report 000000000000001D key 29 HID_KEY_Z is 1D
 #define REV_DOWNREPORT_UUID   BT_UUID_DECLARE_128(0x00001529, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
 // example report 000000000000001C key29 HID_KEY_Y is 1C
-
-struct config_profile {
-    int mode;
-    int identPerRev;
-    int deadzone; //deadzone in degrees
-    uint8_t upReport[8];
-    uint8_t downReport[8];
-};
-
-extern struct config_profile config;
-
-extern uint16_t angle_value;
-
-ssize_t read_callback(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset);
-ssize_t write_callback(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len, uint16_t offset, uint8_t flags);
+#define REV_GYRO_UUID         BT_UUID_DECLARE_128(0x00001530, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
 
 
-void save_config(void);
-void load_config(void);
+
+
+
+int rev_send_gyro(float r, float i, float j, float k);
+
 
 
 

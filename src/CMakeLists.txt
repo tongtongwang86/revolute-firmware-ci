@@ -4,5 +4,5 @@
 # SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 #
 
-target_sources(app PRIVATE main.c)
+target_sources(app PRIVATE main.c ble.c revsvc.c)
 target_include_directories(app PRIVATE .)
