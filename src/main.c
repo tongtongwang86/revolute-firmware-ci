@@ -1,11 +1,13 @@
 #define M_PI   3.14159265358979323846264338327950288
 #include "ble.h"
 #include "revsvc.h"
+#include "hog.h"
 #include <stdio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/time_units.h>
 #include <math.h>
 
 LOG_MODULE_REGISTER(Revolute, LOG_LEVEL_DBG);
@@ -43,7 +45,9 @@ quaternion q_est = { 1, 0, 0, 0}; // Initialize with the unit vector with real c
 
 // Define constants
 const float BETA = 0.1f;  // Madgwick filter gain
-const float DELTA_T = 0.1f;  // Sampling time in seconds (100 ms)
+float DELTA_T = 0;  // Sampling time in seconds (10 ms)
+float start_cycles, end_cycles, cycle_diff;
+
 
 // Quaternion operations
 quaternion quat_mult(quaternion L, quaternion R) {
@@ -260,6 +264,48 @@ static int set_sampling_freq(const struct device *dev)
 	return 0;
 }
 
+quaternion q_est_prev = {1, 0, 0, 0};  // Store previous quaternion
+
+int8_t cap_to_int8(float value) {
+    if (value > 127) {
+        return 127;
+    } else if (value < -128) {
+        return -128;
+    } else {
+        return (int8_t)value;  // Implicit cast to int8_t
+    }
+}
+
+// Function to calculate and print the change in roll and pitch
+void print_roll_pitch_change(sensorData input) {
+
+    // input.x, input.y, input.z, input.rx, input.ry, input.rz
+    // Calculate the quaternion difference (delta quaternion)
+    // quaternion delta_q;
+    // quat_sub(&delta_q, q_est, q_est_prev);
+
+    // // Roll change is approximated by the change in q2 (i component)
+    // float delta_yaw = delta_q.q1;
+
+    // float delta_roll = delta_q.q2;
+
+    // // Pitch change is approximated by the change in q3 (j component)
+    // float delta_pitch = delta_q.q3;
+    // q_est_prev = q_est;
+
+    // Convert directly to int8_t (implicitly capped by conversion)
+    int8_t capped_delta_yaw = cap_to_int8(-input.rz * 300);   // Scaling for precision
+    int8_t capped_delta_roll = cap_to_int8(input.rx * 100);   // Scaling for precision
+    int8_t capped_delta_pitch = cap_to_int8(input.ry * 100); // Scaling for precision
+    // Print the changes in roll and pitch
+    printf("roll:%f,pitch:%f\n", capped_delta_yaw, capped_delta_pitch);
+    int err = send_mouse_xy(capped_delta_yaw,capped_delta_pitch);
+    printk("%d\n",err);
+    // Update previous quaternion for the next iteration
+    
+}
+
+
 
 static void test_polling_mode(const struct device *dev)
 {
@@ -270,12 +316,21 @@ static void test_polling_mode(const struct device *dev)
     getCalibrationResults(dev);
 	while (1) {
         sensorData value;
+
+
+        cycle_diff = k_cycle_get_32() - start_cycles;
+        DELTA_T = (float)k_cyc_to_ms_floor32(cycle_diff)/1000;
+        printf("dt:%f\n",DELTA_T);
 		value = getSensorData(dev);
+        start_cycles = k_cycle_get_32();
+
+        
         displayMadgwickFilter(value);
         // displayData(value);
         int err = rev_send_gyro(q_est.q1, q_est.q2, q_est.q3,q_est.q4);
         printk("%d\n",err);
-		k_sleep(K_SECONDS(DELTA_T));
+        print_roll_pitch_change(value);
+		// k_sleep(K_SECONDS(DELTA_T));
 	}
 }
 
