@@ -29,6 +29,12 @@
 					label = "LED 0";
 			};
 
+			mosfet: mos {
+				/* LED 0 on P0.03, LED on when pin is high */
+				gpios = < &gpio0 11 GPIO_ACTIVE_HIGH >;
+				label = "Mosfet";
+		};
+
 	};
 
 
@@ -79,6 +85,7 @@
 		sw1 = &button_left;
 		sw2 = &button_up;
 		sw3 = &button_down;
+		mos = &mosfet;
 
 		// led0 = &led0_red;
 		// led0-red   = &led0_red;	

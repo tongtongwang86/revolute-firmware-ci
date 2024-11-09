@@ -10,6 +10,7 @@ LOG_MODULE_REGISTER(button_handler, LOG_LEVEL_DBG);
 #define SW2_NODE    DT_ALIAS(sw2)
 #define SW3_NODE    DT_ALIAS(sw3)
 #define LED0_NODE   DT_ALIAS(led0)
+#define MOS_NODE   DT_ALIAS(mos)
 
 enum button_evt {
     BUTTON_EVT_PRESSED,
@@ -19,7 +20,8 @@ enum button_evt {
 typedef void (*button_event_handler_t)(size_t idx, enum button_evt evt);
 
 static const struct gpio_dt_spec leds[] = {
-    GPIO_DT_SPEC_GET_OR(LED0_NODE, gpios, {0}),
+    GPIO_DT_SPEC_GET_OR(MOS_NODE, gpios, {0}),
+
 };
 
 static const struct gpio_dt_spec buttons[] = {
