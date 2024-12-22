@@ -24,6 +24,6 @@ manifest:
           - cddl-gen
           - homekit
           - loramac-node
-          - lz4
+          - lz4 
           - lvgl
           - mipi-sys-t

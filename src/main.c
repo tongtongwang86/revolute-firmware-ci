@@ -9,8 +9,15 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/time_units.h>
 #include <math.h>
+#include <zephyr/drivers/gpio.h>
 
 LOG_MODULE_REGISTER(Revolute, LOG_LEVEL_DBG);
+
+bool notify_mysensor_enabled = 0;
+
+static const struct gpio_dt_spec sw3 = GPIO_DT_SPEC_GET(DT_ALIAS(sw3), gpios);
+
+static const struct gpio_dt_spec sw2 = GPIO_DT_SPEC_GET(DT_ALIAS(sw2), gpios);
 
 static inline float out_ev(struct sensor_value *val)
 {
@@ -18,9 +25,6 @@ static inline float out_ev(struct sensor_value *val)
 }
 
 typedef struct {
-    double x;
-    double y;
-    double z;
     double rx;
     double ry;
     double rz;
@@ -44,108 +48,60 @@ typedef struct quaternion {
 quaternion q_est = { 1, 0, 0, 0}; // Initialize with the unit vector with real component = 1
 
 // Define constants
-const float BETA = 0.1f;  // Madgwick filter gain
-float DELTA_T = 0;  // Sampling time in seconds (10 ms)
+
+float DELTA_T = 0; 
 float start_cycles, end_cycles, cycle_diff;
 
 
-// Quaternion operations
-quaternion quat_mult(quaternion L, quaternion R) {
-    quaternion product;
-    product.q1 = (L.q1 * R.q1) - (L.q2 * R.q2) - (L.q3 * R.q3) - (L.q4 * R.q4);
-    product.q2 = (L.q1 * R.q2) + (L.q2 * R.q1) + (L.q3 * R.q4) - (L.q4 * R.q3);
-    product.q3 = (L.q1 * R.q3) - (L.q2 * R.q4) + (L.q3 * R.q1) + (L.q4 * R.q2);
-    product.q4 = (L.q1 * R.q4) + (L.q2 * R.q3) - (L.q3 * R.q2) + (L.q4 * R.q1);
-    return product;
+
+quaternion quaternionMultiply(quaternion q, quaternion p) {
+    quaternion result;
+    result.q1 = q.q1 * p.q1 - q.q2 * p.q2 - q.q3 * p.q3 - q.q4 * p.q4;
+    result.q2 = q.q1 * p.q2 + q.q2 * p.q1 + q.q3 * p.q4 - q.q4 * p.q3;
+    result.q3 = q.q1 * p.q3 - q.q2 * p.q4 + q.q3 * p.q1 + q.q4 * p.q2;
+    result.q4 = q.q1 * p.q4 + q.q2 * p.q3 - q.q3 * p.q2 + q.q4 * p.q1;
+    return result;
 }
 
-void quat_scalar(quaternion *q, float scalar) {
-    q->q1 *= scalar;
-    q->q2 *= scalar;
-    q->q3 *= scalar;
-    q->q4 *= scalar;
-}
-
-void quat_add(quaternion *result, quaternion q1, quaternion q2) {
-    result->q1 = q1.q1 + q2.q1;
-    result->q2 = q1.q2 + q2.q2;
-    result->q3 = q1.q3 + q2.q3;
-    result->q4 = q1.q4 + q2.q4;
-}
-
-void quat_sub(quaternion *result, quaternion q1, quaternion q2) {
-    result->q1 = q1.q1 - q2.q1;
-    result->q2 = q1.q2 - q2.q2;
-    result->q3 = q1.q3 - q2.q3;
-    result->q4 = q1.q4 - q2.q4;
-}
-
-void quat_normalization(quaternion *q) {
+// Normalize a quaternion
+void normalizeQuaternion(quaternion *q) {
     float norm = sqrt(q->q1 * q->q1 + q->q2 * q->q2 + q->q3 * q->q3 + q->q4 * q->q4);
-    if (norm > 0) {
-        q->q1 /= norm;
-        q->q2 /= norm;
-        q->q3 /= norm;
-        q->q4 /= norm;
-    }
+    q->q1 /= norm;
+    q->q2 /= norm;
+    q->q3 /= norm;
+    q->q4 /= norm;
 }
 
-// Madgwick Filter Implementation
-void imu_filter(float ax, float ay, float az, float gx, float gy, float gz) {
-    quaternion q_est_prev = q_est;
-    quaternion q_est_dot = {0}; // Placeholder in equations 42 and 43
-    quaternion q_a = {0, ax, ay, az}; // Raw acceleration values, needs to be normalized
-    quaternion q_w;
+void rotationToQuaternion(float rx, float ry, float rz) {
+    // Time step (assume DELTA_T is global and updated externally)
+    extern float DELTA_T;
 
-    // Integrate angular velocity to obtain position in angles
-    q_w.q1 = 0;
-    q_w.q2 = gx;
-    q_w.q3 = gy;
-    q_w.q4 = gz;
+    // Convert angular velocity to a quaternion
+    quaternion omega_q = {0, rx, ry, rz};
 
-    quat_scalar(&q_w, 0.5);  // equation (12) dq/dt = (1/2)q*w
-    q_w = quat_mult(q_est_prev, q_w);  // equation (12)
+    // Compute quaternion derivative: 0.5 * q_est * omega_q
+    quaternion q_dot = quaternionMultiply(q_est, omega_q);
+    q_dot.q1 *= 0.5f;
+    q_dot.q2 *= 0.5f;
+    q_dot.q3 *= 0.5f;
+    q_dot.q4 *= 0.5f;
 
-    // Normalize the acceleration quaternion to be a unit quaternion
-    quat_normalization(&q_a);
+    // Integrate to update q_est
+    q_est.q1 += q_dot.q1 * DELTA_T;
+    q_est.q2 += q_dot.q2 * DELTA_T;
+    q_est.q3 += q_dot.q3 * DELTA_T;
+    q_est.q4 += q_dot.q4 * DELTA_T;
 
-    // Compute the gradient
-    float F_g[3] = {
-        2 * (q_est_prev.q2 * q_est_prev.q4 - q_est_prev.q1 * q_est_prev.q3) - q_a.q2,
-        2 * (q_est_prev.q1 * q_est_prev.q2 + q_est_prev.q3 * q_est_prev.q4) - q_a.q3,
-        2 * (0.5 - q_est_prev.q2 * q_est_prev.q2 - q_est_prev.q3 * q_est_prev.q3) - q_a.q4
-    };
-
-    float J_g[3][4] = {
-        {-2 * q_est_prev.q3, 2 * q_est_prev.q4, -2 * q_est_prev.q1, 2 * q_est_prev.q2},
-        {2 * q_est_prev.q2, 2 * q_est_prev.q1, 2 * q_est_prev.q4, 2 * q_est_prev.q3},
-        {0, -4 * q_est_prev.q2, -4 * q_est_prev.q3, 0}
-    };
-
-    quaternion gradient = {
-        J_g[0][0] * F_g[0] + J_g[1][0] * F_g[1] + J_g[2][0] * F_g[2],
-        J_g[0][1] * F_g[0] + J_g[1][1] * F_g[1] + J_g[2][1] * F_g[2],
-        J_g[0][2] * F_g[0] + J_g[1][2] * F_g[1] + J_g[2][2] * F_g[2],
-        J_g[0][3] * F_g[0] + J_g[1][3] * F_g[1] + J_g[2][3] * F_g[2]
-    };
-
-    // Normalize the gradient
-    quat_normalization(&gradient);
-
-    // Sensor fusion
-    quat_scalar(&gradient, BETA); // Multiply normalized gradient by beta
-    quat_sub(&q_est_dot, q_w, gradient); // Subtract above from q_w
-    quat_scalar(&q_est_dot, DELTA_T);
-    quat_add(&q_est, q_est_prev, q_est_dot); // Integrate orientation rate to find position
-    quat_normalization(&q_est); // Normalize the orientation of the estimate
+    // Normalize q_est to avoid numerical errors
+    normalizeQuaternion(&q_est);
 }
+
+
 
 sensorData getSensorData(const struct device *dev) {
     sensorData result;
     sensorData offset;
-    offset.x = 0.160958;
-    offset.y = 0.328879;
-    offset.z = -0.028187;
+
     offset.rx = -0.000128;
     offset.ry = 0.004631;
     offset.rz = 0.001418;
@@ -153,14 +109,6 @@ sensorData getSensorData(const struct device *dev) {
 
     struct sensor_value x, y, z;
 
-    sensor_sample_fetch_chan(dev, SENSOR_CHAN_ACCEL_XYZ);
-	sensor_channel_get(dev, SENSOR_CHAN_ACCEL_X, &x);
-	sensor_channel_get(dev, SENSOR_CHAN_ACCEL_Y, &y);
-	sensor_channel_get(dev, SENSOR_CHAN_ACCEL_Z, &z);
-
-    result.x = (double)out_ev(&x) + offset.x;
-    result.y = (double)out_ev(&y) + offset.y;
-    result.z = (double)out_ev(&z) + offset.z;
 
     sensor_sample_fetch_chan(dev, SENSOR_CHAN_GYRO_XYZ);
 	sensor_channel_get(dev, SENSOR_CHAN_GYRO_X, &x);
@@ -175,68 +123,6 @@ sensorData getSensorData(const struct device *dev) {
 
 
 
-static void getCalibrationResults(const struct device *dev){
-
-    sensorData value = {0};
-    struct sensor_value x, y, z;
-    int NUM_ITERATIONS = 1000;
-    for (int i = 0; i < NUM_ITERATIONS; i++) {
-
-    sensor_sample_fetch_chan(dev, SENSOR_CHAN_ACCEL_XYZ);
-	sensor_channel_get(dev, SENSOR_CHAN_ACCEL_X, &x);
-	sensor_channel_get(dev, SENSOR_CHAN_ACCEL_Y, &y);
-	sensor_channel_get(dev, SENSOR_CHAN_ACCEL_Z, &z);
-
-    value.x += (double)out_ev(&x);
-    value.y += (double)out_ev(&y);
-    value.z += (double)out_ev(&z);
-
-    sensor_sample_fetch_chan(dev, SENSOR_CHAN_GYRO_XYZ);
-	sensor_channel_get(dev, SENSOR_CHAN_GYRO_X, &x);
-	sensor_channel_get(dev, SENSOR_CHAN_GYRO_Y, &y);
-	sensor_channel_get(dev, SENSOR_CHAN_GYRO_Z, &z);
-
-    value.rx += (double)out_ev(&x);
-    value.ry += (double)out_ev(&y);
-    value.rz += (double)out_ev(&z);
-    
-    k_sleep(K_MSEC(5));
-
-    }
-
-    printf("x: %f, y: %f, z: %f, rx: %f, ry: %f, rz: %f\n",
-           value.x / (double)NUM_ITERATIONS,
-           value.y / (double)NUM_ITERATIONS,
-           value.z / (double)NUM_ITERATIONS,
-           value.rx / (double)NUM_ITERATIONS,
-           value.ry / (double)NUM_ITERATIONS,
-           value.rz / (double)NUM_ITERATIONS);
-
-}
-
-static void displayMadgwickFilter(sensorData input) {
-    // Update the Madgwick filter with the current sensor data
-    imu_filter(input.x, input.y, input.z, input.rx, input.ry, input.rz);
-
-    // Compute the Euler angles from the quaternion
-    // float roll, pitch, yaw;
-    // eulerAngles(q_est, &roll, &pitch, &yaw);
-
-    // Print the roll, pitch, and yaw
-    // printf("roll: %f, pitch: %f, yaw: %f\n", roll, pitch, yaw);
-    // printf("x:%f,y:%f,z:%f\n", roll, pitch, yaw);q_est.q1
-    printf("r:%f,i:%f,j:%f,k:%f\n", q_est.q1, q_est.q2, q_est.q3,q_est.q4);
-}
-
-static void displayData(sensorData input){
-
-
-    printf("x:%f,y:%f,z:%f,rx:%f,ry:%f,rz:%f,\n", input.x, input.y, input.z, input.rx, input.ry, input.rz);
-
-}
-
-
-
 
 static int set_sampling_freq(const struct device *dev)
 {
@@ -244,7 +130,7 @@ static int set_sampling_freq(const struct device *dev)
 	struct sensor_value odr_attr;
 
 	/* set accel/gyro sampling frequency to 12.5 Hz */
-	odr_attr.val1 = 12.5;
+	odr_attr.val1 = 300;
 	odr_attr.val2 = 0;
 
 	ret = sensor_attr_set(dev, SENSOR_CHAN_ACCEL_XYZ,
@@ -264,72 +150,92 @@ static int set_sampling_freq(const struct device *dev)
 	return 0;
 }
 
-quaternion q_est_prev = {1, 0, 0, 0};  // Store previous quaternion
-
-int8_t cap_to_int8(float value) {
-    if (value > 127) {
-        return 127;
-    } else if (value < -128) {
-        return -128;
-    } else {
-        return (int8_t)value;  // Implicit cast to int8_t
-    }
-}
-
-// Function to calculate and print the change in roll and pitch
-void print_roll_pitch_change(sensorData input) {
-
-    // input.x, input.y, input.z, input.rx, input.ry, input.rz
-    // Calculate the quaternion difference (delta quaternion)
-    // quaternion delta_q;
-    // quat_sub(&delta_q, q_est, q_est_prev);
-
-    // // Roll change is approximated by the change in q2 (i component)
-    // float delta_yaw = delta_q.q1;
-
-    // float delta_roll = delta_q.q2;
-
-    // // Pitch change is approximated by the change in q3 (j component)
-    // float delta_pitch = delta_q.q3;
-    // q_est_prev = q_est;
-
-    // Convert directly to int8_t (implicitly capped by conversion)
-    int8_t capped_delta_yaw = cap_to_int8(input.rz * 300);   // Scaling for precision
-    int8_t capped_delta_roll = cap_to_int8(input.rx * 100);   // Scaling for precision
-    int8_t capped_delta_pitch = cap_to_int8(input.ry * 250); // Scaling for precision
-    // Print the changes in roll and pitch
-    printf("roll:%f,pitch:%f\n", capped_delta_yaw, capped_delta_pitch);
-    int err = send_mouse_xy(capped_delta_yaw,capped_delta_pitch);
-    printk("%d\n",err);
-    // Update previous quaternion for the next iteration
-    
-}
 
 
 
-static void test_polling_mode(const struct device *dev)
+
+
+
+
+
+static void poll_sensor(const struct device *dev)
 {
 	if (set_sampling_freq(dev) != 0) {
 		return;
 	}
-    k_sleep(K_MSEC(1000));
-    getCalibrationResults(dev);
+
 	while (1) {
         sensorData value;
 
 
         cycle_diff = k_cycle_get_32() - start_cycles;
         DELTA_T = (float)k_cyc_to_ms_floor32(cycle_diff)/1000;
-        printf("dt:%f\n",DELTA_T);
+
 		value = getSensorData(dev);
         start_cycles = k_cycle_get_32();
-
         
-        displayMadgwickFilter(value);
-        // displayData(value);
-        int err = rev_send_gyro(q_est.q1, q_est.q2, q_est.q3,q_est.q4);
-        printk("%d\n",err);
-        print_roll_pitch_change(value);
+        k_sleep(K_MSEC(1));
+
+        rotationToQuaternion( value.rx, value.ry, value.rz);
+        printf("dt:%f,rx:%f,ry:%f,rz:%f",DELTA_T, value.rx, value.ry, value.rz);
+
+    printf("r:%f,i:%f,j:%f,k:%f\n", q_est.q1, q_est.q2, q_est.q3,q_est.q4);
+
+if (notify_mysensor_enabled == 1){
+
+         int err = rev_send_gyro(q_est.q1, q_est.q2, q_est.q3,q_est.q4);
+
+         if (err){
+
+printk("send error: %d\n",err);
+         }
+        
+}
+
+
+ if (!device_is_ready(sw3.port)) {
+        printk("Error: sw3 is not ready\n");
+        return;
+    }
+
+    int ret = gpio_pin_configure_dt(&sw3, GPIO_INPUT);
+    if (ret != 0) {
+        printk("Failed to configure sw3 pin\n");
+        return;
+    }
+
+ if (!device_is_ready(sw2.port)) {
+        printk("Error: sw2 is not ready\n");
+        return;
+    }
+
+    ret = gpio_pin_configure_dt(&sw2, GPIO_INPUT);
+    if (ret != 0) {
+        printk("Failed to configure sw2 pin\n");
+        return;
+    }
+
+
+
+
+if(gpio_pin_get_dt(&sw3))
+{
+    deleteBond();
+    printk("deleted bond");
+}
+
+if(gpio_pin_get_dt(&sw2))
+{
+    q_est.q1 = 1;
+    q_est.q2 = 0;
+    q_est.q3 = 0;
+    q_est.q4 = 0;
+
+
+    printk("reset orientation");
+}
+  
+       
 		// k_sleep(K_SECONDS(DELTA_T));
 	}
 }
@@ -338,6 +244,12 @@ static void test_polling_mode(const struct device *dev)
 
 int main(void)
 {
+
+
+
+
+
+
     enableBle();
     startAdv();
 
@@ -350,6 +262,6 @@ int main(void)
 
 
 	printk("Testing LSM6DSO sensor in polling mode.\n\n");
-	test_polling_mode(dev);
+	poll_sensor(dev);
 	return 0;
 }

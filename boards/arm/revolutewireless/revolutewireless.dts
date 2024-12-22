@@ -29,6 +29,12 @@
 					label = "LED 0";
 			};
 
+			mosfet: mos {
+				/* LED 0 on P0.03, LED on when pin is high */
+				gpios = < &gpio0 11 GPIO_ACTIVE_HIGH >;
+				label = "Mosfet";
+		};
+
 	};
 
 
@@ -93,6 +99,7 @@
 		asdir = &AS5600_DIR;
 		asout = &AS5600_OUT;
 		my-i2c = &i2c0;
+		mos = &mosfet;
 
 	};
 };

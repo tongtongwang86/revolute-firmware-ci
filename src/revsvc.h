@@ -35,6 +35,9 @@
 
 int rev_send_gyro(float r, float i, float j, float k);
 
+extern bool notify_mysensor_enabled;
+
+
 
 
 

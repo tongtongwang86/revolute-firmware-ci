@@ -3,12 +3,14 @@
 
 LOG_MODULE_REGISTER(RevSVC, LOG_LEVEL_DBG);
 
-static bool notify_mysensor_enabled;
+
 
 
 static void rev_ccc_gyro_cfg_changed(const struct bt_gatt_attr *attr, uint16_t value)
 {
 	notify_mysensor_enabled = (value == BT_GATT_CCC_NOTIFY);
+
+    LOG_INF("%d\n",notify_mysensor_enabled);
 }
 
 
