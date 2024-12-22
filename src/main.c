@@ -139,7 +139,7 @@ static void button_event_handler(size_t idx, enum button_evt evt)
                 if (err < 0) {
                     return;
                 }
-                LOG_INF("Button 1 released");
+                LOG_INF("Button 0 released");
             }
             break;
         case 1:
@@ -148,27 +148,28 @@ static void button_event_handler(size_t idx, enum button_evt evt)
                 if (err < 0) {
                     return;
                 }
-                LOG_INF("Button 2 pressed");
+                LOG_INF("Button 1 pressed");
             } else {
-                LOG_INF("Button 2 released");
+                LOG_INF("Button 1 released");
             }
             break;
         case 2:
             if (evt == BUTTON_EVT_PRESSED) {
-                LOG_INF("Button 3 pressed");
+                LOG_INF("Button 2 pressed");
             } else {
                 err = gpio_pin_toggle_dt(&leds[0]);
                 if (err < 0) {
                     return;
                 }
-                LOG_INF("Button 3 released");
+                LOG_INF("Button 2 released");
             }
             break;
         case 3:
             if (evt == BUTTON_EVT_PRESSED) {
-                LOG_INF("Button 4 pressed");
+                err = gpio_pin_toggle_dt(&leds[0]);
+                LOG_INF("Button 3 pressed");
             } else {
-                LOG_INF("Button 4 released");
+                LOG_INF("Button 3 released");
             }
             break;
         default:
