@@ -5,7 +5,7 @@ on:
     branches:
       - Debugger
   pull_request:
-
+  
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -14,22 +14,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up ARM GCC Toolchain
-        uses: Arm-DevSummit/setup-arm-none-eabi-gcc@v1
-        with:
-          version: '12.2.1'
-
-      - name: Install Dependencies
+      - name: Install ARM GCC Toolchain and Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            git \
-            meson \
-            ninja-build \
-            pkg-config \
+            gcc-arm-none-eabi \
+            binutils-arm-none-eabi \
             libusb-1.0-0-dev \
             libhidapi-dev \
-            libftdi1-dev
+            libftdi1-dev \
+            meson \
+            ninja-build \
+            pkg-config
 
       - name: Configure Build for STM32F103C8
         run: |
