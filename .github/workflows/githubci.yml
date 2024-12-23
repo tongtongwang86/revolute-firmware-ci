@@ -3,7 +3,7 @@ name: Build Black Magic Probe Firmware
 on:
   push:
     branches:
-      - main
+      - Debugger
   pull_request:
 
 jobs:
