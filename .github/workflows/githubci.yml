@@ -27,21 +27,35 @@ jobs:
             ninja-build \
             pkg-config
 
+      - name: Create Cross-File for Bluepill
+        run: |
+          mkdir -p cross-file
+          echo "[binaries]" > cross-file/bluepill.ini
+          echo "c = 'arm-none-eabi-gcc'" >> cross-file/bluepill.ini
+          echo "cpp = 'arm-none-eabi-g++'" >> cross-file/bluepill.ini
+          echo "ar = 'arm-none-eabi-ar'" >> cross-file/bluepill.ini
+          echo "strip = 'arm-none-eabi-strip'" >> cross-file/bluepill.ini
+          echo "[host_machine]" >> cross-file/bluepill.ini
+          echo "system = 'baremetal'" >> cross-file/bluepill.ini
+          echo "cpu_family = 'arm'" >> cross-file/bluepill.ini
+          echo "cpu = 'cortex-m3'" >> cross-file/bluepill.ini
+          echo "endian = 'little'" >> cross-file/bluepill.ini
+
       - name: Configure Build for STM32F103C8
         run: |
-          cd firmware # Adjust this path
-          meson setup builddir \
-            --cross-file=../cross-file.txt \ # Adjust if cross-file is not in root
-            -Dplatform=swlink
+          meson setup build \
+            --cross-file=cross-file/bluepill.ini \
+            -Dprobe=bluepill \
+            -Dtargets=cortexm,stm \
+            -Drtt_support=false
 
       - name: Build Firmware
         run: |
-          cd firmware # Adjust this path
-          meson compile -C builddir
+          meson compile -C build
 
       - name: Archive Build Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: blackmagic-firmware
-          path: firmware/builddir/src/blackmagic.bin
+          path: build/blackmagic_bluepill.bin
 
