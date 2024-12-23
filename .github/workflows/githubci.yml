@@ -1,74 +1,35 @@
-name: Build
+name: Build Black Magic Probe Firmware
 
 on:
-  pull_request:
   push:
     branches:
-      - Bootloader
-  repository_dispatch:
-  release:
-    types:
-      - created
+      - main
+  pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        board:
-          - 'revolute'
-          - 'revoluteWireless'  
+
     steps:
-    - name: Setup Python
-      uses: actions/setup-python@v3
+    - name: Checkout Repository
+      uses: actions/checkout@v3
       with:
-        python-version: '3.12.2' 
+        repository: blackmagic-debug/blackmagic
+        path: blackmagic
+        submodules: recursive
 
-
-    - name: Checkout Code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        submodules: true
-
-    - name: Checkout linkermap
-      uses: actions/checkout@v4
-      with:
-         repository: hathach/linkermap
-         path: linkermap
-
-    - name: Install ARM GCC
-      uses: carlosperate/arm-none-eabi-gcc-action@v1
-      with:
-        release: '10-2020-q4'
-
-    - name: Install Tools
+    - name: Install Dependencies
       run: |
-        pip3 install adafruit-nrfutil uritemplate requests intelhex setuptools
-        pip3 install linkermap/
+        sudo apt update
+        sudo apt install -y gcc-arm-none-eabi stm32flash dfu-util
 
-    - name: Build
+    - name: Build Firmware
+      working-directory: ./blackmagic
       run: |
-        arm-none-eabi-gcc --version
-        make --version
-        python3 --version
-        make BOARD=${{ matrix.board }} all
-        make BOARD=${{ matrix.board }} copy-artifact
+        make PROBE_HOST=swlink
 
-    - name: Linker Map
-      run: make BOARD=${{ matrix.board }} linkermap
-
-    - uses: actions/upload-artifact@v3
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v3
       with:
-        name: ${{ matrix.board }}
-        path: _bin/${{ matrix.board }}
-
-    - name: Upload Release Asset
-      uses: softprops/action-gh-release@v1
-      if: ${{ github.event_name == 'release' }}
-      with:
-        files: |
-          _bin/${{ matrix.board }}/${{ matrix.board }}_bootloader-*.zip
-          _bin/${{ matrix.board }}/${{ matrix.board }}_bootloader-*.hex
-          _bin/${{ matrix.board }}/update-${{ matrix.board }}_bootloader-*.uf2
+        name: blackmagic-firmware
+        path: ./blackmagic/src/blackmagic
