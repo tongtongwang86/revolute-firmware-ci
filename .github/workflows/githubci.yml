@@ -14,6 +14,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name : list
+        run: |
+         ls
+
       - name: Install ARM GCC Toolchain and Dependencies
         run: |
           sudo apt-get update
@@ -40,10 +44,9 @@ jobs:
           echo "cpu_family = 'arm'" >> cross-file/bluepill.ini
           echo "cpu = 'cortex-m3'" >> cross-file/bluepill.ini
           echo "endian = 'little'" >> cross-file/bluepill.ini
-
+        
       - name: Configure Build for STM32F103C8
         run: |
-          ls \
           meson setup build \
             --cross-file=cross-file/bluepill.ini \
             -Dprobe=bluepill \
