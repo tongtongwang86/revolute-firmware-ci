@@ -11,25 +11,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
-      with:
-        repository: blackmagic-debug/blackmagic
-        path: blackmagic
-        submodules: recursive
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Install Dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y gcc-arm-none-eabi stm32flash dfu-util
+      - name: Set up ARM GCC Toolchain
+        uses: Arm-DevSummit/setup-arm-none-eabi-gcc@v1
+        with:
+          version: '12.2.1'
 
-    - name: Build Firmware
-      working-directory: ./blackmagic
-      run: |
-        make PROBE_HOST=swlink
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git \
+            meson \
+            ninja-build \
+            pkg-config \
+            libusb-1.0-0-dev \
+            libhidapi-dev \
+            libftdi1-dev
 
-    - name: Upload Build Artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: blackmagic-firmware
-        path: ./blackmagic/src/blackmagic
+      - name: Configure Build for STM32F103C8
+        run: |
+          meson setup builddir \
+            --cross-file=cross-file.txt \
+            -Dplatform=swlink
+
+      - name: Build Firmware
+        run: |
+          meson compile -C builddir
+
+      - name: Archive Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: blackmagic-firmware
+          path: builddir/src/blackmagic.bin
