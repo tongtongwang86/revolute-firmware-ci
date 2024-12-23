@@ -43,6 +43,7 @@ jobs:
 
       - name: Configure Build for STM32F103C8
         run: |
+          ls \
           meson setup build \
             --cross-file=cross-file/bluepill.ini \
             -Dprobe=bluepill \
