@@ -11,55 +11,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive
 
-      - name : list
-        run: |
-         ls
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build meson gcc-arm-none-eabi binutils-arm-none-eabi
 
-      - name: Install ARM GCC Toolchain and Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            gcc-arm-none-eabi \
-            binutils-arm-none-eabi \
-            libusb-1.0-0-dev \
-            libhidapi-dev \
-            libftdi1-dev \
-            meson \
-            ninja-build \
-            pkg-config
+    - name: Clone Black Magic Probe Repository
+      run: |
+        git clone --recursive https://github.com/blackmagic-debug/blackmagic.git
+        cd blackmagic
 
-      - name: Create Cross-File for Bluepill
-        run: |
-          mkdir -p cross-file
-          echo "[binaries]" > cross-file/bluepill.ini
-          echo "c = 'arm-none-eabi-gcc'" >> cross-file/bluepill.ini
-          echo "cpp = 'arm-none-eabi-g++'" >> cross-file/bluepill.ini
-          echo "ar = 'arm-none-eabi-ar'" >> cross-file/bluepill.ini
-          echo "strip = 'arm-none-eabi-strip'" >> cross-file/bluepill.ini
-          echo "[host_machine]" >> cross-file/bluepill.ini
-          echo "system = 'baremetal'" >> cross-file/bluepill.ini
-          echo "cpu_family = 'arm'" >> cross-file/bluepill.ini
-          echo "cpu = 'cortex-m3'" >> cross-file/bluepill.ini
-          echo "endian = 'little'" >> cross-file/bluepill.ini
-        
-      - name: Configure Build for STM32F103C8
-        run: |
-          meson setup build \
-            --cross-file=cross-file/bluepill.ini \
-            -Dprobe=bluepill \
-            -Dtargets=cortexm,stm \
-            -Drtt_support=false
+    - name: Configure Build for STM32F103C8 (Blue Pill)
+      working-directory: blackmagic
+      run: |
+        meson setup build --cross-file cross-file/bluepill.ini -Dprobe=bluepill -Dtargets=cortexm,stm -Drtt_support=false
 
-      - name: Build Firmware
-        run: |
-          meson compile -C build
+    - name: Compile Firmware
+      working-directory: blackmagic
+      run: |
+        meson compile -C build
 
-      - name: Archive Build Artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: blackmagic-firmware
-          path: build/blackmagic_bluepill.bin
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: bmp-firmware
+        path: blackmagic/build/*.bin
+
 
