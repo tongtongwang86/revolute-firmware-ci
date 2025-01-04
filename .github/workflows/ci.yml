@@ -93,6 +93,7 @@ jobs:
           cd zephyr-workspace
           source ~/.venv/bin/activate
           ls
+          cd zephyr
           ccache -z
           west build \
               --board revolutewireless/nrf52833 \
