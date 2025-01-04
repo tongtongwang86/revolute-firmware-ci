@@ -54,6 +54,7 @@ jobs:
           # future steps
           echo "PATH=$PATH" >> $GITHUB_ENV
           pip3 install west ninja
+          
 
       - name: 🪁 Install Zephyr SDK
         # Fetch the Zephyr SDK from the GitHub Release artifact, unpack it and
@@ -73,6 +74,7 @@ jobs:
           rm -rf .west
           west init -l nrfconnect-ci-app
           west update
+          west packages pip3 --install
 
       - name: 🐍 Install Python Dependencies
         run: |
@@ -90,9 +92,10 @@ jobs:
       - name: 🔨 Build Project
         run: |
           
-          
+          cd zephyr-workspace
           source ~/.venv/bin/activate
           ls -a
+          cd zephyr
           ccache -z
           west build \
               --board revolutewireless/nrf52833 \
@@ -103,8 +106,6 @@ jobs:
           cd build
           cd zephyr
           ls
-     
-
 
       - name: 📦 Save BIN
         uses: actions/upload-artifact@v4
