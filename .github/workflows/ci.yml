@@ -91,6 +91,7 @@ jobs:
         run: |
           cd zephyr-workspace
           cd nrfconnect-ci-app
+          pwd
           ccache -z
           west build \
               --build-dir /home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app/build \
