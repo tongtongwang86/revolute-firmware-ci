@@ -79,7 +79,13 @@ jobs:
           cd zephyr-workspace
           pip3 install -r zephyr/scripts/requirements.txt
 
-
+      - name: 💾 Cache ~/.cache/ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-v1-${{ runner.os }}-${{ hashFiles('zephyr-workspace/nrfconnect-ci-app/west.yml') }}
+          restore-keys: |
+            ccache-v1-${{ runner.os }}-
 
       # - name: 🔨 Build Project
       #   run: |
@@ -98,6 +104,7 @@ jobs:
       #     ls
       - name: 🔨 Build Project
         run: |
+          source ~/.venv/bin/activate
           ls -a zephyr-workspace | grep .west
           cd zephyr-workspace
           west build \
