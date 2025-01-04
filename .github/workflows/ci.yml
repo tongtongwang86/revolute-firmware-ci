@@ -92,7 +92,7 @@ jobs:
           
           cd zephyr-workspace
           source ~/.venv/bin/activate
-          ls
+          ls -a
           cd zephyr
           ccache -z
           west build \
