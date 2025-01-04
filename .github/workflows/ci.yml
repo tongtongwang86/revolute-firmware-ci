@@ -106,7 +106,8 @@ jobs:
         run: |
           source ~/.venv/bin/activate
           ls -a zephyr-workspace | grep .west
-          cd zephyr-workspace
+          cd zephyr-workspace/zephyr
+          ls
           west build \
               --build-dir build \
               --board revolutewireless/nrf52833 \
