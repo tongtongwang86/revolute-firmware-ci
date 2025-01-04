@@ -1,29 +1,8 @@
 manifest:
-  version: "0.10"
   remotes:
-    - name: nrfconnect
-      url-base: https://github.com/nrfconnect
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
   projects:
     - name: zephyr
       revision: v3.6.0
       url: https://github.com/zephyrproject-rtos/zephyr
-
-  projects:
-    - name: sdk-nrf
-      path: nrf
-      url: https://github.com/nrfconnect/sdk-nrf.git
-      revision: v2.6.0
-      import:
-        name-blocklist:
-          - matter
-          - nrf-802154
-          - cjson
-          - openthread
-          - cmock
-          - unity
-          - cddl-gen
-          - homekit
-          - loramac-node
-          - lz4
-          - lvgl
-          - mipi-sys-t
