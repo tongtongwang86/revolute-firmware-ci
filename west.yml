@@ -1,8 +1,8 @@
 manifest:
   version: "0.10"
   remotes:
-    - name: nrfconnect
-      url-base: https://github.com/nrfconnect
+    - name: origin
+      url-base: https://github.com/zephyrproject-rtos
   projects:
     - name: zephyr
       revision: v4.0.0
