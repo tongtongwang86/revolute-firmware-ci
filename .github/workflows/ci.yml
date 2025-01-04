@@ -89,8 +89,10 @@ jobs:
 
       - name: 🔨 Build Project
         run: |
-          ls
+          
           cd zephyr-workspace
+          source ~/.venv/bin/activate
+          ls
           ccache -z
           west build \
               --board revolutewireless/nrf52833 \
