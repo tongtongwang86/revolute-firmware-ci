@@ -7,3 +7,4 @@ manifest:
     - name: zephyr
       revision: v4.0.0
       url: https://github.com/zephyrproject-rtos/zephyr
+
