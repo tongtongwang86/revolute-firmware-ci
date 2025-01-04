@@ -89,9 +89,12 @@ jobs:
 
       - name: 🔨 Build Project
         run: |
+          ls
           cd zephyr-workspace
+          ls
           cd nrfconnect-ci-app
           pwd
+          ls
           ccache -z
           west build \
               --build-dir /home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app/build \
