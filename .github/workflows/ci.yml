@@ -104,6 +104,7 @@ jobs:
       #     ls
       - name: 🔨 Build Project
         run: |
+          ls -a zephyr-workspace | grep .west
           cd zephyr-workspace
           west -vv status
           west build \
