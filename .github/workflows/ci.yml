@@ -87,25 +87,32 @@ jobs:
           restore-keys: |
             ccache-v1-${{ runner.os }}-
 
+      # - name: 🔨 Build Project
+      #   run: |
+      #     ls
+      #     cd zephyr-workspace
+      #     ccache -z
+      #     west build \
+      #         --build-dir /home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/build \
+      #         --board revolutewireless/nrf52833 \
+      #         --pristine=always nrfconnect-ci-app \
+      #         -- \
+      #         -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" 
+      #     ccache -sv
+      #     cd build
+      #     cd zephyr
+      #     ls
       - name: 🔨 Build Project
         run: |
-          ls
           cd zephyr-workspace
-          ls
-          cd nrfconnect-ci-app
-          pwd
-          ls
-          ccache -z
+          west -vv status
           west build \
-              --build-dir /home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app/build \
+              --build-dir build \
               --board revolutewireless/nrf52833 \
               --pristine=always nrfconnect-ci-app \
               -- \
-              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" 
-          ccache -sv
-          cd build
-          cd zephyr
-          ls
+              -DBOARD_ROOT="$PWD/nrfconnect-ci-app"
+
 
       - name: 📦 Save BIN
         uses: actions/upload-artifact@v4
