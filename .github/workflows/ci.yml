@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        # with:
+        with:
           # Clone the repo to a subdirectory, so we can initialize the Zephyr
           # workspace in the parent directory.
-          # path: revolutefirmware
+          path: revolutefirmware
 
       - name: Set up Python
         uses: actions/setup-python@v5
