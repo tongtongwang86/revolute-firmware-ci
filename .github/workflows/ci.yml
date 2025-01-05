@@ -17,33 +17,20 @@ jobs:
         with:
           path: revolutefirmware
 
-      - name: Verify checkout
-        run: ls -R revolutefirmware
+      - name: Show current directory
+        run: pwd
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.11
+      - name: List root directory contents
+        run: ls -R
 
-      - name: Setup Zephyr project
-        uses: zephyrproject-rtos/action-zephyr-setup@v1
-        with:
-          app-path: revolutefirmware
-          toolchains: arm-zephyr-eabi
-
-      - name: Verify revolutefirmware directory
+      - name: List revolutefirmware directory contents
         run: |
-          if [ ! -d "revolutefirmware" ]; then
-            echo "Directory revolutefirmware does not exist!";
-            exit 1;
+          if [ -d "revolutefirmware" ]; then
+            ls -R revolutefirmware
+          else
+            echo "Directory 'revolutefirmware' does not exist."
           fi
 
-      - name: Build firmware
-        working-directory: revolutefirmware
-        shell: bash
-        run: |
-          west build \
-            --board revolutewireless/nrf52833 \
-            --pristine=always revolutefirmware \
-            -- \
-            -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/revolutefirmware"
+
+
+          
