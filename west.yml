@@ -4,10 +4,22 @@ manifest:
       url-base: https://github.com/zephyrproject-rtos
   projects:
     - name: zephyr
-      repo-path: zephyr
+      url: https://github.com/zephyrproject-rtos/zephyr
       remote: zephyrproject-rtos
       revision: v4.0.0
       import:
-        path-prefix: deps
+        name-blocklist:
+          - matter
+          - nrf-802154
+          - cjson
+          - openthread
+          - cmock
+          - unity
+          - cddl-gen
+          - homekit
+          - loramac-node
+          - lz4
+          - lvgl
+          - mipi-sys-t
   self:
-    path: zephyr-workspace/nrfconnect-ci-app
+    path: zephyr-workspace
