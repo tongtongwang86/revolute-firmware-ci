@@ -75,15 +75,15 @@ jobs:
 
       - name: 📋 Copy Board File
         run: |
-          mkdir -p zephyr-workspace/zephyr/boards/revolutewireless
-          cp -r zephyr-workspace/nrfconnect-ci-app/boards/revolutewireless/* zephyr-workspace/zephyr/boards/revolutewireless/
+          mkdir -p zephyr-workspace/zephyr/boards/tong
+          cp -r zephyr-workspace/nrfconnect-ci-app/boards/tong/* zephyr-workspace/zephyr/boards/tong/
 
       - name: 🔨 Build Project
         run: |
           cd zephyr-workspace
           ccache -z
           west build \
-              --board bbc_microbit_v2/nrf52833 \
+              --board tong_revolutewireless/nrf52833 \
               --pristine=always nrfconnect-ci-app
           ccache -sv
           cd build
