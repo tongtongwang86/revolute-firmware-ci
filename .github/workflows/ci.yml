@@ -31,7 +31,7 @@ jobs:
           toolchains: arm-zephyr-eabi
 
       - name: Build firmware
-        working-directory: example-application
+        working-directory: revolutefirmware
         shell: bash
         run: |
             west build \
