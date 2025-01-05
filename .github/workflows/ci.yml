@@ -70,7 +70,8 @@ jobs:
               --board revolutewireless \
               --pristine=always nrfconnect-ci-app \
               -- \
-              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" 
+              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" \
+              -v
           cd build
           cd zephyr
           ls

@@ -12,7 +12,6 @@ manifest:
           - matter
           - nrf-802154
           - cjson
-          - openthread
           - cmock
           - unity
           - cddl-gen
@@ -20,7 +19,6 @@ manifest:
           - loramac-node
           - lz4
           - lvgl
-          - mipi-sys-t
           - hal_atmel
           - hal_espressif
           - hal_ethos_u
