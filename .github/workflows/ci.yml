@@ -78,6 +78,7 @@ jobs:
 
         
       - name: 📦 Save BUILD
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: BUILD
