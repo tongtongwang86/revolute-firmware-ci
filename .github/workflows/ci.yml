@@ -50,6 +50,8 @@ jobs:
           # future steps
           echo "PATH=$PATH" >> $GITHUB_ENV
           pip3 install west ninja
+
+          
       - name: 🪁 Install Zephyr SDK
         # Fetch the Zephyr SDK from the GitHub Release artifact, unpack it and
         # run the setup script, selecting the '-c' option to install cmake
