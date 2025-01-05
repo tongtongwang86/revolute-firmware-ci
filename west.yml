@@ -10,4 +10,4 @@ manifest:
       import:
         path-prefix: deps
   self:
-    path: .
+    path: nrfconnect-ci-app
