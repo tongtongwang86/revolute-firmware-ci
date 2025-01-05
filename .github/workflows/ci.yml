@@ -54,7 +54,7 @@ jobs:
           cd zephyr-workspace
           rm -rf .west
           west init -l nrfconnect-ci-app
-          west update --narrow -o=--depth=4
+          west update --narrow -o=--depth=1
 
       - name: 🐍 Install Python Dependencies
         run: |
@@ -70,8 +70,7 @@ jobs:
               --board revolutewireless \
               --pristine=always nrfconnect-ci-app \
               -- \
-              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" \
-              -v
+              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" 
           cd build
           cd zephyr
           ls
