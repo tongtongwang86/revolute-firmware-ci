@@ -53,7 +53,7 @@ jobs:
         run: |
           cd zephyr-workspace
           rm -rf .west
-          west init -l nrfconnect-ci-app --mr v4.0.99
+          west init --mr v4.0.99
           west update --narrow -o=--depth=1
 
       - name: 🐍 Install Python Dependencies
