@@ -2,7 +2,7 @@ on:
   pull_request:
   push:
     branches:
-      - Main-Upcoming
+      - main
   # run on tag creation
   create:
     tags:
@@ -20,9 +20,11 @@ jobs:
           key: zephyr-workspace-v2-${{ runner.os }}-${{ hashFiles('zephyr-workspace/nrfconnect-ci-app/west.yml') }}
           restore-keys: |
             zephyr-workspace-v2-${{ runner.os }}-
+
       - name: 🧹 Clean Landing Site
         run: |
           rm -rf zephyr-workspace/nrfconnect-ci-app
+
       - uses: actions/checkout@v4
         with:
           # Clone the repo to a subdirectory, so we can initialize the Zephyr
@@ -36,6 +38,7 @@ jobs:
           key: venv-${{ runner.os }}-${{ hashFiles('zephyr-workspace/zephyr/scripts/requirements.txt') }}
           restore-keys: |
             venv-${{ runner.os }}-
+
       - name: 🧰 Install Dependencies + West
         # Install the Zephyr host build dependencies, and the `west` Python tool. This list is from
         # https://docs.zephyrproject.org/3.5.0/develop/getting_started/index.html#install-dependencies
@@ -44,6 +47,7 @@ jobs:
           sudo apt install --no-install-recommends \
             ccache \
             ninja-build \
+
           python3 -m venv ~/.venv
           source ~/.venv/bin/activate
           # insert the PATH changes the venv activate made to be present for
@@ -51,7 +55,6 @@ jobs:
           echo "PATH=$PATH" >> $GITHUB_ENV
           pip3 install west ninja
 
-          
       - name: 🪁 Install Zephyr SDK
         # Fetch the Zephyr SDK from the GitHub Release artifact, unpack it and
         # run the setup script, selecting the '-c' option to install cmake
@@ -62,6 +65,7 @@ jobs:
           wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.17.0/zephyr-sdk-0.17.0_linux-x86_64_minimal.tar.xz
           tar xf zephyr-sdk-0.17.0_linux-x86_64_minimal.tar.xz -C ~/
           ~/zephyr-sdk-0.17.0/setup.sh -c -t arm-zephyr-eabi
+
       - name: ♻️ Initialize Zephyr Workspace
         # Set up the Zephyr workspace and install the Python dependencies
         run: |
@@ -69,10 +73,12 @@ jobs:
           rm -rf .west
           west init -l nrfconnect-ci-app
           west update --narrow -o=--depth=1
+
       - name: 🐍 Install Python Dependencies
         run: |
           cd zephyr-workspace
           pip3 install -r zephyr/scripts/requirements.txt
+
       - name: 💾 Cache ~/.cache/ccache
         uses: actions/cache@v4
         with:
@@ -80,15 +86,13 @@ jobs:
           key: ccache-v1-${{ runner.os }}-${{ hashFiles('zephyr-workspace/nrfconnect-ci-app/west.yml') }}
           restore-keys: |
             ccache-v1-${{ runner.os }}-
+
       - name: 🔨 Build Project
         run: |
           cd zephyr-workspace
-          cd nrfconnect-ci-app
-          pwd
           ccache -z
           west build \
-              --build-dir /home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app/build \
-              --board revolutewireless/nrf52833 \
+              --board revolutewireless \
               --pristine=always nrfconnect-ci-app \
               -- \
               -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" 
@@ -96,11 +100,6 @@ jobs:
           cd build
           cd zephyr
           ls
-      - name: 📦 Save BIN
-        uses: actions/upload-artifact@v4
-        with:
-          name: ZephyrBin
-          path: zephyr-workspace/build/zephyr/zephyr.bin
 
       - name: 📦 Save HEX
         uses: actions/upload-artifact@v4
