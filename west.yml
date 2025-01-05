@@ -11,3 +11,5 @@ manifest:
         # strictly needed by the application.
         name-blocklist:
           - hal_stm32  # required by the nucleo_f302r8 board (STM32 based)
+self: 
+  path: app
