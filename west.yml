@@ -10,4 +10,4 @@ manifest:
       import:
         path-prefix: deps
   self:
-    path: nrfconnect-ci-app
+    path: zephyr-workspace
