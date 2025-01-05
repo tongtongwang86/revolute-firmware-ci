@@ -4,12 +4,10 @@ manifest:
       url-base: https://github.com/zephyrproject-rtos
   projects:
     - name: zephyr
+      repo-path: zephyr
+      remote: zephyrproject
       revision: v4.0.0
-      remote: zephyrproject-rtos
       import:
-        # By using name-allowlist we can clone only the modules that are
-        # strictly needed by the application.
-        name-blocklist:
-          - hal_stm32  # required by the nucleo_f302r8 board (STM32 based)
-self: 
-  path: app
+        path-prefix: deps
+  self:
+    path: app
