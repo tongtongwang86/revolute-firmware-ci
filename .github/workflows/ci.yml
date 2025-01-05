@@ -83,7 +83,7 @@ jobs:
           cd zephyr-workspace
           ccache -z
           west build \
-              --board revolutewireless/nrf52833 \
+              --board microbit_v2/nrf52833 \
               --pristine=always nrfconnect-ci-app
           ccache -sv
           cd build
