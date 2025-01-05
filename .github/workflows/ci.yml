@@ -90,6 +90,10 @@ jobs:
       - name: 📄 Print module.yml Contents
         run: |
           ls
+          cd zephyr-workspace
+          ls
+          cd zephyr
+          ls
           cat zephyr-workspace/module.yml
               
       - name: 🔨 Build Project
