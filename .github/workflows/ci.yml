@@ -89,6 +89,7 @@ jobs:
 
       - name: 📄 Print module.yml Contents
         run: |
+          ls
           cat zephyr-workspace/module.yml
               
       - name: 🔨 Build Project
