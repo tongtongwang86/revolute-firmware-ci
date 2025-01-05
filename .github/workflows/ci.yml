@@ -1,23 +1,15 @@
-on:
-  pull_request:
+name: CI
+on: 
   push:
     branches:
       - Main-Upcoming
   # run on tag creation
-  create:
-    tags:
+
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 💾 Cache Zephyr Workspace
-        uses: actions/cache@v4
-        with:
-          path: zephyr-workspace
-          key: zephyr-workspace-v2-${{ runner.os }}-${{ hashFiles('zephyr-workspace/nrfconnect-ci-app/west.yml') }}
-          restore-keys: |
-            zephyr-workspace-v2-${{ runner.os }}-
 
       - name: 🧹 Clean Landing Site
         run: |
@@ -29,22 +21,14 @@ jobs:
           # workspace in the parent directory.
           path: zephyr-workspace/nrfconnect-ci-app
 
-      - name: 💾 Cache ~/.venv
-        uses: actions/cache@v4
-        with:
-          path: ~/.venv
-          key: venv-${{ runner.os }}-${{ hashFiles('zephyr-workspace/zephyr/scripts/requirements.txt') }}
-          restore-keys: |
-            venv-${{ runner.os }}-
+
 
       - name: 🧰 Install Dependencies + West
         # Install the Zephyr host build dependencies, and the `west` Python tool. This list is from
         # https://docs.zephyrproject.org/3.5.0/develop/getting_started/index.html#install-dependencies
         run: |
           sudo apt update
-          sudo apt install --no-install-recommends \
-            ccache \
-            ninja-build \
+          sudo apt install --no-install-recommends -y git cmake ninja-build gperf dfu-util device-tree-compiler wget python3-dev python3-pip python3-setuptools python3-tk python3-wheel xz-utils file make gcc libsdl2-dev libmagic1
 
           python3 -m venv ~/.venv
           source ~/.venv/bin/activate
@@ -77,24 +61,16 @@ jobs:
           cd zephyr-workspace
           pip3 install -r zephyr/scripts/requirements.txt
 
-      - name: 💾 Cache ~/.cache/ccache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ccache
-          key: ccache-v1-${{ runner.os }}-${{ hashFiles('zephyr-workspace/nrfconnect-ci-app/west.yml') }}
-          restore-keys: |
-            ccache-v1-${{ runner.os }}-
+
 
       - name: 🔨 Build Project
         run: |
           cd zephyr-workspace
-          ccache -z
           west build \
               --board revolutewireless \
               --pristine=always nrfconnect-ci-app \
               -- \
               -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" 
-          ccache -sv
           cd build
           cd zephyr
           ls
