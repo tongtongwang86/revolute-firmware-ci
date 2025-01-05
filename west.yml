@@ -10,3 +10,29 @@ manifest:
       import:
         name-blocklist:
           - matter
+          - nrf-802154
+          - cjson
+          - cmock
+          - unity
+          - cddl-gen
+          - homekit
+          - loramac-node
+          - lz4
+          - lvgl
+          - hal_atmel
+          - hal_espressif
+          - hal_ethos_u
+          - hal_altera
+          - hal_quicklogic
+          - hal_openisa
+          - hal_rpi_pico
+          - hal_renesas
+          - hal_silabs
+          - hal_st
+          - hal_stm32
+          - hal_infineon
+          - hal_intel
+          - hal_microchip
+          - hal_ambiq
+          - hal_altera
+          - hal_adi
