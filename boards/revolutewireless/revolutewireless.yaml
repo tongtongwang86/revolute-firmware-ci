@@ -2,15 +2,16 @@ identifier: revolutewireless
 name: "Revolute Wireless"
 type: mcu
 arch: arm
+ram: 128
+flash: 512
 toolchain:
   - zephyr
   - gnuarmemb
   - xtools
-ram: 128
-testing:
-  ignore_tags:
-    - net
 supported:
+  - usb_device
+  - usb_cdc
   - ble
-  - i2c
-  - gpio
+  - watchdog
+  - counter
+vendor: tongtonginc

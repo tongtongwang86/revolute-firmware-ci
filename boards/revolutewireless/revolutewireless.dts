@@ -12,6 +12,7 @@
 		zephyr,console = &cdc_acm_uart0;
 		zephyr,shell-uart = &uart0;
 		zephyr,uart-mcumgr = &uart0;
+		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,code-partition = &slot0_partition;
 		zephyr,settings-partition = &storage_partition;
@@ -153,7 +154,6 @@
 	bq27421@55 {
 		compatible = "ti,bq274xx";
 		reg = <0x55>;
-		status = "okay";
 		design-voltage = <3700>;
 		design-capacity = <40>;
 		taper-current = <45>;
