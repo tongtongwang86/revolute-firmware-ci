@@ -1,12 +1,18 @@
 manifest:
+  version: "0.10"
   remotes:
-    - name: zephyrproject-rtos
-      url-base: https://github.com/zephyrproject-rtos
+    - name: nrfconnect
+      url-base: https://github.com/nrfconnect
   projects:
     - name: zephyr
+      revision: v3.6.0
       url: https://github.com/zephyrproject-rtos/zephyr
-      remote: zephyrproject-rtos
-      revision: v4.0.0
+
+  projects:
+    - name: sdk-nrf
+      path: nrf
+      url: https://github.com/nrfconnect/sdk-nrf.git
+      revision: v2.6.0
       import:
         name-blocklist:
           - matter
@@ -21,5 +27,3 @@ manifest:
           - lz4
           - lvgl
           - mipi-sys-t
-  self:
-    path: zephyr-workspace
