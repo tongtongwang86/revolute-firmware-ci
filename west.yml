@@ -5,7 +5,7 @@ manifest:
   projects:
     - name: zephyr
       repo-path: zephyr
-      remote: zephyrproject
+      remote: zephyrproject-rtos
       revision: v4.0.0
       import:
         path-prefix: deps
