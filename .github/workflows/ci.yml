@@ -3,10 +3,8 @@ on:
   push:
     branches:
       - Main-Upcoming
-  # run on tag creation
   create:
     tags:
-
   workflow_dispatch:
 
 jobs:
@@ -27,8 +25,6 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          # Clone the repo to a subdirectory, so we can initialize the Zephyr
-          # workspace in the parent directory.
           path: zephyr-workspace/nrfconnect-ci-app
 
       - name: 💾 Cache ~/.venv
@@ -40,8 +36,6 @@ jobs:
             venv-${{ runner.os }}-
 
       - name: 🧰 Install Dependencies + West
-        # Install the Zephyr host build dependencies, and the `west` Python tool. This list is from
-        # https://docs.zephyrproject.org/3.5.0/develop/getting_started/index.html#install-dependencies
         run: |
           sudo apt update
           sudo apt install --no-install-recommends \
@@ -50,24 +44,16 @@ jobs:
 
           python3 -m venv ~/.venv
           source ~/.venv/bin/activate
-          # insert the PATH changes the venv activate made to be present for
-          # future steps
           echo "PATH=$PATH" >> $GITHUB_ENV
           pip3 install west ninja
 
       - name: 🪁 Install Zephyr SDK
-        # Fetch the Zephyr SDK from the GitHub Release artifact, unpack it and
-        # run the setup script, selecting the '-c' option to install cmake
-        # packages and the '-t arm-zephyr-eabi' option to install the toolchain
-        # only for the arm-zephyr-eabi (Cortex-M) architecture, since we don't
-        # need the other toolchains (xtensa, riscv, etc.)
         run: |
           wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.17.0/zephyr-sdk-0.17.0_linux-x86_64_minimal.tar.xz
           tar xf zephyr-sdk-0.17.0_linux-x86_64_minimal.tar.xz -C ~/
           ~/zephyr-sdk-0.17.0/setup.sh -c -t arm-zephyr-eabi
 
       - name: ♻️ Initialize Zephyr Workspace
-        # Set up the Zephyr workspace and install the Python dependencies
         run: |
           cd zephyr-workspace
           rm -rf .west
@@ -87,16 +73,18 @@ jobs:
           restore-keys: |
             ccache-v1-${{ runner.os }}-
 
+      - name: 📋 Copy Board File
+        run: |
+          mkdir -p zephyr-workspace/zephyr/boards/revolutewireless
+          cp -r zephyr-workspace/nrfconnect-ci-app/boards/revolutewireless/* zephyr-workspace/zephyr/boards/revolutewireless/
+
       - name: 🔨 Build Project
         run: |
           cd zephyr-workspace
-          west boards | grep revolutewireless
           ccache -z
           west build \
               --board revolutewireless/nrf52833 \
-              --pristine=always nrfconnect-ci-app \
-              -- \
-              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" 
+              --pristine=always nrfconnect-ci-app
           ccache -sv
           cd build
           cd zephyr
@@ -113,7 +101,6 @@ jobs:
         with:
           name: MergedHex
           path: zephyr-workspace/build/zephyr/merged.hex
-
 
       - name: 📦 Save Update File
         uses: actions/upload-artifact@v4
