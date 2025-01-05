@@ -1,7 +1,7 @@
 
 /dts-v1/;
 #include <nordic/nrf52833_qiaa.dtsi>
-#include "bbc_microbit_v2-pinctrl.dtsi"
+#include "revolutewireless-pinctrl.dtsi"
 #include <zephyr/dt-bindings/input/input-event-codes.h>
 
 / {
