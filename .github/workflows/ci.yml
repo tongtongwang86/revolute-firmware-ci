@@ -33,7 +33,8 @@ jobs:
       - name: Build firmware
         run: |
             ls
-            cd ./revolutefirmware
+            pwd
+            cd revolutefirmware
             ls
             west build \
               --board revolutewireless/nrf52833 \
