@@ -8,6 +8,7 @@ manifest:
       remote: zephyrproject
       revision: v4.0.0
       import:
-        path-prefix: deps
-  self:
-    path: .
+        # By using name-allowlist we can clone only the modules that are
+        # strictly needed by the application.
+        name-blocklist:
+          - hal_stm32  # required by the nucleo_f302r8 board (STM32 based)
