@@ -31,12 +31,7 @@ jobs:
         run: |
           west build \
               --board revolutewireless \
-              --pristine=always example-application \
+              --pristine=always app \
               -- \
 
 
-      - name: 📦 Save HEX
-        uses: actions/upload-artifact@v4
-        with:
-          name: Zephyrhex
-          path: zephyr-workspace/build/zephyr/zephyr.hex
