@@ -90,6 +90,7 @@ jobs:
       - name: 🔨 Build Project
         run: |
           cd zephyr-workspace
+          west boards | grep revolutewireless
           ccache -z
           west build \
               --board revolutewireless/nrf52833 \
