@@ -29,6 +29,7 @@ jobs:
         with:
           app-path: revolutefirmware
           toolchains: arm-zephyr-eabi
+          sdk-version: 0.17.0
 
       - name: Build firmware
         run: |
