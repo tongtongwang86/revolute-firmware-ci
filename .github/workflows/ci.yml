@@ -91,7 +91,7 @@ jobs:
 
       - name: 🔨 Build Project
         run: |
-          
+          tree ~
           cd zephyr-workspace
           source ~/.venv/bin/activate
           ls -a
