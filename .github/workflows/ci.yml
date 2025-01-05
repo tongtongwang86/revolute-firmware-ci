@@ -70,7 +70,9 @@ jobs:
       - name: ♻️ Initialize Zephyr Workspace
         # Set up the Zephyr workspace and install the Python dependencies
         run: |
-          cd zephyr-workspace/nrfconnect-ci-app
+          cd zephyr-workspace/
+          rm -rf .west
+          cd nrfconnect-ci-app
           rm -rf .west
           west init .
           west update
