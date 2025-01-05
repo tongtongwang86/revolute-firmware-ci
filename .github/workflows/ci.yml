@@ -87,6 +87,10 @@ jobs:
           restore-keys: |
             ccache-v1-${{ runner.os }}-
 
+      - name: 📄 Print module.yml Contents
+        run: |
+          cat zephyr-workspace/zephyr/module.yml
+              
       - name: 🔨 Build Project
         run: |
           cd zephyr-workspace
