@@ -9,3 +9,5 @@ manifest:
       revision: v4.0.0
       import:
         path-prefix: deps
+  self:
+    path: zephyr-workspace/nrfconnect-ci-app
