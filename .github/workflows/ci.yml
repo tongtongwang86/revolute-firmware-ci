@@ -34,7 +34,6 @@ jobs:
         run: |
             ls
             pwd
-            cd revolutefirmware
             ls
             west build \
               --board revolutewireless/nrf52833 \
