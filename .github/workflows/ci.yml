@@ -8,28 +8,63 @@ on:
     tags:
 
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
+          # Clone the repo to a subdirectory, so we can initialize the Zephyr
+          # workspace in the parent directory.
           path: revolutefirmware
 
-      - name: Show current directory
-        run: pwd
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+  
+      - name: Setup Zephyr project
+        uses: zephyrproject-rtos/action-zephyr-setup@v1
+        with:
+          app-path: revolutefirmware
+          toolchains: arm-zephyr-eabi
 
-      - name: List root directory contents
-        run: ls -R
-
-      - name: List revolutefirmware directory contents
+      - name: Build firmware
         run: |
-          if [ -d "revolutefirmware" ]; then
-            ls -R revolutefirmware
-          else
-            echo "Directory 'revolutefirmware' does not exist."
-          fi
+            cd revolutefirmware
+            west build \
+              --board revolutewireless/nrf52833 \
+              --pristine=always revolutefirmware \
+              -- \
+              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/revolutefirmware" 
+
+      - name: 📦 Save BIN
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZephyrBin
+          path: revolutefirmware/build/zephyr/zephyr.bin
+
+      - name: 📦 Save HEX
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zephyrhex
+          path: revolutefirmware/build/zephyr/zephyr.hex
+
+      - name: 📦 Save merged hex
+        uses: actions/upload-artifact@v4
+        with:
+          name: MergedHex
+          path: revolutefirmware/build/zephyr/merged.hex
+
+
+      - name: 📦 Save Update File
+        uses: actions/upload-artifact@v4
+        with:
+          name: UpdateBin
+          path: revolutefirmware/build/zephyr/app_update.bin
+
+     
 
 
 
