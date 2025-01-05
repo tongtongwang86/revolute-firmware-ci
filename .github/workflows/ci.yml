@@ -77,7 +77,7 @@ jobs:
         run: |
           mkdir -p zephyr-workspace/zephyr/boards/tong
           cp -r zephyr-workspace/nrfconnect-ci-app/boards/tong/* zephyr-workspace/zephyr/boards/tong/
-          rm -r zephyr-workspace/nrfconnect-ci-app/boards/tong
+          rm -r zephyr-workspace/nrfconnect-ci-app/boards/
 
       - name: 🔨 Build Project
         run: |
