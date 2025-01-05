@@ -39,7 +39,7 @@ jobs:
               --board revolutewireless/nrf52833 \
               --pristine=always revolutefirmware \
               -- \
-              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/revolutefirmware" 
+              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/revolutefirmware" 
 
       - name: 📦 Save BIN
         uses: actions/upload-artifact@v4
