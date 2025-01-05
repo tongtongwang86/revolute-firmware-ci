@@ -21,6 +21,8 @@ jobs:
           # workspace in the parent directory.
           path: zephyr-workspace/nrfconnect-ci-app
 
+
+
       - name: 🧰 Install Dependencies + West
         # Install the Zephyr host build dependencies, and the `west` Python tool. This list is from
         # https://docs.zephyrproject.org/3.5.0/develop/getting_started/index.html#install-dependencies
@@ -28,7 +30,7 @@ jobs:
           sudo apt update
           sudo apt install --no-install-recommends \
             ccache \
-            ninja-build \
+            ninja-build 
           python3 -m venv ~/.venv
           source ~/.venv/bin/activate
           # insert the PATH changes the venv activate made to be present for
