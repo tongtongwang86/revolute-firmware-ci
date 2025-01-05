@@ -8,65 +8,42 @@ on:
     tags:
 
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          # Clone the repo to a subdirectory, so we can initialize the Zephyr
-          # workspace in the parent directory.
           path: revolutefirmware
+
+      - name: Verify checkout
+        run: ls -R revolutefirmware
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
-  
+
       - name: Setup Zephyr project
         uses: zephyrproject-rtos/action-zephyr-setup@v1
         with:
           app-path: revolutefirmware
           toolchains: arm-zephyr-eabi
 
+      - name: Verify revolutefirmware directory
+        run: |
+          if [ ! -d "revolutefirmware" ]; then
+            echo "Directory revolutefirmware does not exist!";
+            exit 1;
+          fi
+
       - name: Build firmware
         working-directory: revolutefirmware
         shell: bash
         run: |
-            west build \
-              --board revolutewireless/nrf52833 \
-              --pristine=always revolutefirmware \
-              -- \
-              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/revolutefirmware" 
-
-      - name: 📦 Save BIN
-        uses: actions/upload-artifact@v4
-        with:
-          name: ZephyrBin
-          path: zephyr-workspace/build/zephyr/zephyr.bin
-
-      - name: 📦 Save HEX
-        uses: actions/upload-artifact@v4
-        with:
-          name: Zephyrhex
-          path: zephyr-workspace/build/zephyr/zephyr.hex
-
-      - name: 📦 Save merged hex
-        uses: actions/upload-artifact@v4
-        with:
-          name: MergedHex
-          path: zephyr-workspace/build/zephyr/merged.hex
-
-
-      - name: 📦 Save Update File
-        uses: actions/upload-artifact@v4
-        with:
-          name: UpdateBin
-          path: zephyr-workspace/build/zephyr/app_update.bin
-
-     
-
-
-
-          
+          west build \
+            --board revolutewireless/nrf52833 \
+            --pristine=always revolutefirmware \
+            -- \
+            -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/revolutefirmware"
