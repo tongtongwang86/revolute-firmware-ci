@@ -39,7 +39,7 @@ jobs:
             west build \
               --board bbc_microbit_v2/nrf52833 \
               --pristine=always revolutefirmware \
-              -- \" 
+              -- \
 
       - name: 📦 Save BIN
         uses: actions/upload-artifact@v4
