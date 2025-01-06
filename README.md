@@ -4,6 +4,7 @@
 
 - [x] Get GitHub Action to build firmware
 - [x] Bluetooth Peripheral sample app
+- [ ] Baisc bluetooth characteristics test
 - [ ] Bluetooth OTA Firmware update
 - [ ] New Bluetooth API to send and receive configurations
 - [ ] Power state implementations
