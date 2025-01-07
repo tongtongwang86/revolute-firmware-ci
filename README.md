@@ -21,6 +21,8 @@ Zephyr: V4.0.99
 
 Specify board root as this repository: `-DBOARD_ROOT=/revolute-firmware-ci`
 
-## Download Build from GitHub Actions
+Build for the board 'revolutewireless'
 
+## Download Build from GitHub Actions
+ 
 On the GitHub website, choose Actions, choose the branch, click into the build, under Artifacts, download Zephyr hex or equivalent.
