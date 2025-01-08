@@ -47,7 +47,7 @@ int main(void)
 	}
 
 	enableBle();
-
+	startAdv();
 	while (1)
 	{
 		ret = gpio_pin_toggle_dt(&led);

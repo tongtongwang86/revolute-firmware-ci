@@ -3,7 +3,7 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
-// #include <zephyr/logging/log.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/types.h>
 #include <stddef.h>
 #include <string.h>
@@ -21,6 +21,7 @@
 extern bool connectd;
 
 void enableBle(void);
-void resetBond(void);
+void startAdv(void);
+void deleteBond(void);
 
 #endif // BLE_H
