@@ -83,26 +83,27 @@ jobs:
               --board revolutewireless \
               --pristine=always nrfconnect-ci-app \
               -- \
+              --sysbuild
               -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" 
           ccache -sv
           cd build
           cd zephyr
           ls
-      - name: 📦 Save HEX
+      - name: 1. Save Bootloader (Erase and flash with debugger)📦
         uses: actions/upload-artifact@v4
         with:
-          name: Zephyrhex
-          path: zephyr-workspace/build/zephyr/zephyr.hex
+          name: Bootloader
+          path: zephyr-workspace/build/mcuboot/zephyr/Bootloader.hex
 
-      - name: 📦 Save merged hex
+      - name: 2. Save Firmware (Flash with debugger)📦
         uses: actions/upload-artifact@v4
         with:
-          name: MergedHex
-          path: zephyr-workspace/build/zephyr/merged.hex
+          name: RevoluteHex
+          path: zephyr-workspace/build/revolute-firmware-ci/zephyr/revolute.signed.confirmed.hex
 
 
-      - name: 📦 Save Update File
+      - name: 3. Save OTA Update File (Flash with OTA)📦
         uses: actions/upload-artifact@v4
         with:
-          name: UpdateBin
-          path: zephyr-workspace/build/zephyr/app_update.bin
+          name: RevoluteBin
+          path: zephyr-workspace/build/revolute-firmware-ci/zephyr/revolute.signed.confirmed.bin
