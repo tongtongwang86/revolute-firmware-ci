@@ -88,6 +88,7 @@ jobs:
               -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" 
           ccache -sv
           cd build
+          cd revolute-firmware-ci
           cd zephyr
           ls
       - name: 1. Save Bootloader (Erase and flash with debugger)📦
