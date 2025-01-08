@@ -33,6 +33,7 @@ On the GitHub website, choose Actions, choose the branch, click into the build, 
 
 MCUMGR, MCUBOOT, OTA-  
 https://docs.zephyrproject.org/latest/build/signing/index.html
+https://docs.zephyrproject.org/latest/services/device_mgmt/mcumgr.html
 https://docs.zephyrproject.org/latest/samples/subsys/mgmt/mcumgr/smp_svr/README.html#smp-svr
 https://github.com/zephyrproject-rtos/zephyr/tree/main/samples/subsys/mgmt/mcumgr/smp_svr
 https://github.com/zephyrproject-rtos/mcumgr/blob/master/README-zephyr.md
