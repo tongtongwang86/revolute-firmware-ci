@@ -31,7 +31,7 @@ int main(void)
 {
 	int ret;
 
-	printk("hoi Board: %s\n", CONFIG_BOARD);
+	printk("Board: %s\n", CONFIG_BOARD);
 	printk("Build time: " __DATE__ " " __TIME__ "\n");
 	printk("Address of sample %p\n", (void *)__rom_region_start);
 
