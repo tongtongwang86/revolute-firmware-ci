@@ -81,9 +81,10 @@ jobs:
           ccache -z
           west build \
               --board revolutewireless \
-              --pristine=always nrfconnect-ci-app \
-              -- \
+              --pristine=always \
               --sysbuild \
+              nrfconnect-ci-app \
+              -- \
               -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" 
           ccache -sv
           cd build
