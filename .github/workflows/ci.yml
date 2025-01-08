@@ -14,17 +14,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: zephyr-workspace
-          key: zephyr-workspace-v2-${{ runner.os }}-${{ hashFiles('zephyr-workspace/nrfconnect-ci-app/west.yml') }}
+          key: zephyr-workspace-v2-${{ runner.os }}-${{ hashFiles('zephyr-workspace/revolute-ci-app/west.yml') }}
           restore-keys: |
             zephyr-workspace-v2-${{ runner.os }}-
       - name: 🧹 Clean Landing Site
         run: |
-          rm -rf zephyr-workspace/nrfconnect-ci-app
+          rm -rf zephyr-workspace/revolute-ci-app
       - uses: actions/checkout@v4
         with:
           # Clone the repo to a subdirectory, so we can initialize the Zephyr
           # workspace in the parent directory.
-          path: zephyr-workspace/nrfconnect-ci-app
+          path: zephyr-workspace/revolute-ci-app
 
       - name: 💾 Cache ~/.venv
         uses: actions/cache@v4
@@ -62,7 +62,7 @@ jobs:
         run: |
           cd zephyr-workspace
           rm -rf .west
-          west init -l nrfconnect-ci-app
+          west init -l revolute-ci-app
           west update --narrow -o=--depth=1
       - name: 🐍 Install Python Dependencies
         run: |
@@ -72,7 +72,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ccache
-          key: ccache-v1-${{ runner.os }}-${{ hashFiles('zephyr-workspace/nrfconnect-ci-app/west.yml') }}
+          key: ccache-v1-${{ runner.os }}-${{ hashFiles('zephyr-workspace/revolute-ci-app/west.yml') }}
           restore-keys: |
             ccache-v1-${{ runner.os }}-
       - name: 🔨 Build Project
@@ -83,9 +83,9 @@ jobs:
               --board revolutewireless \
               --pristine=always \
               --sysbuild \
-              nrfconnect-ci-app \
+              revolute-ci-app \
               -- \
-              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" 
+              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/revolute-ci-app" 
           ccache -sv
           tree -L 4
 
@@ -99,11 +99,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RevoluteHex
-          path: zephyr-workspace/build/revolute-firmware-ci/zephyr/revolute.signed.confirmed.hex
+          path: zephyr-workspace/build/revolute-ci-app/zephyr/revolute.signed.confirmed.hex
 
 
       - name: 3. Save OTA Update File (Flash with OTA)📦
         uses: actions/upload-artifact@v4
         with:
           name: RevoluteBin
-          path: zephyr-workspace/build/revolute-firmware-ci/zephyr/revolute.signed.confirmed.bin
+          path: zephyr-workspace/build/revolute-ci-app/zephyr/revolute.signed.confirmed.bin
