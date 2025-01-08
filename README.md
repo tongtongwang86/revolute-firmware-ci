@@ -26,3 +26,14 @@ Build for the board 'revolutewireless'
 ## Download Build from GitHub Actions
  
 On the GitHub website, choose Actions, choose the branch, click into the build, under Artifacts, download Zephyr hex or equivalent.
+
+
+
+## Resources
+
+MCUMGR, MCUBOOT, OTA-  
+https://docs.zephyrproject.org/latest/build/signing/index.html
+https://docs.zephyrproject.org/latest/samples/subsys/mgmt/mcumgr/smp_svr/README.html#smp-svr
+https://github.com/zephyrproject-rtos/zephyr/tree/main/samples/subsys/mgmt/mcumgr/smp_svr
+https://github.com/zephyrproject-rtos/mcumgr/blob/master/README-zephyr.md
+https://docs.zephyrproject.org/latest/samples/sysbuild/with_mcuboot/README.html

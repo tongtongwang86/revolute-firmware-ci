@@ -89,6 +89,14 @@ jobs:
           ccache -sv
           tree -L 4
 
+
+      - name: Rename Files
+        run: |
+          cd zephyr-workspace
+          mv build/revolute-ci-app/zephyr/revolute.signed.confirmed.hex build/revolute-ci-app/zephyr/revolutefirmware.hex
+          mv build/revolute-ci-app/zephyr/revolute.signed.confirmed.bin build/revolute-ci-app/zephyr/revolutefirmware.bin
+
+
       - name: 1. Save Bootloader (Erase and flash with debugger)📦
         uses: actions/upload-artifact@v4
         with:
@@ -99,11 +107,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RevoluteHex
-          path: zephyr-workspace/build/revolute-ci-app/zephyr/revolute.signed.confirmed.hex
+          path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.hex
 
 
       - name: 3. Save OTA Update File (Flash with OTA)📦
         uses: actions/upload-artifact@v4
         with:
           name: RevoluteBin
-          path: zephyr-workspace/build/revolute-ci-app/zephyr/revolute.signed.confirmed.bin
+          path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.bin
