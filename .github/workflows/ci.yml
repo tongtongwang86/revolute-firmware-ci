@@ -83,7 +83,7 @@ jobs:
               --board revolutewireless \
               --pristine=always nrfconnect-ci-app \
               -- \
-              --sysbuild
+              --sysbuild \
               -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" 
           ccache -sv
           cd build
