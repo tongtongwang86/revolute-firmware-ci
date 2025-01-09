@@ -152,9 +152,7 @@ void enableBle(void)
 	bt_conn_cb_register(&conn_callbacks);
 	printk("Security Enabled\n");
 	bt_conn_auth_cb_register(&conn_auth_callbacks);
-    // settings_load();
-    settings_load();
-    // config_init();
+
 }
 
 // Function to start advertising
