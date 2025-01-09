@@ -18,6 +18,7 @@
 #include <zephyr/bluetooth/services/bas.h>
 #include <math.h>
 
+
 extern bool connectd;
 
 void enableBle(void);
