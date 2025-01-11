@@ -1,5 +1,5 @@
 #include "ble.h"
-#include <zephyr/settings/settings.h>
+
 
 LOG_MODULE_REGISTER(BLE, LOG_LEVEL_DBG);
 
