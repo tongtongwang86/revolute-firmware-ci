@@ -1,17 +1,13 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/conn.h>
-#include <zephyr/bluetooth/uuid.h>
-#include <zephyr/bluetooth/gatt.h>
-#include <zephyr/mgmt/mcumgr/transport/smp_bt.h>
 #include <zephyr/linker/linker-defs.h>
+#include <zephyr/mgmt/mcumgr/transport/smp_bt.h>
 // #include <zephyr/logging/log.h>
 
 #include "ble.h"
 
-
+bool connectd = false;
 
 // LOG_MODULE_REGISTER(Revolute, LOG_LEVEL_DBG);
 /* 1000 msec = 1 sec */

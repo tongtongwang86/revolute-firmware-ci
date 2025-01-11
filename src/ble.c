@@ -1,13 +1,12 @@
 #include "ble.h"
-#include <zephyr/settings/settings.h>
 
 LOG_MODULE_REGISTER(BLE, LOG_LEVEL_DBG);
 
-bool connectd = false;
+
 
 static struct bt_le_adv_param *adv_param = BT_LE_ADV_PARAM(
-    (BT_LE_ADV_OPT_CONNECTABLE |
-     BT_LE_ADV_OPT_USE_IDENTITY), /* Connectable advertising and use identity address */
+    (BT_LE_ADV_OPT_CONN),
+    //  BT_LE_ADV_OPT_USE_IDENTITY), /* Connectable advertising and use identity address */
     800,                          /* Min Advertising Interval 500ms (800*0.625ms) */
     801,                          /* Max Advertising Interval 500.625ms (801*0.625ms) */
     NULL);                        /* Set to NULL for undirected advertising */
@@ -27,58 +26,59 @@ static const struct bt_data sd[] = {
 
 static void connected(struct bt_conn *conn, uint8_t err)
 {
-
-	struct bt_conn_info info;
 	char addr[BT_ADDR_LE_STR_LEN];
 
-    bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
-    if (err)
-    {
-        LOG_INF("Failed to connect to %s (%u)\n", addr, err);
-        return;
-    }
-
-    LOG_INF("Connected %s\n", addr);
-
+	if (err) {
+		printk("Failed to connect to %s %u %s\n", addr, err, bt_hci_err_to_str(err));
+		return;
+	}
     connectd = true;
+	printk("Connected %s\n", addr);
 
-    if (bt_conn_set_security(conn, BT_SECURITY_L2))
-    {
-        LOG_INF("Failed to set security\n");
-    }
-
-    // Stop advertising once connected
-    bt_le_adv_stop();
+	if (bt_conn_set_security(conn, BT_SECURITY_L4)) {
+		printk("Failed to set security\n");
+	}
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
-    char addr[BT_ADDR_LE_STR_LEN];
+	char addr[BT_ADDR_LE_STR_LEN];
 
-    bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+
+	printk("Disconnected from %s, reason 0x%02x %s\n", addr,
+	       reason, bt_hci_err_to_str(reason));
     connectd = false;
-    LOG_INF("Disconnected from %s (reason 0x%02x)\n", addr, reason);
+}
 
-    startAdv();
+
+static void identity_resolved(struct bt_conn *conn, const bt_addr_le_t *rpa,
+			      const bt_addr_le_t *identity)
+{
+	char addr_identity[BT_ADDR_LE_STR_LEN];
+	char addr_rpa[BT_ADDR_LE_STR_LEN];
+
+	bt_addr_le_to_str(identity, addr_identity, sizeof(addr_identity));
+	bt_addr_le_to_str(rpa, addr_rpa, sizeof(addr_rpa));
+
+	printk("Identity resolved %s -> %s\n", addr_rpa, addr_identity);
 }
 
 static void security_changed(struct bt_conn *conn, bt_security_t level,
-                             enum bt_security_err err)
+			     enum bt_security_err err)
 {
-    char addr[BT_ADDR_LE_STR_LEN];
+	char addr[BT_ADDR_LE_STR_LEN];
 
-    bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-    connectd = true;
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
-    if (!err)
-    {
-        LOG_INF("Security changed: %s level %u\n", addr, level);
-    }
-    else
-    {
-        LOG_INF("Security failed: %s level %u err %d\n", addr, level, err);
-    }
+	if (!err) {
+		printk("Security changed: %s level %u\n", addr, level);
+	} else {
+		printk("Security failed: %s level %u err %s(%d)\n", addr, level,
+		       bt_security_err_to_str(err), err);
+	}
 }
 
 
@@ -95,13 +95,13 @@ static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t l
 
 	if (bt_conn_get_info(conn, &info))
 	{
-		printk("Could not parse connection info\n");
+		LOG_INF("Could not parse connection info\n");
 	}
 	else
 	{
 		bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
-		printk("Connection parameters updated!	\n\
+		LOG_INF("Connection parameters updated!	\n\
 		Connected to: %s						\n\
 		New Connection Interval: %u				\n\
 		New Slave Latency: %u					\n\
@@ -111,25 +111,24 @@ static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t l
 }
 
 
-static struct bt_conn_cb conn_callbacks =
-	{
-		.connected = connected,
-		.disconnected = disconnected,
-		.security_changed = security_changed,
-		.le_param_req = le_param_req,
-		.le_param_updated = le_param_updated,
+BT_CONN_CB_DEFINE(conn_callbacks) = {
+	.connected = connected,
+	.disconnected = disconnected,
+	.identity_resolved = identity_resolved,
+	.security_changed = security_changed,
 };
 
 
 
 static void auth_cancel(struct bt_conn *conn)
 {
-    char addr[BT_ADDR_LE_STR_LEN];
+	char addr[BT_ADDR_LE_STR_LEN];
 
-    bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
-    LOG_INF("Pairing cancelled: %s\n", addr);
+	printk("Pairing cancelled: %s\n", addr);
 }
+
 
 
 static struct bt_conn_auth_cb conn_auth_callbacks = {
@@ -140,6 +139,43 @@ static struct bt_conn_auth_cb conn_auth_callbacks = {
 	
 	};
 
+
+static void pairing_complete(struct bt_conn *conn, bool bonded)
+{
+	char addr[BT_ADDR_LE_STR_LEN];
+
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+
+	printk("Pairing completed: %s, bonded: %d\n", addr, bonded);
+}
+
+static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
+{
+	printk("Pairing Failed (%d). Disconnecting.\n", reason);
+	bt_conn_disconnect(conn, BT_HCI_ERR_AUTH_FAIL);
+}
+
+static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
+{
+	char addr[BT_ADDR_LE_STR_LEN];
+
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+
+	printk("Passkey for %s: %06u\n", addr, passkey);
+}
+
+static struct bt_conn_auth_cb auth_cb_display = {
+	.passkey_display = auth_passkey_display,
+	.passkey_entry = NULL,
+	.cancel = auth_cancel,
+};
+
+static struct bt_conn_auth_info_cb auth_cb_info = {
+	.pairing_complete = pairing_complete,
+	.pairing_failed = pairing_failed,
+};
+
+
 void enableBle(void)
 {
 
@@ -149,9 +185,9 @@ void enableBle(void)
         LOG_INF("Bluetooth init failed (err %d)\n", err);
         return;
     }
-	bt_conn_cb_register(&conn_callbacks);
-	printk("Security Enabled\n");
-	bt_conn_auth_cb_register(&conn_auth_callbacks);
+	bt_conn_auth_cb_register(&auth_cb_display);
+	bt_conn_auth_info_cb_register(&auth_cb_info);
+    LOG_INF("Security Enabled\n");
     // settings_load();
     settings_load();
     // config_init();
