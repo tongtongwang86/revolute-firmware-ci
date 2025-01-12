@@ -1,28 +1,31 @@
-/* main.c - Application main entry point */
+
+
 
 /*
- * Copyright (c) 2016 Intel Corporation
+ * Copyright (c) 2022 Michal Morsisko
+ * Copyright (c) 2015-2016 Intel Corporation
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <zephyr/types.h>
 #include <stddef.h>
-#include <string.h>
-#include <errno.h>
 #include <zephyr/sys/printk.h>
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/kernel.h>
-
+#include <zephyr/sys/reboot.h>
 #include <zephyr/settings/settings.h>
-
 #include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
+#include <zephyr/bluetooth/hci.h>
+
 
 #include "hog.h"
+
+static struct bt_le_adv_param adv_param;
+static int bond_count;
+
+
 
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
@@ -35,118 +38,91 @@ static const struct bt_data sd[] = {
 	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 };
 
+
 static void connected(struct bt_conn *conn, uint8_t err)
 {
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
 	if (err) {
-		printk("Failed to connect to %s, err 0x%02x %s\n", addr,
-		       err, bt_hci_err_to_str(err));
-		return;
-	}
-
-	printk("Connected %s\n", addr);
-
-	if (bt_conn_set_security(conn, BT_SECURITY_L2)) {
-		printk("Failed to set security\n");
+		printk("Connection failed, err 0x%02x %s\n", err, bt_hci_err_to_str(err));
+	} else {
+		printk("Connected\n");
 	}
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	printk("Disconnected from %s, reason 0x%02x %s\n", addr,
-	       reason, bt_hci_err_to_str(reason));
-}
-
-static void security_changed(struct bt_conn *conn, bt_security_t level,
-			     enum bt_security_err err)
-{
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	if (!err) {
-		printk("Security changed: %s level %u\n", addr, level);
-	} else {
-		printk("Security failed: %s level %u err %s(%d)\n", addr, level,
-		       bt_security_err_to_str(err), err);
-	}
+	printk("Disconnected, reason 0x%02x %s\n", reason, bt_hci_err_to_str(reason));
 }
 
 BT_CONN_CB_DEFINE(conn_callbacks) = {
 	.connected = connected,
-	.disconnected = disconnected,
-	.security_changed = security_changed,
+	.disconnected = disconnected
 };
 
-static void bt_ready(int err)
+static void add_bonded_addr_to_filter_list(const struct bt_bond_info *info, void *data)
 {
-	if (err) {
-		printk("Bluetooth init failed (err %d)\n", err);
-		return;
-	}
+	char addr_str[BT_ADDR_LE_STR_LEN];
+
+	bt_le_filter_accept_list_add(&info->addr);
+	bt_addr_le_to_str(&info->addr, addr_str, sizeof(addr_str));
+	printk("Added %s to advertising accept filter list\n", addr_str);
+	bond_count++;
+}
+
+static void bt_ready(void)
+{
+	int err;
 
 	printk("Bluetooth initialized\n");
-
-	hog_init();
 
 	if (IS_ENABLED(CONFIG_SETTINGS)) {
 		settings_load();
 	}
 
-	err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-	if (err) {
-		printk("Advertising failed to start (err %d)\n", err);
-		return;
+	bond_count = 0;
+	bt_foreach_bond(BT_ID_DEFAULT, add_bonded_addr_to_filter_list, NULL);
+
+	adv_param = *BT_LE_ADV_CONN_FAST_1;
+
+	/* If we have got at least one bond, activate the filter */
+	if (bond_count) {
+		/* BT_LE_ADV_OPT_FILTER_CONN is required to activate accept filter list,
+		 * BT_LE_ADV_OPT_FILTER_SCAN_REQ will prevent sending scan response data to
+		 * devices, that are not on the accept filter list
+		 */
+		adv_param.options |= BT_LE_ADV_OPT_FILTER_CONN | BT_LE_ADV_OPT_FILTER_SCAN_REQ;
 	}
 
-	printk("Advertising successfully started\n");
+	err = bt_le_adv_start(&adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+
+	if (err) {
+		printk("Advertising failed to start (err %d)\n", err);
+	} else {
+		printk("Advertising successfully started\n");
+	}
 }
 
-static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
+void pairing_complete(struct bt_conn *conn, bool bonded)
 {
-	char addr[BT_ADDR_LE_STR_LEN];
+	printk("Pairing completed\n");
 
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	printk("Passkey for %s: %06u\n", addr, passkey);
 }
 
-static void auth_cancel(struct bt_conn *conn)
-{
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	printk("Pairing cancelled: %s\n", addr);
-}
-
-static struct bt_conn_auth_cb auth_cb_display = {
-	.passkey_display = auth_passkey_display,
-	.passkey_entry = NULL,
-	.cancel = auth_cancel,
+static struct bt_conn_auth_info_cb bt_conn_auth_info = {
+	.pairing_complete = pairing_complete
 };
 
 int main(void)
 {
 	int err;
 
-	err = bt_enable(bt_ready);
+	err = bt_enable(NULL);
 	if (err) {
 		printk("Bluetooth init failed (err %d)\n", err);
 		return 0;
 	}
 
-	if (IS_ENABLED(CONFIG_SAMPLE_BT_USE_AUTHENTICATION)) {
-		bt_conn_auth_cb_register(&auth_cb_display);
-		printk("Bluetooth authentication callbacks registered.\n");
-	}
+	bt_ready();
+	bt_conn_auth_info_cb_register(&bt_conn_auth_info);
 
 	hog_button_loop();
 	return 0;
