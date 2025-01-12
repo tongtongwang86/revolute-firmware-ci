@@ -22,7 +22,19 @@
 
 #include "hog.h"
 
+static void advertising_start(struct k_work *work);
+static K_WORK_DEFINE(start_advertising_worker, advertising_start);
+
 static struct bt_le_adv_param adv_param;
+
+// static struct bt_le_adv_param *adv_param_normal = BT_LE_ADV_PARAM(
+// 	(BT_LE_ADV_OPT_CONN |
+// 	 BT_LE_ADV_OPT_USE_IDENTITY), /* Connectable advertising and use identity address */
+// 	BT_GAP_ADV_FAST_INT_MIN_1,                          /* Min Advertising Interval 500ms (800*0.625ms) */
+// 	BT_GAP_ADV_FAST_INT_MAX_1,                          /* Max Advertising Interval 500.625ms (801*0.625ms) */
+// 	NULL);                        /* Set to NULL for undirected advertising */
+
+
 static int bond_count;
 
 
@@ -48,15 +60,6 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	}
 }
 
-static void disconnected(struct bt_conn *conn, uint8_t reason)
-{
-	printk("Disconnected, reason 0x%02x %s\n", reason, bt_hci_err_to_str(reason));
-}
-
-BT_CONN_CB_DEFINE(conn_callbacks) = {
-	.connected = connected,
-	.disconnected = disconnected
-};
 
 static void add_bonded_addr_to_filter_list(const struct bt_bond_info *info, void *data)
 {
@@ -68,15 +71,12 @@ static void add_bonded_addr_to_filter_list(const struct bt_bond_info *info, void
 	bond_count++;
 }
 
-static void bt_ready(void)
+
+static void advertising_start(struct k_work *work)
 {
 	int err;
 
 	printk("Bluetooth initialized\n");
-
-	if (IS_ENABLED(CONFIG_SETTINGS)) {
-		settings_load();
-	}
 
 	bond_count = 0;
 	bt_foreach_bond(BT_ID_DEFAULT, add_bonded_addr_to_filter_list, NULL);
@@ -101,6 +101,51 @@ static void bt_ready(void)
 	}
 }
 
+
+static void bt_ready(void)
+{
+	int err;
+
+	printk("Bluetooth initialized\n");
+
+
+
+	bond_count = 0;
+	bt_foreach_bond(BT_ID_DEFAULT, add_bonded_addr_to_filter_list, NULL);
+
+	adv_param = *BT_LE_ADV_CONN_FAST_1;
+
+	/* If we have got at least one bond, activate the filter */
+	if (bond_count) {
+		/* BT_LE_ADV_OPT_FILTER_CONN is required to activate accept filter list,
+		 * BT_LE_ADV_OPT_FILTER_SCAN_REQ will prevent sending scan response data to
+		 * devices, that are not on the accept filter list
+		 */
+		adv_param.options |= BT_LE_ADV_OPT_FILTER_CONN | BT_LE_ADV_OPT_FILTER_SCAN_REQ;
+	}
+
+	err = bt_le_adv_start(&adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+
+	if (err) {
+		printk("Advertising failed to start (err %d)\n", err);
+	} else {
+		printk("Advertising successfully started\n");
+	}
+}
+
+static void disconnected(struct bt_conn *conn, uint8_t reason)
+{
+	printk("Disconnected, reason 0x%02x %s\n", reason, bt_hci_err_to_str(reason));
+	k_sleep(K_SECONDS(3));
+	k_work_submit(&start_advertising_worker);
+}
+
+BT_CONN_CB_DEFINE(conn_callbacks) = {
+	.connected = connected,
+	.disconnected = disconnected
+};
+
+
 void pairing_complete(struct bt_conn *conn, bool bonded)
 {
 	printk("Pairing completed\n");
@@ -120,8 +165,11 @@ int main(void)
 		printk("Bluetooth init failed (err %d)\n", err);
 		return 0;
 	}
+		if (IS_ENABLED(CONFIG_SETTINGS)) {
+		settings_load();
+	}
 
-	bt_ready();
+	k_work_submit(&start_advertising_worker);
 	bt_conn_auth_info_cb_register(&bt_conn_auth_info);
 
 	hog_button_loop();
