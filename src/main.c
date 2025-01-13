@@ -20,6 +20,7 @@
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
 #include "hog.h"
+#include "revsvc.h"
 
 static struct bt_le_adv_param adv_param;
 static bt_addr_le_t bond_addr;
