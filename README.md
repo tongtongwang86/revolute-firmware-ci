@@ -6,8 +6,8 @@
 - [x] Bluetooth Peripheral sample app
 - [x] Bluetooth OTA Firmware update
 - [x] Bluetooth Connection and Bonding
-- [ ] Baisc bluetooth characteristics test
-- [ ] New Bluetooth API to send and receive configurations
+- [x] Baisc bluetooth characteristics test
+- [x] New Bluetooth API to send and receive configurations
 - [ ] Power state implementations
 - [ ] Sensor poll rate testing
 - [ ] Combine together
