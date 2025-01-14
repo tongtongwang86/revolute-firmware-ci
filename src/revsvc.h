@@ -9,6 +9,13 @@
 #include <zephyr/usb/class/usb_hid.h>
 #include <zephyr/settings/settings.h>
 
+// thread stuff
+#define REV_SVC_THREAD_STACK_SIZE 1024  // Adjust based on requirements
+#define REV_SVC_THREAD_PRIORITY 5  // Priority for rev_svc_loop thread
+static struct k_thread rev_svc_thread_data;
+static K_THREAD_STACK_DEFINE(rev_svc_stack, REV_SVC_THREAD_STACK_SIZE); 
+
+
 extern struct k_sem stats_notification_sem;
 
 #define REV_SVC_UUID           BT_UUID_DECLARE_128(0x00001523, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
