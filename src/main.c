@@ -58,6 +58,89 @@ K_THREAD_STACK_DEFINE(hog_button_stack, HOG_BUTTON_THREAD_STACK_SIZE);
 static struct k_thread rev_svc_thread_data;
 static struct k_thread hog_button_thread_data;
 
+#define BT_LE_ADV_CONN_NO_ACCEPT_LIST                                                              \
+	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME,                        \
+			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
+
+#define BT_LE_ADV_CONN_ACCEPT_LIST                                                                 \
+	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_FILTER_CONN |                    \
+				BT_LE_ADV_OPT_ONE_TIME,                                            \
+			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
+
+
+static void setup_accept_list_cb(const struct bt_bond_info *info, void *user_data)
+{
+	int *bond_cnt = user_data;
+
+	if ((*bond_cnt) < 0) {
+		return;
+	}
+
+	int err = bt_le_filter_accept_list_add(&info->addr);
+	LOG_INF("Added following peer to accept list: %x %x\n", info->addr.a.val[0],
+		info->addr.a.val[1]);
+	if (err) {
+		LOG_INF("Cannot add peer to filter accept list (err: %d)\n", err);
+		(*bond_cnt) = -EIO;
+	} else {
+		(*bond_cnt)++;
+	}
+}
+
+static int setup_accept_list(uint8_t local_id)
+{
+	int err = bt_le_filter_accept_list_clear();
+
+	if (err) {
+		LOG_INF("Cannot clear accept list (err: %d)\n", err);
+		return err;
+	}
+
+	int bond_cnt = 0;
+
+	bt_foreach_bond(local_id, setup_accept_list_cb, &bond_cnt);
+
+	return bond_cnt;
+}
+
+/* Vendor Primary Service Declaration */
+
+static const struct bt_data ad[] = {
+	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+	BT_DATA_BYTES(BT_DATA_UUID16_ALL,
+		      BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),
+		      BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)),
+};
+
+static const struct bt_data sd[] = {
+	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
+};
+
+void advertise_with_acceptlist(struct k_work *work)
+{
+	int err = 0;
+	int allowed_cnt = setup_accept_list(BT_ID_DEFAULT);
+	if (allowed_cnt < 0) {
+		LOG_INF("Acceptlist setup failed (err:%d)\n", allowed_cnt);
+	} else {
+		if (allowed_cnt == 0) {
+			LOG_INF("Advertising with no Accept list \n");
+			err = bt_le_adv_start(BT_LE_ADV_CONN_NO_ACCEPT_LIST, ad, ARRAY_SIZE(ad), sd,
+					      ARRAY_SIZE(sd));
+		} else {
+			LOG_INF("Acceptlist setup number  = %d \n", allowed_cnt);
+			err = bt_le_adv_start(BT_LE_ADV_CONN_ACCEPT_LIST, ad, ARRAY_SIZE(ad), sd,
+					      ARRAY_SIZE(sd));
+		}
+		if (err) {
+			LOG_INF("Advertising failed to start (err %d)\n", err);
+			return;
+		}
+		LOG_INF("Advertising successfully started\n");
+	}
+}
+K_WORK_DEFINE(advertise_acceptlist_work, advertise_with_acceptlist);
+
 
 void button_thread_fn(void *arg1, void *arg2, void *arg3) {
     int ret;
@@ -123,18 +206,6 @@ static struct bt_le_adv_param *adv_param_normal = BT_LE_ADV_PARAM(
 
 static struct bt_le_adv_param *adv_param_directed = BT_LE_ADV_CONN_DIR_LOW_DUTY(&bond_addr);
 
-/* Vendor Primary Service Declaration */
-
-static const struct bt_data ad[] = {
-	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-	BT_DATA_BYTES(BT_DATA_UUID16_ALL,
-		      BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),
-		      BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)),
-};
-
-static const struct bt_data sd[] = {
-	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
-};
 
 static void copy_last_bonded_addr(const struct bt_bond_info *info, void *data)
 {
@@ -197,12 +268,28 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
 	printk("Disconnected, reason 0x%02x %s\n", reason, bt_hci_err_to_str(reason));
 	// k_work_submit(&start_advertising_worker);
-	printk("Advertising started\n");
+	// printk("Advertising started\n");
+	k_work_submit(&advertise_acceptlist_work);
+
+}
+
+static void on_security_changed(struct bt_conn *conn, bt_security_t level, enum bt_security_err err)
+{
+	char addr[BT_ADDR_LE_STR_LEN];
+
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+
+	if (!err) {
+		LOG_INF("Security changed: %s level %u\n", addr, level);
+	} else {
+		LOG_INF("Security failed: %s level %u err %d\n", addr, level, err);
+	}
 }
 
 BT_CONN_CB_DEFINE(conn_callbacks) = {
 	.connected = connected,
-	.disconnected = disconnected
+	.disconnected = disconnected,
+	.security_changed = on_security_changed
 };
 
 
@@ -246,7 +333,9 @@ int main(void)
 		settings_load();
 	}
 
-	k_work_submit(&start_advertising_worker);
+	// k_work_submit(&start_advertising_worker);
+	k_work_submit(&advertise_acceptlist_work);
+
 
 	bt_conn_auth_info_cb_register(&bt_conn_auth_info);
 	    // Create a thread for the rev_svc_loop function
