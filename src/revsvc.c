@@ -145,7 +145,7 @@ for (;;) {
         }
         
 			// bt_gatt_notify(NULL, &rev_svc.attrs[3], &stats, sizeof(stats));
-            printk("Stats notification sent\n");
+
 		}
 		k_sleep(K_MSEC(100));
 	}

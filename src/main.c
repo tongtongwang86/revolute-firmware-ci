@@ -23,6 +23,7 @@
 #include <zephyr/logging/log.h>
 #include "hog.h"
 #include "revsvc.h"
+static int bond_count;
 
 #define LED0_NODE DT_ALIAS(led0)
 #define SW3_NODE DT_ALIAS(sw3)
@@ -140,65 +141,35 @@ static void copy_last_bonded_addr(const struct bt_bond_info *info, void *data)
 	bt_addr_le_copy(&bond_addr, &info->addr);
 }
 
+static void add_bonded_addr_to_filter_list(const struct bt_bond_info *info, void *data)
+{
+	char addr_str[BT_ADDR_LE_STR_LEN];
+
+	bt_le_filter_accept_list_add(&info->addr);
+	bt_addr_le_to_str(&info->addr, addr_str, sizeof(addr_str));
+	printk("Added %s to advertising accept filter list\n", addr_str);
+	bond_count++;
+}
+
 static void advertising_start(struct k_work *work)
 {
 	int err;
-	char addr[BT_ADDR_LE_STR_LEN];
 	
-	bt_addr_le_copy(&bond_addr, BT_ADDR_LE_NONE);
-	bt_foreach_bond(BT_ID_DEFAULT, copy_last_bonded_addr, NULL);
+	bond_count = 0;
+	bt_foreach_bond(BT_ID_DEFAULT, add_bonded_addr_to_filter_list, NULL);
 
-	/* Address is equal to BT_ADDR_LE_NONE if compare returns 0.
-	 * This means there is no bond yet.
-	 */
-	if (bt_addr_le_cmp(&bond_addr, BT_ADDR_LE_NONE) != 0) {
-		bt_addr_le_to_str(&bond_addr, addr, sizeof(addr));
-		printk("Direct advertising to %s\n", addr);
+	adv_param = *BT_LE_ADV_CONN_FAST_1;
 
-		//adv_param = *BT_LE_ADV_CONN_DIR_LOW_DUTY(&bond_addr);
-		adv_param = *BT_LE_ADV_CONN_DIR(&bond_addr);
-		adv_param.options |= BT_LE_ADV_OPT_DIR_ADDR_RPA;
-		err = bt_le_adv_start(adv_param_directed, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-	} else {
-		err = bt_le_adv_start(adv_param_normal, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+	/* If we have got at least one bond, activate the filter */
+	if (bond_count) {
+		/* BT_LE_ADV_OPT_FILTER_CONN is required to activate accept filter list,
+		 * BT_LE_ADV_OPT_FILTER_SCAN_REQ will prevent sending scan response data to
+		 * devices, that are not on the accept filter list
+		 */
+		adv_param.options |= BT_LE_ADV_OPT_FILTER_CONN | BT_LE_ADV_OPT_FILTER_SCAN_REQ;
 	}
 
-	if (err) {
-		printk("Advertising failed to start (err %d)\n", err);
-	} else {
-		printk("Advertising successfully started\n");
-	}	
-}
-
-static void bt_ready(void)
-{
-	int err;
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	printk("Bluetooth initialized\n");
-
-	if (IS_ENABLED(CONFIG_SETTINGS)) {
-		settings_load();
-	}
-
-	bt_addr_le_copy(&bond_addr, BT_ADDR_LE_NONE);
-	bt_foreach_bond(BT_ID_DEFAULT, copy_last_bonded_addr, NULL);
-
-	/* Address is equal to BT_ADDR_LE_NONE if compare returns 0.
-	 * This means there is no bond yet.
-	 */
-
-	if (bt_addr_le_cmp(&bond_addr, BT_ADDR_LE_NONE) != 0) {
-		bt_addr_le_to_str(&bond_addr, addr, sizeof(addr));
-		printk("Direct advertising to %s\n", addr);
-
-		// adv_param = *BT_LE_ADV_CONN_DIR(&bond_addr);
-		// adv_param.options |= BT_LE_ADV_OPT_DIR_ADDR_RPA;
-		err = bt_le_adv_start(adv_param_directed, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-	} else {
-		// err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), NULL, 0);
-		err = bt_le_adv_start(adv_param_normal, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-	}
+	err = bt_le_adv_start(&adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
 
 	if (err) {
 		printk("Advertising failed to start (err %d)\n", err);
@@ -206,6 +177,8 @@ static void bt_ready(void)
 		printk("Advertising successfully started\n");
 	}
 }
+
+
 
 static void connected(struct bt_conn *conn, uint8_t err)
 {
@@ -223,7 +196,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
 	printk("Disconnected, reason 0x%02x %s\n", reason, bt_hci_err_to_str(reason));
-	k_work_submit(&start_advertising_worker);
+	// k_work_submit(&start_advertising_worker);
 	printk("Advertising started\n");
 }
 
@@ -269,7 +242,12 @@ int main(void)
 		return 0;
 	}
 
-	bt_ready();
+		if (IS_ENABLED(CONFIG_SETTINGS)) {
+		settings_load();
+	}
+
+	k_work_submit(&start_advertising_worker);
+
 	bt_conn_auth_info_cb_register(&bt_conn_auth_info);
 	    // Create a thread for the rev_svc_loop function
  
