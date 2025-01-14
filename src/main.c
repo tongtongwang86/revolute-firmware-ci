@@ -23,6 +23,8 @@
 #include <zephyr/logging/log.h>
 #include "hog.h"
 #include "revsvc.h"
+#include "batterylvl.h"
+
 static int bond_count;
 
 #define LED0_NODE DT_ALIAS(led0)
@@ -365,6 +367,7 @@ int main(void)
                                         button_thread_fn, NULL, NULL, NULL,
                                         BUTTON_THREAD_PRIORITY, 0, K_NO_WAIT);
 
+	batteryThreadinit();
 	// hog_button_loop();
 
 	while (1) {
