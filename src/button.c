@@ -39,6 +39,7 @@ void button_thread_fn(void *arg1, void *arg2, void *arg3) {
 
             // Debounce delay
             k_sleep(K_MSEC(500));
+            // k_work_submit(&advertise_acceptlist_work);
         }
 
         k_sleep(K_MSEC(100));  // Polling delay
