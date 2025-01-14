@@ -152,11 +152,11 @@
 		status = "okay";
 	};
 
-	bq27421@55 {
+	bq27427: bq27427@55 {
 		compatible = "ti,bq274xx";
 		reg = <0x55>;
 		design-voltage = <3700>;
-		design-capacity = <40>;
+		design-capacity = <70>;
 		taper-current = <45>;
 		terminate-voltage = <3000>;
 		status = "okay";
