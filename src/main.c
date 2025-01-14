@@ -1,11 +1,4 @@
 
-/*
- * Copyright (c) 2022 Michal Morsisko
- * Copyright (c) 2015-2016 Intel Corporation
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/types.h>
 #include <stddef.h>
@@ -49,15 +42,15 @@ static void advertising_start(struct k_work *work);
 static K_WORK_DEFINE(start_advertising_worker, advertising_start);
 
 // Define thread stack sizes and priorities
-#define REV_SVC_THREAD_STACK_SIZE 1024  // Adjust based on requirements
+// #define REV_SVC_THREAD_STACK_SIZE 1024  // Adjust based on requirements
 #define HOG_BUTTON_THREAD_STACK_SIZE 1024  // Adjust based on requirements
-#define REV_SVC_THREAD_PRIORITY 5  // Priority for rev_svc_loop thread
+// #define REV_SVC_THREAD_PRIORITY 5  // Priority for rev_svc_loop thread
 #define HOG_BUTTON_THREAD_PRIORITY 5  // Priority for hog_button_loop thread
 
 // Thread stack and control blocks
-K_THREAD_STACK_DEFINE(rev_svc_stack, REV_SVC_THREAD_STACK_SIZE); 
+// K_THREAD_STACK_DEFINE(rev_svc_stack, REV_SVC_THREAD_STACK_SIZE); 
 K_THREAD_STACK_DEFINE(hog_button_stack, HOG_BUTTON_THREAD_STACK_SIZE); 
-static struct k_thread rev_svc_thread_data;
+// static struct k_thread rev_svc_thread_data;
 static struct k_thread hog_button_thread_data;
 
 #define BT_LE_ADV_CONN_NO_ACCEPT_LIST                                                              \
@@ -257,7 +250,8 @@ static void connected(struct bt_conn *conn, uint8_t err)
 {
 	if (err == BT_HCI_ERR_ADV_TIMEOUT) {
 		printk("Trying to re-start directed adv.\n");
-		k_work_submit(&start_advertising_worker);
+		// k_work_submit(&start_advertising_worker);
+		k_work_submit(&advertise_acceptlist_work);
 	}
 	else if (err) {
 		printk("Connection failed (err 0x%02x)\n", err);
@@ -343,13 +337,13 @@ int main(void)
 	    // Create a thread for the rev_svc_loop function
  
     // Create thread for rev_svc_loop
-    k_thread_create(&rev_svc_thread_data, rev_svc_stack,
-                    K_THREAD_STACK_SIZEOF(rev_svc_stack),
-                    rev_svc_thread,
-                    NULL, NULL, NULL,
-                    REV_SVC_THREAD_PRIORITY,
-                    0,
-                    K_NO_WAIT);
+    // k_thread_create(&rev_svc_thread_data, rev_svc_stack,
+    //                 K_THREAD_STACK_SIZEOF(rev_svc_stack),
+    //                 rev_svc_thread,
+    //                 NULL, NULL, NULL,
+    //                 REV_SVC_THREAD_PRIORITY,
+    //                 0,
+    //                 K_NO_WAIT);
 
     LOG_INF("rev_svc_loop thread started\n");
 
@@ -368,6 +362,7 @@ int main(void)
                                         BUTTON_THREAD_PRIORITY, 0, K_NO_WAIT);
 
 	batteryThreadinit();
+	rev_svc_thread_init();
 	// hog_button_loop();
 
 	while (1) {

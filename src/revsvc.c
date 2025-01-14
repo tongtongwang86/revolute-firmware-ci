@@ -2,6 +2,16 @@
 
 LOG_MODULE_REGISTER(RevSVC, LOG_LEVEL_DBG);
 
+// thread stuff
+
+#define REV_SVC_THREAD_STACK_SIZE 1024  // Adjust based on requirements
+#define REV_SVC_THREAD_PRIORITY 5  // Priority for rev_svc_loop thread
+static struct k_thread rev_svc_thread_data;
+static K_THREAD_STACK_DEFINE(rev_svc_stack, REV_SVC_THREAD_STACK_SIZE); 
+
+
+
+
 static uint8_t stats_notifications_enabled;
 // Initialize the dummy data
 static rev_config_t config = {
@@ -149,4 +159,16 @@ for (;;) {
 		}
 		k_sleep(K_MSEC(100));
 	}
+}
+
+void rev_svc_thread_init(void) {
+    k_thread_create(&rev_svc_thread_data, rev_svc_stack,
+                    K_THREAD_STACK_SIZEOF(rev_svc_stack),
+                    (k_thread_entry_t)rev_svc_loop,
+                    NULL, NULL, NULL,
+                    REV_SVC_THREAD_PRIORITY, 0, K_NO_WAIT);
+
+
+
+    LOG_INF("rev_svc_loop thread initialized");
 }
