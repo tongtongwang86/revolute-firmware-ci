@@ -1,11 +1,9 @@
 #include "revsvc.h"
+#include "settings.h"
 
 LOG_MODULE_REGISTER(RevSVC, LOG_LEVEL_DBG);
 
-
-static uint8_t stats_notifications_enabled;
-// Initialize the dummy data
-static rev_config_t config = {
+rev_config_t config = {
     .deadzone = 0x01,
     .up_report = {0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17},
     .up_identPerRev = 0x02,
@@ -15,7 +13,12 @@ static rev_config_t config = {
     .dn_transport = 0x05
 };
 
-static rev_stats_t stats = {
+
+static uint8_t stats_notifications_enabled;
+// Initialize the dummy data
+
+
+rev_stats_t stats = {
     .quat_data = {0x3f800000, 0x00000000, 0x00000000, 0x00000000}, // Quaternion identity (1.0, 0.0, 0.0, 0.0)
     .rotation_value = 0x0001 // Example rotation value
 };
@@ -72,7 +75,7 @@ static ssize_t write_callback_config(struct bt_conn *conn,
             config.dn_report[4], config.dn_report[5], config.dn_report[6], config.dn_report[7]);
     LOG_INF("dn_identPerRev: %u", config.dn_identPerRev);
     LOG_INF("dn_transport: %u", config.dn_transport);
-
+    save_config();
     return to_copy;
 }
 

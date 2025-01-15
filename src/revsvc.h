@@ -43,6 +43,10 @@ typedef struct {
     uint16_t rotation_value;
 } rev_stats_t;
 
+extern rev_config_t config;
+extern rev_stats_t stats;
+
+
 // Public functions
 void generate_random_stats_data(rev_stats_t *stats);
 void rev_svc_loop(void);

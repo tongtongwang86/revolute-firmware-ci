@@ -13,6 +13,7 @@
 #include "batterylvl.h"
 #include "button.h"
 #include "ble.h"
+#include "settings.h"
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 

@@ -1,5 +1,6 @@
 
 #include "ble.h"
+#include "settings.h"
 
 LOG_MODULE_REGISTER(ble, LOG_LEVEL_DBG);
 
@@ -177,7 +178,7 @@ void bluetooth_init(void) {
 	}
 
 		if (IS_ENABLED(CONFIG_SETTINGS)) {
-		settings_load();
+		load_config();
 	}
 
 	// k_work_submit(&start_advertising_worker);
