@@ -83,13 +83,14 @@ int main(void)
     LOG_INF("rev_svc_loop thread started\n");
 
     // Create thread for hog_button_loop
-    k_thread_create(&hog_button_thread_data, hog_button_stack,
-                    K_THREAD_STACK_SIZEOF(hog_button_stack),
-                    hog_button_thread,
-                    NULL, NULL, NULL,
-                    HOG_BUTTON_THREAD_PRIORITY,
-                    0,
-                    K_NO_WAIT);
+
+    // k_thread_create(&hog_button_thread_data, hog_button_stack,
+    //                 K_THREAD_STACK_SIZEOF(hog_button_stack),
+    //                 hog_button_thread,
+    //                 NULL, NULL, NULL,
+    //                 HOG_BUTTON_THREAD_PRIORITY,
+    //                 0,
+    //                 K_NO_WAIT);
 
 	    // button_thread_tid = k_thread_create(&button_thread_data, button_thread_stack,
         //                                 K_THREAD_STACK_SIZEOF(button_thread_stack),
@@ -98,7 +99,7 @@ int main(void)
 
 	batteryThreadinit();
 	rev_svc_thread_init();
-	rev_button_thread_init();
+	button_init();
 	// hog_button_loop();
 
 	while (1) {

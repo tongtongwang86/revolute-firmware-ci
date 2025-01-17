@@ -8,9 +8,14 @@
 - [x] Bluetooth Connection and Bonding
 - [x] Baisc bluetooth characteristics test
 - [x] New Bluetooth API to send and receive configurations
+- [x] Settings to save and load revolute configurations
+- [ ] button hold time, double click, and triple click implementations
 - [ ] Power state implementations
+- [ ] fix bluetooth autoconnect
+- [ ] fuel gauge over bluetooth
 - [ ] Sensor poll rate testing
-- [ ] Combine together
+- [ ] magnetic sensor polling
+- [ ] Dual build, ota and non ota
 - [ ] Done
 
 ## Build Locally
