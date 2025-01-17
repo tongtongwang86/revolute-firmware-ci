@@ -1,5 +1,7 @@
 #include "button.h"
 #include "ble.h"
+#include "hog.h"
+
 LOG_MODULE_REGISTER(button, LOG_LEVEL_DBG);
 
 #define SW3_NODE DT_ALIAS(sw3)
@@ -25,9 +27,11 @@ void handle_button_event(enum button_event event) {
     switch (event) {
     case BUTTON_SINGLE_CLICK:
         LOG_INF("Single Click detected!");
+        hog_send_mouse_button_1();
         break;
     case BUTTON_DOUBLE_CLICK:
         LOG_INF("Double Click detected!");
+        hog_send_mouse_button_2();
         break;
     case BUTTON_TRIPLE_CLICK:
         LOG_INF("Triple Click detected!");
