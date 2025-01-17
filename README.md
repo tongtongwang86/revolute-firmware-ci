@@ -9,7 +9,7 @@
 - [x] Baisc bluetooth characteristics test
 - [x] New Bluetooth API to send and receive configurations
 - [x] Settings to save and load revolute configurations
-- [ ] button hold time, double click, and triple click implementations
+- [x] button hold time, double click, and triple click implementations
 - [ ] Power state implementations
 - [ ] fix bluetooth autoconnect
 - [ ] fuel gauge over bluetooth

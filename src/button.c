@@ -1,6 +1,7 @@
 #include "button.h"
 #include "ble.h"
 #include "hog.h"
+#include "led.h"
 
 LOG_MODULE_REGISTER(button, LOG_LEVEL_DBG);
 
@@ -28,18 +29,22 @@ void handle_button_event(enum button_event event) {
     case BUTTON_SINGLE_CLICK:
         LOG_INF("Single Click detected!");
         hog_send_mouse_button_1();
+        led_notify_trigger();
         break;
     case BUTTON_DOUBLE_CLICK:
         LOG_INF("Double Click detected!");
         hog_send_mouse_button_2();
+        led_notify_trigger();
         break;
     case BUTTON_TRIPLE_CLICK:
         LOG_INF("Triple Click detected!");
         bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
+        led_notify_trigger();
         bluetooth_adv();
         break;
     case BUTTON_LONG_HOLD:
         LOG_INF("Long Hold detected!");
+        led_notify_trigger();
         break;
     default:
         LOG_WRN("Unknown button event!");
