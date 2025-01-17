@@ -7,6 +7,7 @@
 #include "ble.h"
 #include "settings.h"
 #include "led.h"
+#include "magnetic.h"
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
@@ -27,10 +28,9 @@ int main(void)
         LOG_ERR("LED initialization failed (err %d)", err);
         return err;
     }
-    // Main thread does nothing but stays alive
-    while (1) {
-        k_sleep(K_MSEC(500));   // Sleep for 500 ms
-    }
+
+    SensorThreadinit();
+
 
     return 0;
 }

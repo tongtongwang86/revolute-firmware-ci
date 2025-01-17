@@ -46,7 +46,7 @@ static int led_configure(void)
 static void led_toggle_handler(struct k_work *work)
 {
     gpio_pin_toggle_dt(&led);
-    LOG_DBG("LED toggled");
+    // LOG_DBG("LED toggled");
 }
 
 // Work handler for notifying via LED
@@ -68,7 +68,7 @@ static void led_thread(void *unused1, void *unused2, void *unused3)
     while (1) {
         k_sleep(K_MSEC(500));  // Sleep for 500 ms before toggling LED
         k_work_submit_to_queue(&led_work_q, &led_toggle_work);  // Submit toggle work to queue
-        LOG_INF("LED toggle work submitted");
+        // LOG_INF("LED toggle work submitted");
     }
 }
 
