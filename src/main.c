@@ -32,5 +32,11 @@ int main(void)
     SensorThreadinit();
 
 
+	err = pwmled_init();
+    if (err < 0) {
+        LOG_ERR("LED initialization failed (err %d)", err);
+        return err;
+    }
+
     return 0;
 }

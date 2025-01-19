@@ -28,9 +28,15 @@
 					label = "LED 0";
 			};
 
+
 	};
 
-
+	pwmleds {
+		compatible = "pwm-leds";
+		pwm_led0: pwm_led_0 {
+			pwms = <&pwm0 0 PWM_USEC(1000) PWM_POLARITY_INVERTED>;
+		};
+	};
 
 
 
@@ -83,7 +89,8 @@
 
 	/* These aliases are provided for compatibility with samples */
 	aliases {
-
+		// pwmled = &pwm0;
+		pwm-led0 = &pwm_led0;
 		led0 = &blueled;
 		sw0 = &button_right;
 		sw1 = &button_left;
@@ -135,7 +142,12 @@
 	};
 };
 
-
+&pwm0 {
+	status = "okay";
+	pinctrl-0 = <&pwm1_default>;
+	pinctrl-1 = <&pwm1_sleep>;
+	pinctrl-names = "default", "sleep";
+};
 
 &i2c0 {
 
@@ -157,7 +169,7 @@
 		reg = <0x55>;
 		design-voltage = <3700>;
 		design-capacity = <70>;
-		taper-current = <45>;
+		taper-current = <90>;
 		terminate-voltage = <3000>;
 		status = "okay";
 	};
