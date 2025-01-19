@@ -2,10 +2,11 @@
 #include <zephyr/drivers/pwm.h>
 #include "pwmled.h"
 
-#define NUM_STEPS   50U
-#define SLEEP_MSEC  25U
+#define NUM_STEPS      100U  // Number of steps for both fade-in and fade-out
+#define FADE_DURATION_MS 1000U // Duration of fade-in and fade-out in milliseconds
+#define SLEEP_MSEC     (FADE_DURATION_MS / NUM_STEPS)  // Adjust the sleep for the fade duration
 
-#define PWM_LED0    DT_ALIAS(pwm_led0)
+#define PWM_LED0       DT_ALIAS(pwm_led0)
 static const struct pwm_dt_spec pwm_led0 = PWM_DT_SPEC_GET(PWM_LED0);
 
 #define PWMLED_STACK_SIZE 1024
@@ -27,21 +28,42 @@ static void set_led_pulse(uint32_t pulse_width) {
     }
 }
 
-// Function to handle smooth state transition
-static void smooth_transition(uint32_t start, uint32_t end, uint32_t duration_ms) {
-    int32_t step = (end - start) / NUM_STEPS;
-    uint32_t pulse_width = start;
-    uint32_t sleep_time = duration_ms / NUM_STEPS;
-
+// Function for fade-in effect (0 -> max brightness -> 0)
+static void fade_in(void) {
+    uint32_t step_up = pwm_led0.period / NUM_STEPS;  // Fade-up step
+    uint32_t step_down = step_up;                   // Fade-down step (same size for symmetry)
+    
+    // Fade up: 0 -> max brightness
     for (uint32_t i = 0; i < NUM_STEPS; i++) {
-        if (current_state != target_state) {
-            // If state has changed, stop the transition and go to the new state
-            break;
-        }
+        pulse_width = i * step_up;
         set_led_pulse(pulse_width);
-        pulse_width += step;
-        k_sleep(K_MSEC(sleep_time));
+        k_sleep(K_MSEC(SLEEP_MSEC));
     }
+
+    // Fade down: max brightness -> 0
+    for (uint32_t i = NUM_STEPS; i > 0; i--) {
+        pulse_width = i * step_down;
+        set_led_pulse(pulse_width);
+        k_sleep(K_MSEC(SLEEP_MSEC));
+    }
+    pulse_width = 0;
+    set_led_pulse(pulse_width);  // Ensure the LED is completely off
+}
+
+// Function for fade-out effect (from current brightness -> 0)
+static void fade_out(void) {
+    uint32_t current_brightness = pulse_width;
+    uint32_t step_down = current_brightness / NUM_STEPS;
+
+    // Fade down: current brightness -> 0
+    for (uint32_t i = 0; i < NUM_STEPS; i++) {
+        pulse_width = current_brightness - (i * step_down);
+        set_led_pulse(pulse_width);
+        k_sleep(K_MSEC(SLEEP_MSEC));
+    }
+
+    pulse_width = 0;
+    set_led_pulse(pulse_width);  // Ensure the LED is completely off
 }
 
 // PWMLED thread entry point
@@ -57,37 +79,15 @@ static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
     while (1) {
         // Handle state transitions
         if (current_state != target_state) {
-            // Complete any necessary transition logic
-            switch (current_state) {
-            case STATE_OFF:
-                if (target_state == STATE_ADVERTISEMENT) {
-                    smooth_transition(0, pwm_led0.period / 2, 1000); // Long fade in for advertisement
-                }
-                break;
-
-            case STATE_PAIRING:
-                if (target_state == STATE_OFF) {
-                    smooth_transition(pwm_led0.period / 2, 0, 1000); // Fade out for pairing -> off
-                }
-                break;
-
-            case STATE_ADVERTISEMENT:
-                if (target_state == STATE_OFF) {
-                    smooth_transition(pwm_led0.period / 2, 0, 1000); // Fade out for advertisement -> off
-                }
-                break;
-
-            case STATE_CONNECTED:
-                if (target_state == STATE_OFF) {
-                    smooth_transition(pwm_led0.period / 2, 0, 1000); // Fade out for connected -> off
-                }
-                break;
-
-            default:
-                break;
+            if (current_state == STATE_OFF) {
+                // Fade-in (complete cycle 0 -> max brightness -> 0) when turning from off to any other state
+                fade_in();
+            } else if (target_state == STATE_OFF) {
+                // Fade-out from current brightness to 0 when turning from any state to off
+                fade_out();
             }
 
-            current_state = target_state;
+            current_state = target_state;  // Apply the new state immediately
         }
 
         // Handle LED behavior based on state
@@ -144,7 +144,7 @@ static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
                 }
                 pulse_width = (i * pwm_led0.period) / NUM_STEPS;
                 set_led_pulse(pulse_width);
-                k_sleep(K_MSEC(50));
+                k_sleep(K_MSEC(2000 / NUM_STEPS));
             }
             for (int i = NUM_STEPS; i > 0; i--) {
                 if (current_state != target_state) {
@@ -153,7 +153,7 @@ static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
                 }
                 pulse_width = (i * pwm_led0.period) / NUM_STEPS;
                 set_led_pulse(pulse_width);
-                k_sleep(K_MSEC(50));
+                k_sleep(K_MSEC(2000 / NUM_STEPS));
             }
             break;
         }
@@ -166,11 +166,16 @@ static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
 
 // Function to update LED state
 void set_led_state(led_state_t state) {
-    // Immediately change the target state, triggering the transition
+    // Immediately change the target state
     target_state = state;
 }
 
 int pwmled_init(void) {
+    // Ensure the LED starts off
+    current_state = STATE_OFF;
+    target_state = STATE_OFF;
+    set_led_pulse(0);  // Turn the LED off immediately
+
     // Start the PWMLED thread
     k_thread_create(&pwmled_thread_data, pwmled_stack, K_THREAD_STACK_SIZEOF(pwmled_stack),
                     pwmled_thread, NULL, NULL, NULL,
