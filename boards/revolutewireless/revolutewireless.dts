@@ -171,7 +171,9 @@
 		design-capacity = <70>;
 		taper-current = <90>;
 		terminate-voltage = <3000>;
+		int-gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
 		status = "okay";
+
 	};
 
 };

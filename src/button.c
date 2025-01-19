@@ -4,7 +4,7 @@
 #include "led.h"
 #include "pwmled.h"
 
-LOG_MODULE_REGISTER(button, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(button, LOG_LEVEL_INF);
 
 #define SW3_NODE DT_ALIAS(sw3)
 static const struct gpio_dt_spec sw3 = GPIO_DT_SPEC_GET_OR(SW3_NODE, gpios, {0});
@@ -29,26 +29,51 @@ void handle_button_event(enum button_event event) {
     switch (event) {
     case BUTTON_SINGLE_CLICK:
         LOG_INF("Single Click detected!");
-        set_led_state(STATE_ADVERTISEMENT);
+        // set_led_state(STATE_ADVERTISEMENT);
+
+
+        if (target_state == STATE_OFF){
+
+            target_state = STATE_ADVERTISEMENT;
+            LOG_INF("Turning on");
+        }else{
+            hog_send_mouse_button_1();
+            
+        }
         // hog_send_mouse_button_1();
         // led_notify_trigger();
         break;
     case BUTTON_DOUBLE_CLICK:
         LOG_INF("Double Click detected!");
-        set_led_state(STATE_CONNECTED);
+        // set_led_state(STATE_CONNECTED);
+
+
+        if (target_state == STATE_OFF){
+
+            target_state = STATE_ADVERTISEMENT;
+
+        }else{
+            hog_send_mouse_button_2();
+            
+        }
+
+
         // hog_send_mouse_button_2();
         // led_notify_trigger();
         break;
     case BUTTON_TRIPLE_CLICK:
         LOG_INF("Triple Click detected!");
+
+    
         bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
-        set_led_state(STATE_PAIRING);
-        // led_notify_trigger();
-        // bluetooth_adv();
+        bluetooth_adv();
+        target_state = STATE_PAIRING;
         break;
     case BUTTON_LONG_HOLD:
         LOG_INF("Long Hold detected!");
-        set_led_state(STATE_OFF);
+
+        target_state = STATE_OFF;
+        LOG_INF("Turning off");
         // led_notify_trigger();
         break;
     default:

@@ -14,6 +14,7 @@
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
+#include "power.h"
 
 #define BT_LE_ADV_CONN_NO_ACCEPT_LIST                                                              \
 	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME,                        \
@@ -40,6 +41,7 @@ static bt_addr_le_t bond_addr;
 
 static struct bt_le_adv_param *adv_param_directed = BT_LE_ADV_CONN_DIR_LOW_DUTY(&bond_addr);
 
+extern led_state_t target_state;
 
 
 /* Vendor Primary Service Declaration */

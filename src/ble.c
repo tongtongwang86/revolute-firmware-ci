@@ -126,6 +126,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
 		printk("Connection failed (err 0x%02x)\n", err);
 	} else {
 		printk("Connected\n");
+		target_state = STATE_CONNECTED;
 	}
 }
 

@@ -1,7 +1,6 @@
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/pwm.h>
 #include "pwmled.h"
 
+LOG_MODULE_REGISTER(pwmled, LOG_LEVEL_INF);
 #define NUM_STEPS      100U  // Number of steps for both fade-in and fade-out
 #define FADE_DURATION_MS 1000U // Duration of fade-in and fade-out in milliseconds
 #define SLEEP_MSEC     (FADE_DURATION_MS / NUM_STEPS)  // Adjust the sleep for the fade duration
@@ -17,7 +16,7 @@ static K_THREAD_STACK_DEFINE(pwmled_stack, PWMLED_STACK_SIZE);
 
 // Define current and target LED state
 static led_state_t current_state = STATE_OFF;
-static led_state_t target_state = STATE_OFF;
+
 static uint32_t pulse_width = 0;  // Track the current LED brightness
 
 // Function to set LED pulse width
@@ -164,11 +163,7 @@ static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
     }
 }
 
-// Function to update LED state
-void set_led_state(led_state_t state) {
-    // Immediately change the target state
-    target_state = state;
-}
+
 
 int pwmled_init(void) {
     // Ensure the LED starts off
