@@ -80,6 +80,18 @@ int predictive_update(double new_degree)
 }
 
 
+void suspend_magnetic_thread(void)
+{
+    k_thread_suspend(&print_thread_data);
+    LOG_INF("Print thread suspended");
+}
+
+// Function to resume the print thread
+void resume_magnetic_thread(void)
+{
+    k_thread_resume(&print_thread_data);
+    LOG_INF("Print thread resumed");
+}
 
 // Thread entry point
 static void print_thread(void *unused1, void *unused2, void *unused3)

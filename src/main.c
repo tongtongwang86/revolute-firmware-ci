@@ -14,7 +14,7 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 int main(void)
 {
     // Initialize LED thread and GPIO
-    k_sleep(K_MSEC(2000));   // Sleep for 500 ms
+    // k_sleep(K_MSEC(2000));   // Sleep for 500 ms
 
     bluetooth_init();
 
@@ -23,16 +23,19 @@ int main(void)
     batteryThreadinit();
     rev_svc_thread_init();
     button_init();
- int err = led_init();
-    if (err < 0) {
-        LOG_ERR("LED initialization failed (err %d)", err);
-        return err;
-    }
+
+
+
+//  int err = led_init();
+//     if (err < 0) {
+//         LOG_ERR("LED initialization failed (err %d)", err);
+//         return err;
+//     }
 
     SensorThreadinit();
 
 
-	err = pwmled_init();
+	int err = pwmled_init();
     if (err < 0) {
         LOG_ERR("LED initialization failed (err %d)", err);
         return err;

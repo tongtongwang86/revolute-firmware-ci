@@ -23,7 +23,8 @@ static double dead_zone;
 static int numIdents;     
 static int deviceMode;
 
-
+void suspend_magnetic_thread(void);
+void resume_magnetic_thread(void);
 
 void SensorThreadinit(void);
 #endif //MAGNETIC

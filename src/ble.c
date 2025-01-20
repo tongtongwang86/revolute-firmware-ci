@@ -194,3 +194,19 @@ void bluetooth_adv(void) {
     k_work_submit(&advertise_acceptlist_work);
 
 }
+
+void disable_bluetooth(void) {
+    int err = bt_le_adv_stop();
+    if (err) {
+        printk("Failed to stop advertising (err %d)\n", err);
+    } else {
+        printk("Bluetooth advertising stopped.\n");
+    }
+	
+	 err = bt_disable();
+    if (err) {
+        printk("Failed to disable Bluetooth (err %d)\n", err);
+    } else {
+        printk("Bluetooth disabled.\n");
+    }
+}

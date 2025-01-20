@@ -27,6 +27,13 @@
 					gpios = < &gpio0 3 GPIO_ACTIVE_HIGH >;
 					label = "LED 0";
 			};
+			mosfet: mosfet_0 {
+				/* LED 0 on P0.03, LED on when pin is high */
+				gpios = < &gpio0 11 GPIO_ACTIVE_HIGH >;
+				label = "Mosfet";
+		};
+
+			
 
 
 	};
@@ -37,7 +44,6 @@
 			pwms = <&pwm0 0 PWM_USEC(1000) PWM_POLARITY_NORMAL>;
 		};
 	};
-
 
 
 
@@ -90,6 +96,7 @@
 	/* These aliases are provided for compatibility with samples */
 	aliases {
 		// pwmled = &pwm0;
+		mosfet = &mosfet;
 		pwm-led0 = &pwm_led0;
 		led0 = &blueled;
 		sw0 = &button_right;

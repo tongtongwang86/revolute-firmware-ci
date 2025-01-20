@@ -12,4 +12,9 @@
 
 void batteryThreadinit(void);
 
+void suspend_battery_update(void);
+
+void resume_battery_update(void);
+
+
 #endif // BATTERYLEVEL_H

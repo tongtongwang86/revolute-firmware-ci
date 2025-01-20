@@ -15,7 +15,7 @@ static struct k_thread pwmled_thread_data;
 static K_THREAD_STACK_DEFINE(pwmled_stack, PWMLED_STACK_SIZE);
 
 // Define current and target LED state
-static led_state_t current_state = STATE_OFF;
+static led_state_t current_state = STATE_ADVERTISEMENT;
 
 static uint32_t pulse_width = 0;  // Track the current LED brightness
 
@@ -167,9 +167,9 @@ static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
 
 int pwmled_init(void) {
     // Ensure the LED starts off
-    current_state = STATE_OFF;
-    target_state = STATE_OFF;
-    set_led_pulse(0);  // Turn the LED off immediately
+    current_state = STATE_ADVERTISEMENT;
+    target_state = STATE_ADVERTISEMENT;
+   
 
     // Start the PWMLED thread
     k_thread_create(&pwmled_thread_data, pwmled_stack, K_THREAD_STACK_SIZEOF(pwmled_stack),

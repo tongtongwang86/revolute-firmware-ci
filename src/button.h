@@ -9,7 +9,8 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/settings/settings.h>
 #include "power.h"
-extern led_state_t target_state;
+
+// extern led_state_t target_state;
 
 // Thread configurations
 #define REV_BUTTON_THREAD_STACK_SIZE 1024  // Adjust based on requirements

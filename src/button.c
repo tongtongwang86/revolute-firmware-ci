@@ -35,6 +35,7 @@ void handle_button_event(enum button_event event) {
         if (target_state == STATE_OFF){
 
             target_state = STATE_ADVERTISEMENT;
+            power_on();
             LOG_INF("Turning on");
         }else{
             hog_send_mouse_button_1();
@@ -51,7 +52,7 @@ void handle_button_event(enum button_event event) {
         if (target_state == STATE_OFF){
 
             target_state = STATE_ADVERTISEMENT;
-
+            power_on();
         }else{
             hog_send_mouse_button_2();
             
@@ -74,6 +75,8 @@ void handle_button_event(enum button_event event) {
 
         target_state = STATE_OFF;
         LOG_INF("Turning off");
+        k_sleep(K_MSEC(2000));
+        power_off();
         // led_notify_trigger();
         break;
     default:

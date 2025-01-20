@@ -41,7 +41,7 @@ static bt_addr_le_t bond_addr;
 
 static struct bt_le_adv_param *adv_param_directed = BT_LE_ADV_CONN_DIR_LOW_DUTY(&bond_addr);
 
-extern led_state_t target_state;
+
 
 
 /* Vendor Primary Service Declaration */
@@ -61,5 +61,7 @@ static const struct bt_data sd[] = {
 void bluetooth_init(void);
 
 void bluetooth_adv(void);
+
+void disable_bluetooth(void);
 
 #endif // BLE_H

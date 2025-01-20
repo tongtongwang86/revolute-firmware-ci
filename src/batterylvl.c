@@ -4,6 +4,18 @@ LOG_MODULE_REGISTER(BatteryLevel, LOG_LEVEL_INF);
 K_THREAD_STACK_DEFINE(batteryUpdateThread_stack_area, STACKSIZE);
 static struct k_thread batteryUpdateThread_data;
 
+// Function to suspend the battery update thread
+void suspend_battery_update(void) {
+    k_thread_suspend(&batteryUpdateThread_data);
+    LOG_INF("Battery update thread suspended");
+}
+
+// Function to resume the battery update thread
+void resume_battery_update(void) {
+    k_thread_resume(&batteryUpdateThread_data);
+    LOG_INF("Battery update thread resumed");
+}
+
 void batteryUpdateThread(void) {
     struct sensor_value voltage, current, state_of_charge,
         full_charge_capacity, remaining_charge_capacity, avg_power,
@@ -55,7 +67,6 @@ int getbatterylevel(const struct device *dev) {
 }
 
 void batteryThreadinit(void) {
-
     k_thread_create(&batteryUpdateThread_data, batteryUpdateThread_stack_area,
                     K_THREAD_STACK_SIZEOF(batteryUpdateThread_stack_area),
                     batteryUpdateThread, NULL, NULL, NULL,
