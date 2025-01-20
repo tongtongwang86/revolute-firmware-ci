@@ -28,6 +28,13 @@ static void set_led_pulse(uint32_t pulse_width) {
     }
 }
 
+
+void suspend_pwmled(void) {
+   
+    k_thread_suspend(&pwmled_thread_data);
+    LOG_INF("Battery update thread suspended");
+}
+
 // Function for fade-in effect (0 -> max brightness -> 0)
 static void fade_in(void) {
     uint32_t step_up = pwm_led0.period / NUM_STEPS;  // Fade-up step

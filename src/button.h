@@ -25,5 +25,6 @@ static K_THREAD_STACK_DEFINE(rev_button_stack, REV_BUTTON_THREAD_STACK_SIZE);
 void button_thread_fn(void *arg1, void *arg2, void *arg3);
 void hog_button_thread(void *arg1, void *arg2, void *arg3);
 void rev_button_thread_init(void);
+void button_uninit(void);
 
 #endif // BUTTON_H

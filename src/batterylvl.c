@@ -3,9 +3,16 @@
 LOG_MODULE_REGISTER(BatteryLevel, LOG_LEVEL_INF);
 K_THREAD_STACK_DEFINE(batteryUpdateThread_stack_area, STACKSIZE);
 static struct k_thread batteryUpdateThread_data;
+const struct device *const bq = DEVICE_DT_GET_ONE(ti_bq274xx);
 
 // Function to suspend the battery update thread
 void suspend_battery_update(void) {
+    if (device_is_ready(bq)) {
+        pm_device_action_run(bq, PM_DEVICE_ACTION_SUSPEND);
+        printk("BQ274xx suspended.\n");
+    } else {
+        printk("BQ274xx device is not ready.\n");
+    }
     k_thread_suspend(&batteryUpdateThread_data);
     LOG_INF("Battery update thread suspended");
 }
@@ -21,7 +28,7 @@ void batteryUpdateThread(void) {
         full_charge_capacity, remaining_charge_capacity, avg_power,
         int_temp, current_standby, current_max_load, state_of_health;
 
-    const struct device *const bq = DEVICE_DT_GET_ONE(ti_bq274xx);
+    
 
     if (!device_is_ready(bq)) {
         printk("Device %s is not ready\n", bq->name);

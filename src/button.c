@@ -128,8 +128,34 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
     }
 }
 
+
+
 // GPIO Callback
 static struct gpio_callback button_cb_data;
+
+void button_uninit(void) {
+    // Cancel any pending work items
+    k_work_cancel_delayable(&button_work);
+    k_work_cancel_delayable(&long_hold_work);
+
+    // Remove the GPIO callback and disable interrupts
+    gpio_remove_callback(sw3.port, &button_cb_data);
+    int ret = gpio_pin_interrupt_configure_dt(&sw3, GPIO_INT_DISABLE);
+    if (ret < 0) {
+        LOG_ERR("Failed to disable button interrupt (err %d)", ret);
+    }
+
+    // Optionally, you could also disable the GPIO pin if necessary
+    ret = gpio_pin_configure_dt(&sw3, GPIO_DISCONNECTED);
+    if (ret < 0) {
+        LOG_ERR("Failed to disconnect button GPIO (err %d)", ret);
+    }
+
+    LOG_INF("Button uninitialized.");
+}
+
+
+
 
 void button_init(void) {
     if (!device_is_ready(sw3.port)) {

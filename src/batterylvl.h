@@ -6,6 +6,7 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/bluetooth/services/bas.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/pm/device.h>
 
 #define STACKSIZE 1024
 #define PRIORITY 7
