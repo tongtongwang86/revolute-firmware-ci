@@ -1,5 +1,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/pm/pm.h>
+#include <zephyr/pm/policy.h>
+#include <zephyr/pm/state.h>
+#include <zephyr/pm/device.h>
 #include "hog.h"
 #include "revsvc.h"
 #include "batterylvl.h"
@@ -10,6 +14,23 @@
 #include "magnetic.h"
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
+
+/* Prevent deep sleep (system off) from being entered on long timeouts
+ * or `K_FOREVER` due to the default residency policy.
+ *
+ * This has to be done before anything tries to sleep, which means
+ * before the threading system starts up between PRE_KERNEL_2 and
+ * POST_KERNEL.  Do it at the start of PRE_KERNEL_2.
+ */
+// static int disable_ds_1(const struct device *dev)
+// {
+//     ARG_UNUSED(dev);
+
+//     pm_policy_state_lock_get(PM_STATE_SOFT_OFF, PM_ALL_SUBSTATES);
+//     return 0;
+// }
+
+// SYS_INIT(disable_ds_1, PRE_KERNEL_2, 0);
 
 int main(void)
 {

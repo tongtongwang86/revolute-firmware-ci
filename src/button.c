@@ -32,15 +32,15 @@ void handle_button_event(enum button_event event) {
         // set_led_state(STATE_ADVERTISEMENT);
 
 
-        if (target_state == STATE_OFF){
+        // if (target_state == STATE_OFF){
 
-            target_state = STATE_ADVERTISEMENT;
-            power_on();
-            LOG_INF("Turning on");
-        }else{
+        //     target_state = STATE_ADVERTISEMENT;
+        //     power_on();
+        //     LOG_INF("Turning on");
+        // }else{
             hog_send_mouse_button_1();
             
-        }
+        // }
         // hog_send_mouse_button_1();
         // led_notify_trigger();
         break;
@@ -49,14 +49,14 @@ void handle_button_event(enum button_event event) {
         // set_led_state(STATE_CONNECTED);
 
 
-        if (target_state == STATE_OFF){
+        // if (target_state == STATE_OFF){
 
-            target_state = STATE_ADVERTISEMENT;
-            power_on();
-        }else{
+        //     target_state = STATE_ADVERTISEMENT;
+        //     power_on();
+        // }else{
             hog_send_mouse_button_2();
             
-        }
+        // }
 
 
         // hog_send_mouse_button_2();

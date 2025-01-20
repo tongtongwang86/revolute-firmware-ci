@@ -1,3 +1,4 @@
+
 #include "pwmled.h"
 
 LOG_MODULE_REGISTER(pwmled, LOG_LEVEL_INF);
@@ -35,19 +36,20 @@ static void fade_in(void) {
     // Fade up: 0 -> max brightness
     for (uint32_t i = 0; i < NUM_STEPS; i++) {
         pulse_width = i * step_up;
-        set_led_pulse(pulse_width);
+        set_led_pulse(pulse_width);  // Inverted
         k_sleep(K_MSEC(SLEEP_MSEC));
     }
 
     // Fade down: max brightness -> 0
     for (uint32_t i = NUM_STEPS; i > 0; i--) {
         pulse_width = i * step_down;
-        set_led_pulse(pulse_width);
+        set_led_pulse(pulse_width);  // Inverted
         k_sleep(K_MSEC(SLEEP_MSEC));
     }
     pulse_width = 0;
     set_led_pulse(pulse_width);  // Ensure the LED is completely off
 }
+
 
 // Function for fade-out effect (from current brightness -> 0)
 static void fade_out(void) {
@@ -57,7 +59,7 @@ static void fade_out(void) {
     // Fade down: current brightness -> 0
     for (uint32_t i = 0; i < NUM_STEPS; i++) {
         pulse_width = current_brightness - (i * step_down);
-        set_led_pulse(pulse_width);
+        set_led_pulse(pulse_width);  // Inverted
         k_sleep(K_MSEC(SLEEP_MSEC));
     }
 
@@ -65,23 +67,18 @@ static void fade_out(void) {
     set_led_pulse(pulse_width);  // Ensure the LED is completely off
 }
 
+
 // PWMLED thread entry point
 static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
     uint32_t blink_step = pwm_led0.period / 2;  // For fast blink in pairing state
     uint32_t breath_step = pwm_led0.period / NUM_STEPS;
 
-    if (!pwm_is_ready_dt(&pwm_led0)) {
-        printk("Error: PWM device %s is not ready\n", pwm_led0.dev->name);
-        return;
-    }
+    fade_in();
 
     while (1) {
         // Handle state transitions
         if (current_state != target_state) {
-            if (current_state == STATE_OFF) {
-                // Fade-in (complete cycle 0 -> max brightness -> 0) when turning from off to any other state
-                fade_in();
-            } else if (target_state == STATE_OFF) {
+             if (target_state == STATE_OFF) {
                 // Fade-out from current brightness to 0 when turning from any state to off
                 fade_out();
             }
@@ -170,6 +167,13 @@ int pwmled_init(void) {
     current_state = STATE_ADVERTISEMENT;
     target_state = STATE_ADVERTISEMENT;
    
+     if (!pwm_is_ready_dt(&pwm_led0)) {
+        printk("Error: PWM device %s is not ready\n", pwm_led0.dev->name);
+        return -1; // Return error if PWM device isn't ready
+    }
+
+    // Set the LED pulse width to 0 immediately (turn off LED before the thread runs)
+    set_led_pulse(0);
 
     // Start the PWMLED thread
     k_thread_create(&pwmled_thread_data, pwmled_stack, K_THREAD_STACK_SIZEOF(pwmled_stack),
