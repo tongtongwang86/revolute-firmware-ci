@@ -50,7 +50,6 @@ extern rev_stats_t stats;
 // Public functions
 void generate_random_stats_data(rev_stats_t *stats);
 void rev_svc_loop(void);
-void suspend_revsvc(void);
 
 // int rev_send_gyro(float r, float i, float j, float k);
 

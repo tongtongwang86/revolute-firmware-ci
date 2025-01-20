@@ -33,13 +33,6 @@ static void rev_ccc_stats_cfg_changed(const struct bt_gatt_attr *attr, uint16_t 
 }
 
 
-void suspend_revsvc(void) {
-   
-    k_thread_suspend(&rev_svc_thread_data);
-    LOG_INF("Battery update thread suspended");
-}
-
-
 // Callback to read the characteristic data
 static ssize_t read_callback_config(struct bt_conn *conn,
                                     const struct bt_gatt_attr *attr,

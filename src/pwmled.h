@@ -13,6 +13,5 @@ extern led_state_t target_state;
 // Initialize the PWM LED system
 int pwmled_init(void);
 
-void suspend_pwmled(void);
 
 #endif // PWM_LED_H
