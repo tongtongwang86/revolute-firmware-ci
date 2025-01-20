@@ -4,7 +4,7 @@
 #include <zephyr/kernel.h>
 #include <stdio.h>
 #include <zephyr/sys/printk.h>
-#include <zephyr/bluetooth/gatt.h>
+// #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/settings/settings.h>

@@ -136,6 +136,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 	// k_work_submit(&start_advertising_worker);
 	// printk("Advertising started\n");
 	k_work_submit(&advertise_acceptlist_work);
+	target_state = STATE_ADVERTISEMENT;
 
 }
 
@@ -161,6 +162,7 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
 
 void pairing_complete(struct bt_conn *conn, bool bonded)
 {
+	target_state = STATE_CONNECTED;
 	printk("Pairing completed\n");
 
 }
@@ -189,11 +191,22 @@ void bluetooth_init(void) {
 	bt_conn_auth_info_cb_register(&bt_conn_auth_info);
 }
 
-void bluetooth_adv(void) {
+void bluetooth_pair(void) {
 
+	int err = bt_le_adv_stop();
+    if (err) {
+        printk("Failed to stop advertising (err %d)\n", err);
+    } else {
+        printk("Bluetooth advertising stopped.\n");
+    }
+
+    bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
+    
+    // Restart advertising (now with an empty accept list)
     k_work_submit(&advertise_acceptlist_work);
-
 }
+
+
 
 void disable_bluetooth(void) {
     int err = bt_le_adv_stop();

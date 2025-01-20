@@ -60,7 +60,7 @@ static const struct bt_data sd[] = {
 
 void bluetooth_init(void);
 
-void bluetooth_adv(void);
+void bluetooth_pair(void);
 
 void disable_bluetooth(void);
 

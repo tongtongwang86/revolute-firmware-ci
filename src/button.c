@@ -9,7 +9,7 @@ LOG_MODULE_REGISTER(button, LOG_LEVEL_INF);
 #define SW3_NODE DT_ALIAS(sw3)
 static const struct gpio_dt_spec sw3 = GPIO_DT_SPEC_GET_OR(SW3_NODE, gpios, {0});
 
-#define SINGLE_CLICK_TIMEOUT K_MSEC(300)   // Timeout for detecting multiple clicks
+#define SINGLE_CLICK_TIMEOUT K_MSEC(400)   // Timeout for detecting multiple clicks
 #define LONG_HOLD_THRESHOLD K_MSEC(700)  // Threshold for long hold
 
 enum button_event {
@@ -65,9 +65,7 @@ void handle_button_event(enum button_event event) {
     case BUTTON_TRIPLE_CLICK:
         LOG_INF("Triple Click detected!");
 
-    
-        bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
-        bluetooth_adv();
+        bluetooth_pair();
         target_state = STATE_PAIRING;
         break;
     case BUTTON_LONG_HOLD:
