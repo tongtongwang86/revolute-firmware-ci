@@ -29,38 +29,13 @@ void handle_button_event(enum button_event event) {
     switch (event) {
     case BUTTON_SINGLE_CLICK:
         LOG_INF("Single Click detected!");
-        // set_led_state(STATE_ADVERTISEMENT);
-
-
-        // if (target_state == STATE_OFF){
-
-        //     target_state = STATE_ADVERTISEMENT;
-        //     power_on();
-        //     LOG_INF("Turning on");
-        // }else{
-            hog_send_mouse_button_1();
-            
-        // }
-        // hog_send_mouse_button_1();
-        // led_notify_trigger();
+      
         break;
     case BUTTON_DOUBLE_CLICK:
         LOG_INF("Double Click detected!");
-        // set_led_state(STATE_CONNECTED);
-
-
-        // if (target_state == STATE_OFF){
-
-        //     target_state = STATE_ADVERTISEMENT;
-        //     power_on();
-        // }else{
+       
             hog_send_mouse_button_2();
             
-        // }
-
-
-        // hog_send_mouse_button_2();
-        // led_notify_trigger();
         break;
     case BUTTON_TRIPLE_CLICK:
         LOG_INF("Triple Click detected!");
@@ -143,11 +118,11 @@ void button_uninit(void) {
         LOG_ERR("Failed to disable button interrupt (err %d)", ret);
     }
 
-    // Optionally, you could also disable the GPIO pin if necessary
-    ret = gpio_pin_configure_dt(&sw3, GPIO_DISCONNECTED);
-    if (ret < 0) {
-        LOG_ERR("Failed to disconnect button GPIO (err %d)", ret);
-    }
+    // // Optionally, you could also disable the GPIO pin if necessary
+    // ret = gpio_pin_configure_dt(&sw3, GPIO_DISCONNECTED);
+    // if (ret < 0) {
+    //     LOG_ERR("Failed to disconnect button GPIO (err %d)", ret);
+    // }
 
     LOG_INF("Button uninitialized.");
 }
@@ -160,6 +135,9 @@ void button_init(void) {
         LOG_ERR("Button device %s not ready", sw3.port->name);
         return;
     }
+
+    button_uninit();
+    
 
     int ret = gpio_pin_configure_dt(&sw3, GPIO_INPUT);
     if (ret < 0) {

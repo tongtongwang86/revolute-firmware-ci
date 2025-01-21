@@ -17,7 +17,7 @@ void power_off(void) {
 
     
     gpio_pin_set_dt(&mosfet, 1); // disconnect sensor from power
-
+    button_uninit();
     int rc;
 
     // Configure SW3 GPIO as input with interrupt
