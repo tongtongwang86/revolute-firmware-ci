@@ -1,24 +1,17 @@
 manifest:
-  version: "0.10"
   remotes:
-    - name: nrfconnect
-      url-base: https://github.com/nrfconnect
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
   projects:
     - name: zephyr
-      revision: v3.6.0
-      url: https://github.com/zephyrproject-rtos/zephyr
-
-  projects:
-    - name: sdk-nrf
-      path: nrf
-      url: https://github.com/nrfconnect/sdk-nrf.git
-      revision: v2.6.0
+      repo-path: zephyr
+      remote: zephyrproject-rtos
+      revision: main
       import:
         name-blocklist:
           - matter
           - nrf-802154
           - cjson
-          - openthread
           - cmock
           - unity
           - cddl-gen
@@ -26,4 +19,20 @@ manifest:
           - loramac-node
           - lz4
           - lvgl
-          - mipi-sys-t
+          - hal_atmel
+          - hal_espressif
+          - hal_ethos_u
+          - hal_altera
+          - hal_quicklogic
+          - hal_openisa
+          - hal_rpi_pico
+          - hal_renesas
+          - hal_silabs
+          - hal_st
+          - hal_stm32
+          - hal_infineon
+          - hal_intel
+          - hal_microchip
+          - hal_ambiq
+          - hal_altera
+          - hal_adi

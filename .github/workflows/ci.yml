@@ -1,13 +1,10 @@
+name: Compile Firmware
 on:
   pull_request:
   push:
     branches:
       - main
   # run on tag creation
-  create:
-    tags:
-
-  workflow_dispatch:
 
 jobs:
   build:
@@ -17,19 +14,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: zephyr-workspace
-          key: zephyr-workspace-v2-${{ runner.os }}-${{ hashFiles('zephyr-workspace/nrfconnect-ci-app/west.yml') }}
+          key: zephyr-workspace-v2-${{ runner.os }}-${{ hashFiles('zephyr-workspace/revolute-ci-app/west.yml') }}
           restore-keys: |
             zephyr-workspace-v2-${{ runner.os }}-
-
       - name: 🧹 Clean Landing Site
         run: |
-          rm -rf zephyr-workspace/nrfconnect-ci-app
-
+          rm -rf zephyr-workspace/revolute-ci-app
       - uses: actions/checkout@v4
         with:
           # Clone the repo to a subdirectory, so we can initialize the Zephyr
           # workspace in the parent directory.
-          path: zephyr-workspace/nrfconnect-ci-app
+          path: zephyr-workspace/revolute-ci-app
 
       - name: 💾 Cache ~/.venv
         uses: actions/cache@v4
@@ -38,7 +33,6 @@ jobs:
           key: venv-${{ runner.os }}-${{ hashFiles('zephyr-workspace/zephyr/scripts/requirements.txt') }}
           restore-keys: |
             venv-${{ runner.os }}-
-
       - name: 🧰 Install Dependencies + West
         # Install the Zephyr host build dependencies, and the `west` Python tool. This list is from
         # https://docs.zephyrproject.org/3.5.0/develop/getting_started/index.html#install-dependencies
@@ -46,15 +40,13 @@ jobs:
           sudo apt update
           sudo apt install --no-install-recommends \
             ccache \
-            ninja-build \
-
+            ninja-build
           python3 -m venv ~/.venv
           source ~/.venv/bin/activate
           # insert the PATH changes the venv activate made to be present for
           # future steps
           echo "PATH=$PATH" >> $GITHUB_ENV
           pip3 install west ninja
-
       - name: 🪁 Install Zephyr SDK
         # Fetch the Zephyr SDK from the GitHub Release artifact, unpack it and
         # run the setup script, selecting the '-c' option to install cmake
@@ -62,66 +54,64 @@ jobs:
         # only for the arm-zephyr-eabi (Cortex-M) architecture, since we don't
         # need the other toolchains (xtensa, riscv, etc.)
         run: |
-          wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.8/zephyr-sdk-0.16.8_linux-x86_64_minimal.tar.xz
-          tar xf zephyr-sdk-0.16.8_linux-x86_64_minimal.tar.xz -C ~/
-          ~/zephyr-sdk-0.16.8/setup.sh -c -t arm-zephyr-eabi
-
+          wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.17.0/zephyr-sdk-0.17.0_linux-x86_64_minimal.tar.xz
+          tar xf zephyr-sdk-0.17.0_linux-x86_64_minimal.tar.xz -C ~/
+          ~/zephyr-sdk-0.17.0/setup.sh -c -t arm-zephyr-eabi
       - name: ♻️ Initialize Zephyr Workspace
         # Set up the Zephyr workspace and install the Python dependencies
         run: |
           cd zephyr-workspace
           rm -rf .west
-          west init -l nrfconnect-ci-app
+          west init -l revolute-ci-app
           west update --narrow -o=--depth=1
-
       - name: 🐍 Install Python Dependencies
         run: |
           cd zephyr-workspace
           pip3 install -r zephyr/scripts/requirements.txt
-
       - name: 💾 Cache ~/.cache/ccache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ccache
-          key: ccache-v1-${{ runner.os }}-${{ hashFiles('zephyr-workspace/nrfconnect-ci-app/west.yml') }}
+          key: ccache-v1-${{ runner.os }}-${{ hashFiles('zephyr-workspace/revolute-ci-app/west.yml') }}
           restore-keys: |
             ccache-v1-${{ runner.os }}-
-
       - name: 🔨 Build Project
         run: |
           cd zephyr-workspace
           ccache -z
           west build \
               --board revolutewireless \
-              --pristine=always nrfconnect-ci-app \
+              --pristine=always \
+              --sysbuild \
+              revolute-ci-app \
               -- \
-              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/nrfconnect-ci-app" 
+              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/revolute-ci-app" 
           ccache -sv
-          cd build
-          cd zephyr
-          ls
+          tree -L 4
 
-      - name: 📦 Save HEX
+
+      - name: Rename Files
+        run: |
+          cd zephyr-workspace
+          mv build/revolute-ci-app/zephyr/revolute.signed.confirmed.hex build/revolute-ci-app/zephyr/revolutefirmware.hex
+          mv build/revolute-ci-app/zephyr/revolute.signed.confirmed.bin build/revolute-ci-app/zephyr/revolutefirmware.bin
+
+
+      - name: 1. Save Bootloader (Erase and flash with debugger)📦
         uses: actions/upload-artifact@v4
         with:
-          name: Zephyrhex
-          path: zephyr-workspace/build/zephyr/zephyr.hex
+          name: Bootloader
+          path: zephyr-workspace/build/mcuboot/zephyr/Bootloader.hex
 
-      - name: 📦 Save merged hex
+      - name: 2. Save Firmware (Flash with debugger)📦
         uses: actions/upload-artifact@v4
         with:
-          name: MergedHex
-          path: zephyr-workspace/build/zephyr/merged.hex
+          name: RevoluteHex
+          path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.hex
 
 
-      - name: 📦 Save Update File
+      - name: 3. Save OTA Update File (Flash with OTA)📦
         uses: actions/upload-artifact@v4
         with:
-          name: UpdateBin
-          path: zephyr-workspace/build/zephyr/app_update.bin
-
-     
-
-
-
-          
+          name: RevoluteBin
+          path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.bin

@@ -1,0 +1,6 @@
+board:
+  name: revolutewireless
+  full_name: revolutewireless
+  vendor: tongtonginc
+  socs:
+  - name: nrf52833

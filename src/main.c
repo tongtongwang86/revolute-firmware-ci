@@ -1,156 +1,65 @@
 #include <zephyr/kernel.h>
-#include <zephyr/sys/printk.h>
 #include <zephyr/logging/log.h>
-#include "ble.h"
-#include "gpio.h"
+#include <zephyr/pm/pm.h>
+#include <zephyr/pm/policy.h>
+#include <zephyr/pm/state.h>
+#include <zephyr/pm/device.h>
 #include "hog.h"
-#include "batterylevel.h"
 #include "revsvc.h"
-#include "sensor_poll.h"
+#include "batterylvl.h"
+#include "button.h"
+#include "ble.h"
+#include "settings.h"
+#include "led.h"
+#include "magnetic.h"
 
+LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
+/* Prevent deep sleep (system off) from being entered on long timeouts
+ * or `K_FOREVER` due to the default residency policy.
+ *
+ * This has to be done before anything tries to sleep, which means
+ * before the threading system starts up between PRE_KERNEL_2 and
+ * POST_KERNEL.  Do it at the start of PRE_KERNEL_2.
+ */
+// static int disable_ds_1(const struct device *dev)
+// {
+//     ARG_UNUSED(dev);
 
+//     pm_policy_state_lock_get(PM_STATE_SOFT_OFF, PM_ALL_SUBSTATES);
+//     return 0;
+// }
 
-LOG_MODULE_REGISTER(Revolute, LOG_LEVEL_DBG);
-
-// Event handler for button events
-static void button_event_handler(size_t idx, enum button_evt evt)
-{
-    int err;
-    switch (idx)
-    {
-    case 0:
-        if (evt == BUTTON_EVT_PRESSED)
-        {
-
-            struct hid_mouse_report_body report = {
-
-                .buttons = 0b00000001,
-                .d_x = 0x00,
-                .d_y = 0x00,
-                .d_wheel = 0x00,
-            };
-
-            mouse_bt_submit(&report);
-
-            LOG_INF("Button 0 pressed");
-        }
-        else
-        {
-            LOG_INF("Button 0 released");
-
-            struct hid_mouse_report_body report = {
-
-                .buttons = 0b00000000,
-                .d_x = 0x00,
-                .d_y = 0x00,
-                .d_wheel = 0x00,
-            };
-
-            mouse_bt_submit(&report);
-        }
-        break;
-    case 1:
-        if (evt == BUTTON_EVT_PRESSED)
-        {
-            err = gpio_pin_toggle_dt(&led);
-            if (err < 0)
-            {
-                return;
-            }
-
-            struct hid_keyboard_report_body report = {
-
-                .modifiers = 0b10000000, // | RGUI| RALT| RSHIFT| RCONTROL | LGUI| LALT| LSHIFT| LCONTROL|
-                .keys = HID_KEY_Z,
-
-            };
-            keyboard_bt_submit(&report);
-
-            LOG_INF("Button 1 pressed");
-        }
-        else
-        {
-            struct hid_keyboard_report_body report = {
-
-                .modifiers = 0b00000000, // | RGUI| RALT| RSHIFT| RCONTROL | LGUI| LALT| LSHIFT| LCONTROL|
-                .keys = 0,
-
-            };
-            keyboard_bt_submit(&report);
-
-            LOG_INF("Button 1 released");
-        }
-        break;
-    case 2:
-        if (evt == BUTTON_EVT_PRESSED)
-        {
-            struct hid_consumer_report_body report = {
-                .keys = HID_USAGE_CONSUMER_VOLUME_DECREMENT,
-            };
-            consumer_bt_submit(&report);
-
-            LOG_INF("Button 2 pressed");
-        }
-        else
-        {
-            struct hid_consumer_report_body report = {
-                .keys = 0,
-            };
-            consumer_bt_submit(&report);
-            LOG_INF("Button 2 released");
-        }
-        break;
-    case 3:
-        if (evt == BUTTON_EVT_PRESSED)
-        {
-            deleteBond();
-            LOG_INF("Button 3 pressed");
-        }
-        else
-        {
-            LOG_INF("Button 3 released");
-        }
-        break;
-    default:
-        LOG_ERR("Unknown button %zu event", idx);
-        break;
-    }
-}
+// SYS_INIT(disable_ds_1, PRE_KERNEL_2, 0);
 
 int main(void)
 {
-    // Initialize LEDs
-    ledInit();
+    // Initialize LED thread and GPIO
+    // k_sleep(K_MSEC(2000));   // Sleep for 500 ms
 
-    // Initialize BLE
-    enableBle();
-    startAdv();
+    bluetooth_init();
+
+    LOG_INF("rev_svc_loop thread started\n");
+
     batteryThreadinit();
-    
-    // bt_gatt_service_register(&rev_svc);
-    // Initialize buttons
-    for (size_t i = 0; i < 4; i++)
-    {
-        button_init(i, button_event_handler);
-    }
+    rev_svc_thread_init();
+    button_init();
 
-    k_work_init(&keyboard_bt_action_work, keyboard_bt_action_work_handler); // start button work queue
-    k_work_init(&mouse_bt_action_work, mouse_bt_action_work_handler);       // start button work queue
-    k_work_init(&consumer_bt_action_work, consumer_bt_action_work_handler); // start button work queue
-    k_work_init(&revolute_bt_action_work, revolute_bt_action_work_handler); // start button work queue
+
+
+//  int err = led_init();
+//     if (err < 0) {
+//         LOG_ERR("LED initialization failed (err %d)", err);
+//         return err;
+//     }
+
     SensorThreadinit();
-    while (1)
-    {
-        int err = gpio_pin_toggle_dt(&led);
-        if (err < 0)
-        {
-            return 0;
-        }
 
-        // LOG_INF("a");
 
-        k_msleep(1000);
+	int err = pwmled_init();
+    if (err < 0) {
+        LOG_ERR("LED initialization failed (err %d)", err);
+        return err;
     }
 
     return 0;

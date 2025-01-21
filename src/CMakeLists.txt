@@ -1,8 +1,2 @@
-#
-# Copyright (c) 2023 Nordic Semiconductor
-#
-# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
-#
-
-target_sources(app PRIVATE main.c ble.c gpio.c hog.c batterylevel.c revsvc.c sensor_poll.c)
+target_sources(app PRIVATE main.c hog.c revsvc.c batterylvl.c button.c ble.c settings.c led.c magnetic.c pwmled.c power.c)
 target_include_directories(app PRIVATE .)
