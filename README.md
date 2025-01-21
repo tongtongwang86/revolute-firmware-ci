@@ -38,6 +38,14 @@ Build for the board 'revolutewireless'
  
 On the GitHub website, choose Actions, choose the branch, click into the build, under Artifacts, download Zephyr hex or equivalent.
 
+## Initial flash revolute board
+
+Upload the bootloader.hex first with full chip erase  
+Upload the revolutefirmware.hex second without chip erase
+
+## Wireless firmware upgrades
+
+After having completed initial flash, you may wirelessly flash revolute.bin using mcumgr compatible ota apps such as nrf connect or revolute configurator
 
 ## Resources
 
