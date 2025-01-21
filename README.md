@@ -14,8 +14,9 @@
 - [x] fuel gauge over bluetooth
 - [x] Sensor poll rate testing
 - [x] magnetic sensor polling
-- [ ] implement configurations
-- [ ] Dual build, ota and non ota
+- [x] Dual build, ota and non ota
+- [ ] Auto power off
+- [ ] Implement configurations
 - [ ] Done
 
 ## Issues:
@@ -32,11 +33,24 @@ Zephyr: V4.0.99
 
 Specify board root as this repository: `-DBOARD_ROOT=/revolute-firmware-ci`
 
+Enable sysbuild  
+
+Use prj.conf  
+
 Build for the board 'revolutewireless'
+
+## Build development (No OTA)
+
+Build board without sysbuild using the development.conf
 
 ## Download Build from GitHub Actions
  
-On the GitHub website, choose Actions, choose the branch, click into the build, under Artifacts, download Zephyr hex or equivalent.
+In this github repo => <a href = "https://github.com/tongtongwang86/revolute-firmware-ci/actions">Actions</a> => click into a build => Artifacts
+
+- Bootloader - OTA bootloader, must flash
+- RevoluteHex - Initial OTA firmware, must flash
+- RevoluteBin - OTA update file, upload wirelessly using nrfconnect mobile app
+
 
 ## Initial flash revolute board
 
