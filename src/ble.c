@@ -1,184 +1,225 @@
+
 #include "ble.h"
-#include <zephyr/settings/settings.h>
+#include "settings.h"
 
-LOG_MODULE_REGISTER(BLE, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(ble, LOG_LEVEL_DBG);
 
-bool connectd = false;
+static void setup_accept_list_cb(const struct bt_bond_info *info, void *user_data)
+{
+	int *bond_cnt = user_data;
 
-static struct bt_le_adv_param *adv_param = BT_LE_ADV_PARAM(
-    (BT_LE_ADV_OPT_CONNECTABLE |
-     BT_LE_ADV_OPT_USE_IDENTITY), /* Connectable advertising and use identity address */
-    800,                          /* Min Advertising Interval 500ms (800*0.625ms) */
-    801,                          /* Max Advertising Interval 500.625ms (801*0.625ms) */
-    NULL);                        /* Set to NULL for undirected advertising */
+	if ((*bond_cnt) < 0) {
+		return;
+	}
 
-// Advertising data
-static const struct bt_data ad[] = {
-    BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
-    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-    BT_DATA_BYTES(BT_DATA_UUID16_ALL,
-                  BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),
-                  BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)),
-};
+	int err = bt_le_filter_accept_list_add(&info->addr);
+	LOG_INF("Added following peer to accept list: %x %x\n", info->addr.a.val[0],
+		info->addr.a.val[1]);
+	if (err) {
+		LOG_INF("Cannot add peer to filter accept list (err: %d)\n", err);
+		(*bond_cnt) = -EIO;
+	} else {
+		(*bond_cnt)++;
+	}
+}
 
-static const struct bt_data sd[] = {
-    BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_128_ENCODE(0x00001523, 0x1212, 0xefde, 0x1523, 0x785feabcd133)),
-};
+
+static int setup_accept_list(uint8_t local_id)
+{
+	int err = bt_le_filter_accept_list_clear();
+
+	if (err) {
+		LOG_INF("Cannot clear accept list (err: %d)\n", err);
+		return err;
+	}
+
+	int bond_cnt = 0;
+
+	bt_foreach_bond(local_id, setup_accept_list_cb, &bond_cnt);
+
+	return bond_cnt;
+}
+
+
+
+void advertise_with_acceptlist(struct k_work *work)
+{
+	int err = 0;
+	int allowed_cnt = setup_accept_list(BT_ID_DEFAULT);
+	if (allowed_cnt < 0) {
+		LOG_INF("Acceptlist setup failed (err:%d)\n", allowed_cnt);
+	} else {
+		if (allowed_cnt == 0) {
+			LOG_INF("Advertising with no Accept list \n");
+			err = bt_le_adv_start(BT_LE_ADV_CONN_NO_ACCEPT_LIST, ad, ARRAY_SIZE(ad), sd,
+					      ARRAY_SIZE(sd));
+		} else {
+			LOG_INF("Acceptlist setup number  = %d \n", allowed_cnt);
+			err = bt_le_adv_start(BT_LE_ADV_CONN_ACCEPT_LIST, ad, ARRAY_SIZE(ad), sd,
+					      ARRAY_SIZE(sd));
+		}
+		if (err) {
+			LOG_INF("Advertising failed to start (err %d)\n", err);
+			return;
+		}
+		LOG_INF("Advertising successfully started\n");
+	}
+}
+K_WORK_DEFINE(advertise_acceptlist_work, advertise_with_acceptlist);
+
+
+
+
+static void copy_last_bonded_addr(const struct bt_bond_info *info, void *data)
+{
+	bt_addr_le_copy(&bond_addr, &info->addr);
+}
+
+static void add_bonded_addr_to_filter_list(const struct bt_bond_info *info, void *data)
+{
+	char addr_str[BT_ADDR_LE_STR_LEN];
+
+	bt_le_filter_accept_list_add(&info->addr);
+	bt_addr_le_to_str(&info->addr, addr_str, sizeof(addr_str));
+	printk("Added %s to advertising accept filter list\n", addr_str);
+	bond_count++;
+}
+
+static void advertising_start(struct k_work *work)
+{
+	int err;
+	
+	bond_count = 0;
+	bt_foreach_bond(BT_ID_DEFAULT, add_bonded_addr_to_filter_list, NULL);
+
+	adv_param = *BT_LE_ADV_CONN_FAST_1;
+
+	/* If we have got at least one bond, activate the filter */
+	if (bond_count) {
+		/* BT_LE_ADV_OPT_FILTER_CONN is required to activate accept filter list,
+		 * BT_LE_ADV_OPT_FILTER_SCAN_REQ will prevent sending scan response data to
+		 * devices, that are not on the accept filter list
+		 */
+		adv_param.options |= BT_LE_ADV_OPT_FILTER_CONN | BT_LE_ADV_OPT_FILTER_SCAN_REQ;
+	}
+
+	err = bt_le_adv_start(&adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+
+	if (err) {
+		printk("Advertising failed to start (err %d)\n", err);
+	} else {
+		printk("Advertising successfully started\n");
+	}
+}
+static K_WORK_DEFINE(start_advertising_worker, advertising_start);
+
+
 
 static void connected(struct bt_conn *conn, uint8_t err)
 {
-
-	struct bt_conn_info info;
-	char addr[BT_ADDR_LE_STR_LEN];
-
-    bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-    if (err)
-    {
-        LOG_INF("Failed to connect to %s (%u)\n", addr, err);
-        return;
-    }
-
-    LOG_INF("Connected %s\n", addr);
-
-    connectd = true;
-
-    if (bt_conn_set_security(conn, BT_SECURITY_L2))
-    {
-        LOG_INF("Failed to set security\n");
-    }
-
-    // Stop advertising once connected
-    bt_le_adv_stop();
+	if (err == BT_HCI_ERR_ADV_TIMEOUT) {
+		printk("Trying to re-start directed adv.\n");
+		// k_work_submit(&start_advertising_worker);
+		k_work_submit(&advertise_acceptlist_work);
+	}
+	else if (err) {
+		printk("Connection failed (err 0x%02x)\n", err);
+	} else {
+		printk("Connected\n");
+		target_state = STATE_CONNECTED;
+	}
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
-    char addr[BT_ADDR_LE_STR_LEN];
+	printk("Disconnected, reason 0x%02x %s\n", reason, bt_hci_err_to_str(reason));
+	// k_work_submit(&start_advertising_worker);
+	// printk("Advertising started\n");
+	k_work_submit(&advertise_acceptlist_work);
+	target_state = STATE_ADVERTISEMENT;
 
-    bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-    connectd = false;
-    LOG_INF("Disconnected from %s (reason 0x%02x)\n", addr, reason);
-
-    startAdv();
 }
 
-static void security_changed(struct bt_conn *conn, bt_security_t level,
-                             enum bt_security_err err)
+static void on_security_changed(struct bt_conn *conn, bt_security_t level, enum bt_security_err err)
 {
-    char addr[BT_ADDR_LE_STR_LEN];
-
-    bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-    connectd = true;
-
-    if (!err)
-    {
-        LOG_INF("Security changed: %s level %u\n", addr, level);
-    }
-    else
-    {
-        LOG_INF("Security failed: %s level %u err %d\n", addr, level, err);
-    }
-}
-
-
-static bool le_param_req(struct bt_conn *conn, struct bt_le_conn_param *param)
-{
-	// If acceptable params, return true, otherwise return false.
-	return true;
-}
-
-static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t latency, uint16_t timeout)
-{
-	struct bt_conn_info info;
 	char addr[BT_ADDR_LE_STR_LEN];
 
-	if (bt_conn_get_info(conn, &info))
-	{
-		printk("Could not parse connection info\n");
-	}
-	else
-	{
-		bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
-		printk("Connection parameters updated!	\n\
-		Connected to: %s						\n\
-		New Connection Interval: %u				\n\
-		New Slave Latency: %u					\n\
-		New Connection Supervisory Timeout: %u	\n",
-			   addr, info.le.interval, info.le.latency, info.le.timeout);
+	if (!err) {
+		LOG_INF("Security changed: %s level %u\n", addr, level);
+	} else {
+		LOG_INF("Security failed: %s level %u err %d\n", addr, level, err);
 	}
 }
 
-
-static struct bt_conn_cb conn_callbacks =
-	{
-		.connected = connected,
-		.disconnected = disconnected,
-		.security_changed = security_changed,
-		.le_param_req = le_param_req,
-		.le_param_updated = le_param_updated,
+BT_CONN_CB_DEFINE(conn_callbacks) = {
+	.connected = connected,
+	.disconnected = disconnected,
+	.security_changed = on_security_changed
 };
 
 
-
-static void auth_cancel(struct bt_conn *conn)
+void pairing_complete(struct bt_conn *conn, bool bonded)
 {
-    char addr[BT_ADDR_LE_STR_LEN];
+	target_state = STATE_CONNECTED;
+	printk("Pairing completed\n");
 
-    bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+}
 
-    LOG_INF("Pairing cancelled: %s\n", addr);
+static struct bt_conn_auth_info_cb bt_conn_auth_info = {
+	.pairing_complete = pairing_complete
+};
+
+
+void bluetooth_init(void) {
+
+    	int err = bt_enable(NULL);
+	if (err) {
+		printk("Bluetooth init failed (err %d)\n", err);
+		return 0;
+	}
+
+		if (IS_ENABLED(CONFIG_SETTINGS)) {
+		load_config();
+	}
+
+	// k_work_submit(&start_advertising_worker);
+	k_work_submit(&advertise_acceptlist_work);
+
+
+	bt_conn_auth_info_cb_register(&bt_conn_auth_info);
+}
+
+void bluetooth_pair(void) {
+
+	int err = bt_le_adv_stop();
+    if (err) {
+        printk("Failed to stop advertising (err %d)\n", err);
+    } else {
+        printk("Bluetooth advertising stopped.\n");
+    }
+
+    bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
+    
+    // Restart advertising (now with an empty accept list)
+    k_work_submit(&advertise_acceptlist_work);
 }
 
 
-static struct bt_conn_auth_cb conn_auth_callbacks = {
-	.passkey_display = NULL,
-	.passkey_confirm = NULL,
-	.cancel = auth_cancel,
-	.pairing_confirm = NULL,
+
+void disable_bluetooth(void) {
+    int err = bt_le_adv_stop();
+    if (err) {
+        printk("Failed to stop advertising (err %d)\n", err);
+    } else {
+        printk("Bluetooth advertising stopped.\n");
+    }
 	
-	};
-
-void enableBle(void)
-{
-
-    int err = bt_enable(NULL);
-    if (err)
-    {
-        LOG_INF("Bluetooth init failed (err %d)\n", err);
-        return;
-    }
-	bt_conn_cb_register(&conn_callbacks);
-	printk("Security Enabled\n");
-	bt_conn_auth_cb_register(&conn_auth_callbacks);
-    settings_load();
-
-}
-
-// Function to start advertising
-void startAdv(void)
-{
-    int err = bt_le_adv_start(adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-    if (err)
-    {
-        LOG_INF("Advertising failed to start (err %d)\n", err);
-        return;
-    }
-
-    LOG_INF("Advertising successfully started\n");
-}
-
-void deleteBond(void)
-{
-
-    int err = bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
-    if (err)
-    {
-        LOG_INF("Cannot delete bond (err: %d)\n", err);
-    }
-    else
-    {
-        LOG_INF("Bond deleted succesfully");
+	 err = bt_disable();
+    if (err) {
+        printk("Failed to disable Bluetooth (err %d)\n", err);
+    } else {
+        printk("Bluetooth disabled.\n");
     }
 }

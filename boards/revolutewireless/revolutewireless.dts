@@ -27,11 +27,23 @@
 					gpios = < &gpio0 3 GPIO_ACTIVE_HIGH >;
 					label = "LED 0";
 			};
+			mosfet: mosfet_0 {
+				/* LED 0 on P0.03, LED on when pin is high */
+				gpios = < &gpio0 11 GPIO_ACTIVE_HIGH >;
+				label = "Mosfet";
+		};
+
+			
+
 
 	};
 
-
-
+	pwmleds {
+		compatible = "pwm-leds";
+		pwm_led0: pwm_led_0 {
+			pwms = <&pwm0 0 PWM_USEC(1000) PWM_POLARITY_NORMAL>;
+		};
+	};
 
 
 
@@ -65,17 +77,7 @@
 				gpios = <&gpio0 31 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 				label = "Button 3";
 			};
-			AS5600_DIR: dir {
-
-				gpios = <&gpio1 9 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;
-				label = "as5600 Dir pin";
-			};
-			AS5600_OUT: out {
-
-				gpios = <&gpio0 11 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;
-				label = "as5600 Out pin";
-
-			};
+		
 	};
 
 
@@ -83,14 +85,16 @@
 
 	/* These aliases are provided for compatibility with samples */
 	aliases {
-
+		// pwmled = &pwm0;
+		mosfet = &mosfet;
+		pwm-led0 = &pwm_led0;
 		led0 = &blueled;
 		sw0 = &button_right;
 		sw1 = &button_left;
 		sw2 = &button_up;
 		sw3 = &button_down;
-		asdir = &AS5600_DIR;
-		asout = &AS5600_OUT;
+		// asdir = &AS5600_DIR;
+		// asout = &AS5600_OUT;
 
 	};
 };
@@ -104,8 +108,25 @@
 };
 
 &gpio1 {
-	status = "okay";
+	status = "disabled";
 };
+
+&spi0 {
+	status = "disabled";
+};
+
+&spi1 {
+	status = "disabled";
+};
+
+&spi2 {
+	status = "disabled";
+};
+
+&spi3 {
+	status = "disabled";
+};
+
 
 
 
@@ -135,7 +156,12 @@
 	};
 };
 
-
+&pwm0 {
+	status = "okay";
+	pinctrl-0 = <&pwm1_default>;
+	pinctrl-1 = <&pwm1_sleep>;
+	pinctrl-names = "default", "sleep";
+};
 
 &i2c0 {
 
@@ -152,14 +178,16 @@
 		status = "okay";
 	};
 
-	bq27421@55 {
+	bq27427: bq27427@55 {
 		compatible = "ti,bq274xx";
 		reg = <0x55>;
 		design-voltage = <3700>;
-		design-capacity = <40>;
-		taper-current = <45>;
+		design-capacity = <70>;
+		taper-current = <90>;
 		terminate-voltage = <3000>;
+		int-gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
 		status = "okay";
+
 	};
 
 };

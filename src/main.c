@@ -1,146 +1,66 @@
-
 #include <zephyr/kernel.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/conn.h>
-#include <zephyr/bluetooth/uuid.h>
-#include <zephyr/bluetooth/gatt.h>
-// #include <zephyr/mgmt/mcumgr/transport/smp_bt.h>
-#include <zephyr/linker/linker-defs.h>
 #include <zephyr/logging/log.h>
-
+#include <zephyr/pm/pm.h>
+#include <zephyr/pm/policy.h>
+#include <zephyr/pm/state.h>
+#include <zephyr/pm/device.h>
+#include "hog.h"
+#include "revsvc.h"
+#include "batterylvl.h"
+#include "button.h"
 #include "ble.h"
-// #include "settings.h"
-// #include "revsvc.h"
-// #include "gpio.h"
+#include "settings.h"
+#include "led.h"
+#include "magnetic.h"
 
-#define LED0_NODE DT_ALIAS(led0)
+LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
-/*
- * A build error on this line means your board is unsupported.
- * See the sample documentation for information on how to fix this.
+/* Prevent deep sleep (system off) from being entered on long timeouts
+ * or `K_FOREVER` due to the default residency policy.
+ *
+ * This has to be done before anything tries to sleep, which means
+ * before the threading system starts up between PRE_KERNEL_2 and
+ * POST_KERNEL.  Do it at the start of PRE_KERNEL_2.
  */
-static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
-
-LOG_MODULE_REGISTER(Revolute, LOG_LEVEL_DBG);
-
-// struct config_profile config = {
-// 	.deadzone = 0,
-// 	.up_report = {0, 0, 0, 0, 1, 0, 0, 0},
-// 	.up_identPerRev = 30,
-// 	.up_transport = 3,
-// 	.dn_report = {0, 0, 0, 0, 1, 0, 0, 0},
-// 	.dn_identPerRev = 30,
-// 	.dn_transport = 3,
-// };
-
-
-/* 1000 msec = 1 sec */
-#define SLEEP_TIME_MS 1000
-
-
-// static void button_event_handler(size_t idx, enum button_evt evt)
+// static int disable_ds_1(const struct device *dev)
 // {
-// 	int err;
-// 	switch (idx)
-// 	{
-// 	case 0:
-// 		if (evt == BUTTON_EVT_PRESSED)
-// 		{
+//     ARG_UNUSED(dev);
 
-// 			LOG_INF("Button 0 pressed");
-// 		}
-// 		else
-// 		{
-// 			LOG_INF("Button 0 released");
-// 		}
-// 		break;
-// 	case 1:
-// 		if (evt == BUTTON_EVT_PRESSED)
-// 		{
-// 			err = gpio_pin_toggle_dt(&led);
-// 			if (err < 0)
-// 			{
-// 				return;
-// 			}
-
-// 			LOG_INF("Button 1 pressed");
-// 		}
-// 		else
-// 		{
-
-// 			LOG_INF("Button 1 released");
-// 		}
-// 		break;
-// 	case 2:
-// 		if (evt == BUTTON_EVT_PRESSED)
-// 		{
-
-// 			LOG_INF("Button 2 pressed");
-// 		}
-// 		else
-// 		{
-
-// 			LOG_INF("Button 2 released");
-// 		}
-// 		break;
-// 	case 3:
-// 		if (evt == BUTTON_EVT_PRESSED)
-// 		{
-// 			deleteBond();
-// 			LOG_INF("Button 3 pressed");
-// 		}
-// 		else
-// 		{
-// 			LOG_INF("Button 3 released");
-// 		}
-// 		break;
-// 	default:
-// 		LOG_ERR("Unknown button %zu event", idx);
-// 		break;
-// 	}
+//     pm_policy_state_lock_get(PM_STATE_SOFT_OFF, PM_ALL_SUBSTATES);
+//     return 0;
 // }
 
+// SYS_INIT(disable_ds_1, PRE_KERNEL_2, 0);
 
 int main(void)
 {
-	int ret;
+    // Initialize LED thread and GPIO
+    // k_sleep(K_MSEC(2000));   // Sleep for 500 ms
 
-	printk("Board: %s\n", CONFIG_BOARD);
-	printk("Build time: " __DATE__ " " __TIME__ "\n");
-	printk("Address of sample %p\n", (void *)__rom_region_start);
+    bluetooth_init();
 
-	// for (size_t i = 0; i < 4; i++)
-	// {
-	// 	button_init(i, button_event_handler);
-	// }
-	// ledInit();
+    LOG_INF("rev_svc_loop thread started\n");
 
-	 ret;
-    if (!gpio_is_ready_dt(&led)) {
-        return 0;
+    batteryThreadinit();
+    rev_svc_thread_init();
+    button_init();
+
+
+
+//  int err = led_init();
+//     if (err < 0) {
+//         LOG_ERR("LED initialization failed (err %d)", err);
+//         return err;
+//     }
+
+    SensorThreadinit();
+
+
+	int err = pwmled_init();
+    if (err < 0) {
+        LOG_ERR("LED initialization failed (err %d)", err);
+        return err;
     }
 
-    ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
-    if (ret < 0) {
-        return 0;
-    }
-    return ret;
-
-
-	enableBle();
-	// load_config();
-	// save_config();
-	startAdv();
-	while (1)
-	{
-		ret = gpio_pin_toggle_dt(&led);
-		if (ret < 0)
-		{
-			return -ENODEV;
-		}
-		k_msleep(SLEEP_TIME_MS);
-	}
-
-	return 0;
+    return 0;
 }

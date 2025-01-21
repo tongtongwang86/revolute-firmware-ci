@@ -6,12 +6,22 @@
 - [x] Bluetooth Peripheral sample app
 - [x] Bluetooth OTA Firmware update
 - [x] Bluetooth Connection and Bonding
-- [ ] Baisc bluetooth characteristics test
-- [ ] New Bluetooth API to send and receive configurations
-- [ ] Power state implementations
-- [ ] Sensor poll rate testing
-- [ ] Combine together
+- [x] Baisc bluetooth characteristics test
+- [x] New Bluetooth API to send and receive configurations
+- [x] Settings to save and load revolute configurations
+- [x] button hold time, double click, and triple click implementations
+- [x] Power state implementations
+- [x] fuel gauge over bluetooth
+- [x] Sensor poll rate testing
+- [x] magnetic sensor polling
+- [ ] implement configurations
+- [ ] Dual build, ota and non ota
 - [ ] Done
+
+## Issues:
+
+- [ ] pairing does not work after a reboot
+- [ ] fix bluetooth autoconnect
 
 ## Build Locally
 
@@ -27,7 +37,6 @@ Build for the board 'revolutewireless'
 ## Download Build from GitHub Actions
  
 On the GitHub website, choose Actions, choose the branch, click into the build, under Artifacts, download Zephyr hex or equivalent.
-
 
 
 ## Resources
