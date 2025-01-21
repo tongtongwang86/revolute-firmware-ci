@@ -1,4 +1,3 @@
-
 #ifndef HOG_H
 #define HOG_H
 

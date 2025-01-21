@@ -3,7 +3,7 @@ on:
   pull_request:
   push:
     branches:
-      - Main-Upcoming
+      - main
   # run on tag creation
 
 jobs:
