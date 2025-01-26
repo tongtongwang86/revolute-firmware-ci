@@ -1,5 +1,4 @@
-/build
-/build_1
+/build*
 /.vscode
 *.DS_Store
 /.cache

@@ -1,0 +1,6 @@
+board:
+  name: testboard
+  full_name: testboard
+  vendor: tongtonginc
+  socs:
+  - name: nrf52833

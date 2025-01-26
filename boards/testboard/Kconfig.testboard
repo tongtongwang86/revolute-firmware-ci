@@ -1,0 +1,2 @@
+config BOARD_TESTBOARD
+	select SOC_NRF52833_QIAA
