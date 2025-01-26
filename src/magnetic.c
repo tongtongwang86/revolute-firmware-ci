@@ -121,7 +121,7 @@ static void print_thread(void *unused1, void *unused2, void *unused3)
                     // clock wise
                     LOG_INF("tick cw");
 
-                    hog_send_mouse_button_1();
+                    // hog_send_mouse_button_1();
                     
 
                     last_position = current_position;
@@ -129,7 +129,7 @@ static void print_thread(void *unused1, void *unused2, void *unused3)
                 else if (change < 0)
                 {
                     LOG_INF("tick ccw");
-                  hog_send_mouse_button_1();
+                //   hog_send_mouse_button_1();
 
                     last_position = current_position;
                 }

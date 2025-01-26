@@ -1,0 +1,186 @@
+
+
+/dts-v1/;
+#include <nordic/nrf52840_qiaa.dtsi>
+#include "revopod-pinctrl.dtsi"
+
+/ {
+	model = "revopod";
+	compatible = "revopod";
+
+	chosen {
+		zephyr,console = &cdc_acm_uart0;
+		zephyr,shell-uart = &uart0;
+		zephyr,uart-mcumgr = &uart0;
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+		zephyr,code-partition = &slot0_partition;
+		zephyr,settings-partition = &storage_partition;
+
+	};
+
+	
+	leds {
+			compatible = "gpio-leds";
+			blueled: led_0 {
+					/* LED 0 on P0.03, LED on when pin is high */
+					gpios = < &gpio0 3 GPIO_ACTIVE_HIGH >;
+					label = "LED 0";
+			};
+			mosfet: mosfet_0 {
+				/* LED 0 on P0.03, LED on when pin is high */
+				gpios = < &gpio0 11 GPIO_ACTIVE_HIGH >;
+				label = "Mosfet";
+		};
+
+			
+
+
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+		pwm_led0: pwm_led_0 {
+			pwms = <&pwm0 0 PWM_USEC(1000) PWM_POLARITY_NORMAL>;
+		};
+	};
+
+
+
+
+	buttons {
+			compatible = "gpio-keys";
+			/*
+				* Add up to 4 total buttons in child nodes as shown here.
+				*/
+
+			button_down: button_3 {
+					/* Button 3 on P1.15, no internal pull resistor,
+						* low is pressed. */
+				gpios = <&gpio1 8 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+				label = "Button 3";
+			};
+		
+	};
+
+
+	
+
+	/* These aliases are provided for compatibility with samples */
+	aliases {
+
+		mosfet = &mosfet;
+		pwm-led0 = &pwm_led0;
+		led0 = &blueled;
+		sw3 = &button_down;
+
+
+	};
+};
+
+&gpiote {
+	status = "okay";
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "disabled";
+};
+
+&spi1 {
+	status = "disabled";
+};
+
+&spi2 {
+	status = "disabled";
+};
+
+&spi3 {
+	status = "disabled";
+};
+
+
+
+
+ 
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		boot_partition: partition@0 {
+			label = "mcuboot";
+			reg = <0x00000000 0xC000>;
+		};
+		slot0_partition: partition@c000 {
+			label = "image-0";
+			reg = <0x0000C000 0x37000>;
+		};
+		slot1_partition: partition@43000 {
+			label = "image-1";
+			reg = <0x00043000 0x37000>;
+		};
+		storage_partition: partition@7a000 {
+			label = "storage";
+			reg = <0x0007A000 0x00006000>;
+		};
+	};
+};
+
+&pwm0 {
+	status = "okay";
+	pinctrl-0 = <&pwm1_default>;
+	pinctrl-1 = <&pwm1_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
+&i2c0 {
+
+	status = "okay";
+
+	clock-frequency = <I2C_BITRATE_FAST>;
+	pinctrl-0 = <&i2c0_default>;
+	pinctrl-1 = <&i2c0_sleep>;
+	pinctrl-names = "default", "sleep";
+	
+	as5600: as5600@36 {
+		compatible = "ams,as5600";
+		reg = <0x36>;
+		status = "okay";
+	};
+
+	bq27427: bq27427@55 {
+		compatible = "ti,bq274xx";
+		reg = <0x55>;
+		design-voltage = <3700>;
+		design-capacity = <70>;
+		taper-current = <90>;
+		terminate-voltage = <3000>;
+		int-gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+		status = "okay";
+
+	};
+
+};
+
+
+
+zephyr_udc0: &usbd {
+	compatible = "nordic,nrf-usbd";
+	status = "okay";
+
+	cdc_acm_uart0: cdc_acm_uart0 {
+		compatible = "zephyr,cdc-acm-uart";
+	};
+	
+};
+
+

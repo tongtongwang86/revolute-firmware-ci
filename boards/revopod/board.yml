@@ -1,0 +1,6 @@
+board:
+  name: revopod
+  full_name: Revopod
+  vendor: tongtonginc
+  socs:
+  - name: nrf52840
