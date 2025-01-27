@@ -94,13 +94,10 @@ jobs:
         run: |
           cd zephyr-workspace
           mv build/revolute-ci-app/zephyr/revolute.signed.confirmed.hex build/revolute-ci-app/zephyr/revolutefirmware.hex
+          cp build/revolute-ci-app/zephyr/revolute.signed.confirmed.bin build/revolute-ci-app/zephyr/firmware.revoluteconfig
           mv build/revolute-ci-app/zephyr/revolute.signed.confirmed.bin build/revolute-ci-app/zephyr/revolutefirmware.bin
 
-      - name: Create folder for binary
-        run: mkdir -p revolutefirmware
 
-      - name: Move binary to folder
-        run: mv zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.bin revolutefirmware/
 
       - name: 1. Save Bootloader (Erase and flash with debugger)📦
         uses: actions/upload-artifact@v4
@@ -116,9 +113,16 @@ jobs:
           path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.hex
           compression-level: 0
 
-      - name: 3. Save OTA Update File (Flash with OTA)📦
+      - name: 3. Save OTA Update File (Flash with NrfConnect)📦
         uses: actions/upload-artifact@v4
         with:
           name: RevoluteBin
-          path: revolutefirmware/
+          path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.bin
+          compression-level: 0
+
+      - name: 4. Save OTA for RevoluteConfig 📦
+        uses: actions/upload-artifact@v4
+        with:
+          name: revoluteconfig
+          path: zephyr-workspace/build/revolute-ci-app/zephyr/firmware.revoluteconfig
           compression-level: 0
