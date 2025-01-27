@@ -125,4 +125,4 @@ jobs:
         with:
           name: revoluteconfig
           path: zephyr-workspace/build/revolute-ci-app/zephyr/firmware.revoluteconfig
-          compression-level: 0
+          compression-level: 9
