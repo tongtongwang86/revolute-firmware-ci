@@ -102,16 +102,18 @@ jobs:
         with:
           name: Bootloader
           path: zephyr-workspace/build/mcuboot/zephyr/Bootloader.hex
+          compression-level: 0
 
       - name: 2. Save Firmware (Flash with debugger)📦
         uses: actions/upload-artifact@v4
         with:
           name: RevoluteHex
           path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.hex
-
+          compression-level: 0
 
       - name: 3. Save OTA Update File (Flash with OTA)📦
         uses: actions/upload-artifact@v4
         with:
           name: RevoluteBin
           path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.bin
+          compression-level: 0
