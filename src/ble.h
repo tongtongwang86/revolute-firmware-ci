@@ -31,8 +31,7 @@ static struct bt_le_adv_param adv_param;
 
 
 static struct bt_le_adv_param *adv_param_normal = BT_LE_ADV_PARAM(
-	(BT_LE_ADV_OPT_CONN |
-	 BT_LE_ADV_OPT_USE_IDENTITY), /* Connectable advertising and use identity address */
+	(BT_LE_ADV_OPT_CONN), /* Connectable advertising and use identity address */
 	BT_GAP_ADV_FAST_INT_MIN_1,                          /* Min Advertising Interval 500ms (800*0.625ms) */
 	BT_GAP_ADV_FAST_INT_MAX_1,                          /* Max Advertising Interval 500.625ms (801*0.625ms) */
 	NULL);                        /* Set to NULL for undirected advertising */

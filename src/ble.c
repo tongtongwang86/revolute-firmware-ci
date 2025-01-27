@@ -124,6 +124,8 @@ static K_WORK_DEFINE(start_advertising_worker, advertising_start);
 
 static void connected(struct bt_conn *conn, uint8_t err)
 {
+	bt_conn_set_security(conn, BT_SECURITY_L2);
+
 	if (err == BT_HCI_ERR_ADV_TIMEOUT) {
 		printk("Trying to re-start directed adv.\n");
 		// k_work_submit(&start_advertising_worker);
@@ -134,10 +136,24 @@ static void connected(struct bt_conn *conn, uint8_t err)
 		k_work_submit(&advertise_acceptlist_work);
 	} else {
 		printk("Connected\n");
-		bt_conn_set_security(conn, BT_SECURITY_L2);
+		
 		// target_state = STATE_CONNECTED;
 	}
 }
+
+
+static void identity_resolved(struct bt_conn *conn, const bt_addr_le_t *rpa,
+			      const bt_addr_le_t *identity)
+{
+	char addr_identity[BT_ADDR_LE_STR_LEN];
+	char addr_rpa[BT_ADDR_LE_STR_LEN];
+
+	bt_addr_le_to_str(identity, addr_identity, sizeof(addr_identity));
+	bt_addr_le_to_str(rpa, addr_rpa, sizeof(addr_rpa));
+
+	printk("Identity resolved %s -> %s\n", addr_rpa, addr_identity);
+}
+
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
@@ -160,14 +176,15 @@ static void on_security_changed(struct bt_conn *conn, bt_security_t level, enum 
 	} else {
 		LOG_INF("Security failed: %s level %u err %d\n", addr, level, err);
 		int err = bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
-		bluetooth_pair();
+		// bluetooth_pair();
 	}
 }
 
 BT_CONN_CB_DEFINE(conn_callbacks) = {
 	.connected = connected,
 	.disconnected = disconnected,
-	.security_changed = on_security_changed
+	.identity_resolved = identity_resolved,
+	.security_changed = on_security_changed,
 };
 
 
@@ -203,14 +220,25 @@ void bluetooth_init(void) {
 }
 
 void bluetooth_pair(void) {
+    // Unpair all devices for the default Bluetooth identity
+    int err = bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
+    if (err) {
+        LOG_INF("Failed to unpair devices (err %d)\n", err);
+    } else {
+        LOG_INF("All previous bonds have been erased.\n");
+    }
 
+    // Clear the accept list to ensure no previously bonded devices are allowed
+    err = bt_le_filter_accept_list_clear();
+    if (err) {
+        LOG_INF("Failed to clear accept list (err %d)\n", err);
+    } else {
+        LOG_INF("Accept list cleared.\n");
+    }
 
-    bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
-    
     // Restart advertising (now with an empty accept list)
     k_work_submit(&advertise_acceptlist_work);
 }
-
 
 
 void disable_bluetooth(void) {
