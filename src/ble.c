@@ -44,7 +44,14 @@ static int setup_accept_list(uint8_t local_id)
 
 void advertise_with_acceptlist(struct k_work *work)
 {
-	int err = 0;
+
+	int err = bt_le_adv_stop();
+    if (err) {
+        printk("Failed to stop advertising (err %d)\n", err);
+    } else {
+        printk("Bluetooth advertising stopped.\n");
+    }
+
 	int allowed_cnt = setup_accept_list(BT_ID_DEFAULT);
 	if (allowed_cnt < 0) {
 		LOG_INF("Acceptlist setup failed (err:%d)\n", allowed_cnt);
@@ -128,7 +135,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	} else {
 		printk("Connected\n");
 		bt_conn_set_security(conn, BT_SECURITY_L2);
-		target_state = STATE_CONNECTED;
+		// target_state = STATE_CONNECTED;
 	}
 }
 
@@ -152,6 +159,8 @@ static void on_security_changed(struct bt_conn *conn, bt_security_t level, enum 
 		LOG_INF("Security changed: %s level %u\n", addr, level);
 	} else {
 		LOG_INF("Security failed: %s level %u err %d\n", addr, level, err);
+		int err = bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
+		bluetooth_pair();
 	}
 }
 
@@ -195,12 +204,6 @@ void bluetooth_init(void) {
 
 void bluetooth_pair(void) {
 
-	int err = bt_le_adv_stop();
-    if (err) {
-        printk("Failed to stop advertising (err %d)\n", err);
-    } else {
-        printk("Bluetooth advertising stopped.\n");
-    }
 
     bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
     
