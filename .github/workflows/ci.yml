@@ -118,7 +118,7 @@ jobs:
         with:
           name: RevoluteBin
           path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.bin
-          compression-level: 0
+          compression-level: 9
 
       - name: 4. Save OTA for RevoluteConfig 📦
         uses: actions/upload-artifact@v4
