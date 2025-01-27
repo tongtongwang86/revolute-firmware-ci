@@ -96,6 +96,11 @@ jobs:
           mv build/revolute-ci-app/zephyr/revolute.signed.confirmed.hex build/revolute-ci-app/zephyr/revolutefirmware.hex
           mv build/revolute-ci-app/zephyr/revolute.signed.confirmed.bin build/revolute-ci-app/zephyr/revolutefirmware.bin
 
+      - name: Create folder for binary
+        run: mkdir -p revolutefirmware
+
+      - name: Move binary to folder
+        run: mv zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.bin revolutefirmware/
 
       - name: 1. Save Bootloader (Erase and flash with debugger)📦
         uses: actions/upload-artifact@v4
@@ -115,5 +120,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RevoluteBin
-          path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.bin
+          path: revolutefirmware/
           compression-level: 0
