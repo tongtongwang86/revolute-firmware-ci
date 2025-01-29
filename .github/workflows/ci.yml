@@ -1,10 +1,9 @@
-name: Compile Firmware
+name: Compile and Release Firmware
+
 on:
-  pull_request:
   push:
     branches:
       - main
-  # run on tag creation
 
 jobs:
   build:
@@ -22,8 +21,6 @@ jobs:
           rm -rf zephyr-workspace/revolute-ci-app
       - uses: actions/checkout@v4
         with:
-          # Clone the repo to a subdirectory, so we can initialize the Zephyr
-          # workspace in the parent directory.
           path: zephyr-workspace/revolute-ci-app
 
       - name: 💾 Cache ~/.venv
@@ -34,31 +31,19 @@ jobs:
           restore-keys: |
             venv-${{ runner.os }}-
       - name: 🧰 Install Dependencies + West
-        # Install the Zephyr host build dependencies, and the `west` Python tool. This list is from
-        # https://docs.zephyrproject.org/3.5.0/develop/getting_started/index.html#install-dependencies
         run: |
           sudo apt update
-          sudo apt install --no-install-recommends \
-            ccache \
-            ninja-build
+          sudo apt install --no-install-recommends ccache ninja-build
           python3 -m venv ~/.venv
           source ~/.venv/bin/activate
-          # insert the PATH changes the venv activate made to be present for
-          # future steps
           echo "PATH=$PATH" >> $GITHUB_ENV
           pip3 install west ninja
       - name: 🪁 Install Zephyr SDK
-        # Fetch the Zephyr SDK from the GitHub Release artifact, unpack it and
-        # run the setup script, selecting the '-c' option to install cmake
-        # packages and the '-t arm-zephyr-eabi' option to install the toolchain
-        # only for the arm-zephyr-eabi (Cortex-M) architecture, since we don't
-        # need the other toolchains (xtensa, riscv, etc.)
         run: |
           wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.17.0/zephyr-sdk-0.17.0_linux-x86_64_minimal.tar.xz
           tar xf zephyr-sdk-0.17.0_linux-x86_64_minimal.tar.xz -C ~/
           ~/zephyr-sdk-0.17.0/setup.sh -c -t arm-zephyr-eabi
       - name: ♻️ Initialize Zephyr Workspace
-        # Set up the Zephyr workspace and install the Python dependencies
         run: |
           cd zephyr-workspace
           rm -rf .west
@@ -79,43 +64,51 @@ jobs:
         run: |
           cd zephyr-workspace
           ccache -z
-          west build \
-              --board revolutewireless \
-              --pristine=always \
-              --sysbuild \
-              revolute-ci-app \
-              -- \
-              -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/revolute-ci-app" 
+          west build --board revolutewireless --pristine=always --sysbuild revolute-ci-app -- -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/revolute-ci-app"
           ccache -sv
-          tree -L 4
-
-
       - name: Rename Files
         run: |
           cd zephyr-workspace
-          mv build/revolute-ci-app/zephyr/revolute.signed.confirmed.hex build/revolute-ci-app/zephyr/revolutefirmware.hex
-          cp build/revolute-ci-app/zephyr/revolute.signed.confirmed.bin build/revolute-ci-app/zephyr/firmware.revoluteconfig
           mv build/revolute-ci-app/zephyr/revolute.signed.confirmed.bin build/revolute-ci-app/zephyr/revolutefirmware.bin
-
-
-
-      - name: 1. Save Bootloader (Erase and flash with debugger)📦
-        uses: actions/upload-artifact@v4
-        with:
-          name: Bootloader
-          path: zephyr-workspace/build/mcuboot/zephyr/Bootloader.hex
-          compression-level: 0
-
-      - name: 2. Save Firmware (Flash with debugger)📦
-        uses: actions/upload-artifact@v4
-        with:
-          name: RevoluteHex
-          path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.hex
-          compression-level: 0
-
-      - name: 3. Save OTA Update File (Flash with OTA)📦
+      - name: Upload Firmware Artifact 📦
         uses: actions/upload-artifact@v4
         with:
           name: RevoluteBin
           path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.bin
           compression-level: 0
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Determine next version
+        id: version
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const latestTag = await github.rest.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            }).catch(() => ({ data: { tag_name: "v0.0.0" } }));
+            const [major, minor, patch] = latestTag.data.tag_name.replace('v', '').split('.').map(Number);
+            const newTag = `v${major}.${minor}.${patch + 1}`;
+            console.log(`New tag: ${newTag}`);
+            core.setOutput("new_tag", newTag);
+      - name: Create and push tag
+        run: |
+          git tag ${{ steps.version.outputs.new_tag }}
+          git push origin ${{ steps.version.outputs.new_tag }}
+      - name: Download Built Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: RevoluteBin
+          path: release/
+      - name: Create GitHub Release 📢
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/revolutefirmware.bin
+          tag_name: ${{ steps.version.outputs.new_tag }}
+          release_name: "Release ${{ steps.version.outputs.new_tag }}"
+          body: "Automated release for firmware version ${{ steps.version.outputs.new_tag }}."
+          draft: false
+          prerelease: false
