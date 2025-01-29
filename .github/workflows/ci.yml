@@ -125,11 +125,14 @@ jobs:
           name: RevoluteBin
           path: artifacts
 
+      - name: 🏷 Set Release Tag
+        run: echo "TAG_NAME=OTA-Development-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
+
       - name: 🚀 Create GitHub Release
         uses: marvinpinto/action-automatic-releases@latest
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "OTA-Development-${{ github.event.release.created_at }}"
+          automatic_release_tag: "${{ env.TAG_NAME }}"
           prerelease: true
           title: "Revolute Development"
           files: |
