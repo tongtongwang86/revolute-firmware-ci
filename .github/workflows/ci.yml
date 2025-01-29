@@ -129,7 +129,7 @@ jobs:
         uses: marvinpinto/action-automatic-releases@latest
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "OTA-Development"
+          automatic_release_tag: "OTA-Development-${{ github.event.release.created_at }}"
           prerelease: true
           title: "Revolute Development"
           files: |
