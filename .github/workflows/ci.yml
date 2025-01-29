@@ -134,6 +134,6 @@ jobs:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "${{ env.TAG_NAME }}"
           prerelease: true
-          title: "Revolute Development"
+          title: "Revolute OTA Firmware"
           files: |
             artifacts/revolutefirmware.bin
