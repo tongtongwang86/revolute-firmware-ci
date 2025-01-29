@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  pull_request:
 
 jobs:
   build:
@@ -17,19 +18,11 @@ jobs:
           restore-keys: |
             zephyr-workspace-v2-${{ runner.os }}-
       - name: 🧹 Clean Landing Site
-        run: |
-          rm -rf zephyr-workspace/revolute-ci-app
+        run: rm -rf zephyr-workspace/revolute-ci-app
       - uses: actions/checkout@v4
         with:
           path: zephyr-workspace/revolute-ci-app
 
-      - name: 💾 Cache ~/.venv
-        uses: actions/cache@v4
-        with:
-          path: ~/.venv
-          key: venv-${{ runner.os }}-${{ hashFiles('zephyr-workspace/zephyr/scripts/requirements.txt') }}
-          restore-keys: |
-            venv-${{ runner.os }}-
       - name: 🧰 Install Dependencies + West
         run: |
           sudo apt update
@@ -38,39 +31,42 @@ jobs:
           source ~/.venv/bin/activate
           echo "PATH=$PATH" >> $GITHUB_ENV
           pip3 install west ninja
+      
       - name: 🪁 Install Zephyr SDK
         run: |
           wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.17.0/zephyr-sdk-0.17.0_linux-x86_64_minimal.tar.xz
           tar xf zephyr-sdk-0.17.0_linux-x86_64_minimal.tar.xz -C ~/
           ~/zephyr-sdk-0.17.0/setup.sh -c -t arm-zephyr-eabi
+      
       - name: ♻️ Initialize Zephyr Workspace
         run: |
           cd zephyr-workspace
           rm -rf .west
           west init -l revolute-ci-app
           west update --narrow -o=--depth=1
-      - name: 🐍 Install Python Dependencies
-        run: |
-          cd zephyr-workspace
-          pip3 install -r zephyr/scripts/requirements.txt
-      - name: 💾 Cache ~/.cache/ccache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ccache
-          key: ccache-v1-${{ runner.os }}-${{ hashFiles('zephyr-workspace/revolute-ci-app/west.yml') }}
-          restore-keys: |
-            ccache-v1-${{ runner.os }}-
+      
       - name: 🔨 Build Project
         run: |
           cd zephyr-workspace
           ccache -z
-          west build --board revolutewireless --pristine=always --sysbuild revolute-ci-app -- -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/revolute-ci-app"
+          west build --board revolutewireless --pristine=always --sysbuild revolute-ci-app -- -DBOARD_ROOT="$GITHUB_WORKSPACE/zephyr-workspace/revolute-ci-app"
           ccache -sv
+
       - name: Rename Files
         run: |
           cd zephyr-workspace
+          mv build/revolute-ci-app/zephyr/revolute.signed.confirmed.hex build/revolute-ci-app/zephyr/revolutefirmware.hex
+          cp build/revolute-ci-app/zephyr/revolute.signed.confirmed.bin build/revolute-ci-app/zephyr/firmware.revoluteconfig
           mv build/revolute-ci-app/zephyr/revolute.signed.confirmed.bin build/revolute-ci-app/zephyr/revolutefirmware.bin
-      - name: Upload Firmware Artifact 📦
+
+      - name: 2. Save Firmware (Flash with debugger)📦
+        uses: actions/upload-artifact@v4
+        with:
+          name: RevoluteHex
+          path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.hex
+          compression-level: 0
+
+      - name: 3. Save OTA Update File (Flash with OTA)📦
         uses: actions/upload-artifact@v4
         with:
           name: RevoluteBin
@@ -81,47 +77,18 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Determine next version
-        id: version
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const latestRelease = await github.rest.repos.getLatestRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo
-            }).catch(() => null);
-
-            let newTag = "v0.0.1"; // Default if no releases exist
-            if (latestRelease && latestRelease.data.tag_name) {
-              const [major, minor, patch] = latestRelease.data.tag_name.replace(/^v/, '').split('.').map(Number);
-              newTag = `v${major}.${minor}.${patch + 1}`;
-            }
-
-            console.log(`New tag: ${newTag}`);
-            core.setOutput("new_tag", newTag);
-      
-      - name: Create and push tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git tag ${{ steps.version.outputs.new_tag }}
-          git push https://${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git ${{ steps.version.outputs.new_tag }}
-      
-      - name: Download Built Artifact
+      - name: ⬇️ Download RevoluteBin artifact
         uses: actions/download-artifact@v4
         with:
           name: RevoluteBin
-          path: release/
-      
-      - name: Create GitHub Release 📢
-        uses: softprops/action-gh-release@v1
+          path: artifacts
+
+      - name: 🚀 Create GitHub Release
+        uses: marvinpinto/action-automatic-releases@latest
         with:
-          files: release/revolutefirmware.bin
-          tag_name: ${{ steps.version.outputs.new_tag }}
-          release_name: "Release ${{ steps.version.outputs.new_tag }}"
-          body: "Automated release for firmware version ${{ steps.version.outputs.new_tag }}."
-          draft: false
-          prerelease: false
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "latest"
+          prerelease: true
+          title: "Development Build"
+          files: |
+            artifacts/revolutefirmware.bin
