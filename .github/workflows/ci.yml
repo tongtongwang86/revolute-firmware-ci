@@ -113,16 +113,9 @@ jobs:
           path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.hex
           compression-level: 0
 
-      - name: 3. Save OTA Update File (Flash with NrfConnect)📦
+      - name: 3. Save OTA Update File (Flash with OTA)📦
         uses: actions/upload-artifact@v4
         with:
           name: RevoluteBin
           path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.bin
-          compression-level: 0
-
-      - name: 4. Save OTA for RevoluteConfig 📦
-        uses: actions/upload-artifact@v4
-        with:
-          name: revoluteconfig
-          path: zephyr-workspace/build/revolute-ci-app/zephyr/firmware.revoluteconfig
           compression-level: 0
