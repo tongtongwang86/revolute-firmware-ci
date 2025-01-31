@@ -1,65 +1,65 @@
-#include <errno.h>
-#include <string.h>
+/*
+ * Copyright (c) 2016 Intel Corporation.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
+#include <sample_usbd.h>
 
 #include <zephyr/kernel.h>
-#include <zephyr/drivers/led_strip.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/spi.h>
-#include <zephyr/sys/util.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/usb/usb_device.h>
+#include <zephyr/usb/usbd.h>
+#include <zephyr/drivers/uart.h>
 
-#define STRIP_NODE DT_ALIAS(led_strip)
+BUILD_ASSERT(DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_console), zephyr_cdc_acm_uart),
+	     "Console device is not ACM CDC UART device");
 
-#if DT_NODE_HAS_PROP(DT_ALIAS(led_strip), chain_length)
-#define STRIP_NUM_PIXELS	DT_PROP(DT_ALIAS(led_strip), chain_length)
-#else
-#error Unable to determine length of LED strip
-#endif
+#if defined(CONFIG_USB_DEVICE_STACK_NEXT)
+static struct usbd_context *sample_usbd;
 
-#define DELAY_TIME K_MSEC(2000)
-
-#define RGB(_r, _g, _b) { .r = (_r), .g = (_g), .b = (_b) }
-
-static const struct led_rgb colors[] = {
-	RGB(0x0f, 0x00, 0x00), /* red */
-	RGB(0x00, 0x0f, 0x00), /* green */
-	RGB(0x00, 0x00, 0x0f), /* blue */
-};
-
-static struct led_rgb pixels[STRIP_NUM_PIXELS];
-
-static const struct device *const strip = DEVICE_DT_GET(STRIP_NODE);
-
-int main(void)
+static int enable_usb_device_next(void)
 {
-	size_t color = 0;
-	int rc;
+	int err;
 
-	if (device_is_ready(strip)) {
-		LOG_INF("Found LED strip device %s", strip->name);
-	} else {
-		LOG_ERR("LED strip device %s is not ready", strip->name);
-		return 0;
+	sample_usbd = sample_usbd_init_device(NULL);
+	if (sample_usbd == NULL) {
+		return -ENODEV;
 	}
 
-	LOG_INF("Displaying pattern on strip");
-	while (1) {
-		for (size_t cursor = 0; cursor < ARRAY_SIZE(pixels); cursor++) {
-			memset(&pixels, 0x00, sizeof(pixels));
-			memcpy(&pixels[cursor], &colors[color], sizeof(struct led_rgb));
-
-			rc = led_strip_update_rgb(strip, pixels, STRIP_NUM_PIXELS);
-			if (rc) {
-				LOG_ERR("couldn't update strip: %d", rc);
-			}
-
-			k_sleep(DELAY_TIME);
-		}
-
-		color = (color + 1) % ARRAY_SIZE(colors);
+	err = usbd_enable(sample_usbd);
+	if (err) {
+		return err;
 	}
 
 	return 0;
+}
+#endif /* defined(CONFIG_USB_DEVICE_STACK_NEXT) */
+
+int main(void)
+{
+	const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
+	uint32_t dtr = 0;
+
+#if defined(CONFIG_USB_DEVICE_STACK_NEXT)
+	if (enable_usb_device_next()) {
+		return 0;
+	}
+#else
+	if (usb_enable(NULL)) {
+		return 0;
+	}
+#endif
+
+	/* Poll if the DTR flag was set */
+	while (!dtr) {
+		uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
+		/* Give CPU resources to low priority threads. */
+		k_sleep(K_MSEC(100));
+	}
+
+	while (1) {
+		printk("Hello World! %s\n", CONFIG_ARCH);
+		k_sleep(K_SECONDS(1));
+	}
 }
