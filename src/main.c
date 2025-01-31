@@ -1,9 +1,8 @@
 #include <errno.h>
 #include <string.h>
 
-#define LOG_LEVEL 4
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(main);
+LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/led_strip.h>
