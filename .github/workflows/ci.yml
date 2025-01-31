@@ -3,7 +3,7 @@ on:
   pull_request:
   push:
     branches:
-      - main
+      - revopod
   # run on tag creation
 
 jobs:
@@ -80,60 +80,16 @@ jobs:
           cd zephyr-workspace
           ccache -z
           west build \
-              --board revolutewireless \
+              --board revopod \
               --pristine=always \
-              --sysbuild \
               revolute-ci-app \
               -- \
               -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/revolute-ci-app" 
           ccache -sv
           tree -L 4
-      - name: Rename Files
-        run: |
-          cd zephyr-workspace
-          mv build/revolute-ci-app/zephyr/revolute.signed.confirmed.hex build/revolute-ci-app/zephyr/revolutefirmware.hex
-          cp build/revolute-ci-app/zephyr/revolute.signed.confirmed.bin build/revolute-ci-app/zephyr/firmware.revoluteconfig
-          mv build/revolute-ci-app/zephyr/revolute.signed.confirmed.bin build/revolute-ci-app/zephyr/revolutefirmware.bin
       - name: 1. Save Bootloader (Erase and flash with debugger)📦
         uses: actions/upload-artifact@v4
         with:
           name: Bootloader
-          path: zephyr-workspace/build/mcuboot/zephyr/Bootloader.hex
+          path: zephyr-workspace/build/zephyr/zephyr.hex
           compression-level: 0
-
-      - name: 2. Save Firmware (Flash with debugger)📦
-        uses: actions/upload-artifact@v4
-        with:
-          name: RevoluteHex
-          path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.hex
-          compression-level: 0
-
-      - name: 3. Save OTA Update File (Flash with OTA)📦
-        uses: actions/upload-artifact@v4
-        with:
-          name: RevoluteBin
-          path: zephyr-workspace/build/revolute-ci-app/zephyr/revolutefirmware.bin
-          compression-level: 0
-          
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: ⬇️ Download RevoluteBin artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: RevoluteBin
-          path: artifacts
-
-      - name: 🏷 Set Release Tag
-        run: echo "TAG_NAME=OTA-Development-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
-
-      - name: 🚀 Create GitHub Release
-        uses: marvinpinto/action-automatic-releases@latest
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "${{ env.TAG_NAME }}"
-          prerelease: true
-          title: "Revolute OTA Firmware"
-          files: |
-            artifacts/revolutefirmware.bin
