@@ -87,9 +87,9 @@ jobs:
               -DBOARD_ROOT="/home/runner/work/revolute-firmware-ci/revolute-firmware-ci/zephyr-workspace/revolute-ci-app" 
           ccache -sv
           tree -L 4
-      - name: 1. Save Bootloader (Erase and flash with debugger)📦
+      - name: 1. Save Firmware (Erase and flash with debugger)📦
         uses: actions/upload-artifact@v4
         with:
-          name: Bootloader
+          name: PodFirmware
           path: zephyr-workspace/build/zephyr/zephyr.hex
           compression-level: 0
