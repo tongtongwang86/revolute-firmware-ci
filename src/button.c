@@ -41,7 +41,7 @@ void handle_button_event(enum button_event event) {
         LOG_INF("Triple Click detected!");
 
         zmk_ble_clear_all_bonds();
-        target_state = STATE_PAIRING;
+        // target_state = STATE_PAIRING;
         break;
     case BUTTON_LONG_HOLD:
         LOG_INF("Long Hold detected!");

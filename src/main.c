@@ -34,14 +34,14 @@ int main(void)
   
     
 
-    // batteryThreadinit();
+    batteryThreadinit();
     rev_svc_thread_init();
     button_init();
     // LOG_INF("rev_svc_loop thread started\n");
 
 
 
-    // SensorThreadinit();
+    SensorThreadinit();
 
 
 	 err = pwmled_init();

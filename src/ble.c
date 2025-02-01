@@ -194,21 +194,26 @@ int update_advertising(void) {
     case ZMK_ADV_NONE + CURR_ADV(ZMK_ADV_DIR):
     case ZMK_ADV_NONE + CURR_ADV(ZMK_ADV_CONN):
         CHECKED_ADV_STOP();
+        target_state = STATE_CONNECTED;
         break;
     case ZMK_ADV_DIR + CURR_ADV(ZMK_ADV_DIR):
     case ZMK_ADV_DIR + CURR_ADV(ZMK_ADV_CONN):
         CHECKED_ADV_STOP();
         CHECKED_DIR_ADV();
+        target_state = STATE_PAIRING;
         break;
     case ZMK_ADV_DIR + CURR_ADV(ZMK_ADV_NONE):
         CHECKED_DIR_ADV();
+        target_state = STATE_PAIRING;
         break;
     case ZMK_ADV_CONN + CURR_ADV(ZMK_ADV_DIR):
         CHECKED_ADV_STOP();
         CHECKED_OPEN_ADV();
+        target_state = STATE_ADVERTISEMENT;
         break;
     case ZMK_ADV_CONN + CURR_ADV(ZMK_ADV_NONE):
         CHECKED_OPEN_ADV();
+        target_state = STATE_ADVERTISEMENT;
         break;
     }
 
@@ -446,6 +451,7 @@ static void connected(struct bt_conn *conn, uint8_t err) {
 
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
     advertising_status = ZMK_ADV_NONE;
+    
 
     if (err) {
         LOG_WRN("Failed to connect to %s (%u)", addr, err);
@@ -454,7 +460,7 @@ static void connected(struct bt_conn *conn, uint8_t err) {
     }
 
     LOG_DBG("Connected %s", addr);
-
+    target_state = STATE_CONNECTED;
     update_advertising();
 
     if (is_conn_active_profile(conn)) {
