@@ -40,7 +40,7 @@ void handle_button_event(enum button_event event) {
     case BUTTON_TRIPLE_CLICK:
         LOG_INF("Triple Click detected!");
 
-        bluetooth_pair();
+        zmk_ble_clear_all_bonds();
         target_state = STATE_PAIRING;
         break;
     case BUTTON_LONG_HOLD:

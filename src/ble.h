@@ -1,65 +1,43 @@
 #ifndef BLE_H
 #define BLE_H
 
-#include <zephyr/kernel.h>
-#include <stdio.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/bluetooth/gatt.h>
-#include <zephyr/logging/log.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/settings/settings.h>
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/bluetooth/conn.h>
-#include <zephyr/bluetooth/uuid.h>
-#include <zephyr/bluetooth/gatt.h>
-#include "power.h"
+#include <zephyr/bluetooth/addr.h>
 
-#define BT_LE_ADV_CONN_NO_ACCEPT_LIST                                                              \
-	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME,                        \
-			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
+#define ZMK_BLE_PROFILE_NAME_MAX 15
 
-#define BT_LE_ADV_CONN_ACCEPT_LIST                                                                 \
-	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_FILTER_CONN |                    \
-				BT_LE_ADV_OPT_ONE_TIME,                                            \
-			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
-
-static int bond_count;
-
-static struct bt_le_adv_param adv_param;
-
-
-static struct bt_le_adv_param *adv_param_normal = BT_LE_ADV_PARAM(
-	(BT_LE_ADV_OPT_CONN), /* Connectable advertising and use identity address */
-	BT_GAP_ADV_FAST_INT_MIN_1,                          /* Min Advertising Interval 500ms (800*0.625ms) */
-	BT_GAP_ADV_FAST_INT_MAX_1,                          /* Max Advertising Interval 500.625ms (801*0.625ms) */
-	NULL);                        /* Set to NULL for undirected advertising */
-
-static bt_addr_le_t bond_addr;
-
-static struct bt_le_adv_param *adv_param_directed = BT_LE_ADV_CONN_DIR_LOW_DUTY(&bond_addr);
-
-
-
-
-/* Vendor Primary Service Declaration */
-
-static const struct bt_data ad[] = {
-	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
-	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-	BT_DATA_BYTES(BT_DATA_UUID16_ALL,
-		      BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),
-		      BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)),
+struct zmk_ble_profile {
+    char name[ZMK_BLE_PROFILE_NAME_MAX];
+    bt_addr_le_t peer;
 };
 
-static const struct bt_data sd[] = {
-	BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_128_ENCODE(0x00001523, 0x1212, 0xefde, 0x1523, 0x785feabcd133)),
+struct zmk_ble_active_profile_changed {
+    uint8_t index;
+    struct zmk_ble_profile *profile;
 };
 
-void bluetooth_init(void);
+#define ZMK_BLE_PROFILE_COUNT CONFIG_BT_MAX_PAIRED
 
-void bluetooth_pair(void);
+void zmk_ble_clear_bonds(void);
+int zmk_ble_prof_next(void);
+int zmk_ble_prof_prev(void);
+int zmk_ble_prof_select(uint8_t index);
+void zmk_ble_clear_all_bonds(void);
+int zmk_ble_prof_disconnect(uint8_t index);
 
-void disable_bluetooth(void);
+int zmk_ble_active_profile_index(void);
+int zmk_ble_profile_index(const bt_addr_le_t *addr);
+
+bt_addr_le_t *zmk_ble_active_profile_addr(void);
+struct bt_conn *zmk_ble_active_profile_conn(void);
+
+bool zmk_ble_active_profile_is_open(void);
+bool zmk_ble_active_profile_is_connected(void);
+char *zmk_ble_active_profile_name(void);
+
+int zmk_ble_unpair_all(void);
+
+int zmk_ble_set_device_name(char *name);
+
+int zmk_ble_init(void);
 
 #endif // BLE_H

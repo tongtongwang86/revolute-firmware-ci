@@ -4,6 +4,7 @@
 #include <zephyr/pm/policy.h>
 #include <zephyr/pm/state.h>
 #include <zephyr/pm/device.h>
+#include <zephyr/settings/settings.h>
 #include "hog.h"
 #include "revsvc.h"
 #include "batterylvl.h"
@@ -19,21 +20,31 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 int main(void)
 {
 
+    k_sleep(K_SECONDS(2));
+    
+    LOG_INF("Revooolluuuteee!\n");
 
-    bluetooth_init();
+    int err = zmk_ble_init();
+    if (err < 0) {
+        LOG_ERR("bluetooth init failed (err %d)", err);
+        return err;
+    }
+    LOG_INF("bluetooth inited\n");
 
-    LOG_INF("rev_svc_loop thread started\n");
+  
+    
 
-    batteryThreadinit();
+    // batteryThreadinit();
     rev_svc_thread_init();
     button_init();
+    // LOG_INF("rev_svc_loop thread started\n");
 
 
 
-    SensorThreadinit();
+    // SensorThreadinit();
 
 
-	int err = pwmled_init();
+	 err = pwmled_init();
     if (err < 0) {
         LOG_ERR("LED initialization failed (err %d)", err);
         return err;
