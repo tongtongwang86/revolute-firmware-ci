@@ -31,8 +31,6 @@ int main(void)
     }
     LOG_INF("bluetooth inited\n");
 
-  
-    
 
     batteryThreadinit();
     rev_svc_thread_init();

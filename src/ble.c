@@ -1,9 +1,3 @@
-/*
- * Copyright (c) 2020 The ZMK Contributors
- *
- * SPDX-License-Identifier: MIT
- */
-
 #include <zephyr/device.h>
 #include <zephyr/init.h>
 
@@ -20,41 +14,22 @@
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/bluetooth/hci_types.h>
-
-
-
 #include <zephyr/kernel.h>
-#include <stdio.h>
 #include <zephyr/sys/printk.h>
-#include <zephyr/bluetooth/gatt.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/settings/settings.h>
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/bluetooth/conn.h>
-#include <zephyr/bluetooth/uuid.h>
-#include <zephyr/bluetooth/gatt.h>
-#include "power.h"
 
+#include "power.h"
+#include <ble.h>
 
 #if IS_ENABLED(CONFIG_SETTINGS)
-
 #include <zephyr/settings/settings.h>
-
 #endif
-
-#include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(ble, LOG_LEVEL_DBG);
 
+
 #include <ble.h>
-// #include <zmk/keys.h>
-// #include <zmk/split/bluetooth/uuid.h>
-// #include <zmk/event_manager.h>
-// #include <zmk/events/ble_active_profile_changed.h>
-
-
 
 enum advertising_type {
     ZMK_ADV_NONE,
@@ -78,7 +53,7 @@ static uint8_t active_profile;
 BUILD_ASSERT(DEVICE_NAME_LEN <= 16, "ERROR: BLE device name is too long. Max length: 16");
 
 static struct bt_data zmk_ble_ad[] = {
-    BT_DATA_BYTES(BT_DATA_GAP_APPEARANCE, 0xC1, 0x03),
+    BT_DATA_BYTES(BT_DATA_GAP_APPEARANCE, 0xCD, 0x04),
     BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
     BT_DATA_BYTES(BT_DATA_UUID16_SOME, 0x12, 0x18, /* HID Service */
                   0x0f, 0x18                       /* Battery Service */
@@ -144,7 +119,8 @@ bool zmk_ble_active_profile_is_connected(void) {
     if (err) {                                                                                     \
         LOG_ERR("Failed to stop advertising (err %d)", err);                                       \
         return err;                                                                                \
-    }
+    }                                                          \
+    target_state = STATE_CONNECTED;
 
 #define CHECKED_DIR_ADV()                                                                          \
     addr = zmk_ble_active_profile_addr();                                                          \
@@ -160,7 +136,8 @@ bool zmk_ble_active_profile_is_connected(void) {
         LOG_ERR("Advertising failed to start (err %d)", err);                                      \
         return err;                                                                                \
     }                                                                                              \
-    advertising_status = ZMK_ADV_DIR;
+    advertising_status = ZMK_ADV_DIR;                                                             
+    
 
 #define CHECKED_OPEN_ADV()                                                                         \
     err = bt_le_adv_start(ZMK_ADV_CONN_NAME, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), rev_ble_sd, ARRAY_SIZE(rev_ble_sd));         \
@@ -168,7 +145,8 @@ bool zmk_ble_active_profile_is_connected(void) {
         LOG_ERR("Advertising failed to start (err %d)", err);                                      \
         return err;                                                                                \
     }                                                                                              \
-    advertising_status = ZMK_ADV_CONN;
+    advertising_status = ZMK_ADV_CONN;                                                             
+    
 
 int update_advertising(void) {
     int err = 0;
@@ -178,8 +156,10 @@ int update_advertising(void) {
 
     if (zmk_ble_active_profile_is_open()) {
         desired_adv = ZMK_ADV_CONN;
+        target_state = STATE_PAIRING;
     } else if (!zmk_ble_active_profile_is_connected()) {
         desired_adv = ZMK_ADV_CONN;
+        target_state = STATE_ADVERTISEMENT;
         // Need to fix directed advertising for privacy centrals. See
         // https://github.com/zephyrproject-rtos/zephyr/pull/14984 char
         // addr_str[BT_ADDR_LE_STR_LEN]; bt_addr_le_to_str(zmk_ble_active_profile_addr(), addr_str,
@@ -200,20 +180,17 @@ int update_advertising(void) {
     case ZMK_ADV_DIR + CURR_ADV(ZMK_ADV_CONN):
         CHECKED_ADV_STOP();
         CHECKED_DIR_ADV();
-        target_state = STATE_PAIRING;
         break;
     case ZMK_ADV_DIR + CURR_ADV(ZMK_ADV_NONE):
         CHECKED_DIR_ADV();
-        target_state = STATE_PAIRING;
         break;
     case ZMK_ADV_CONN + CURR_ADV(ZMK_ADV_DIR):
         CHECKED_ADV_STOP();
         CHECKED_OPEN_ADV();
-        target_state = STATE_ADVERTISEMENT;
         break;
     case ZMK_ADV_CONN + CURR_ADV(ZMK_ADV_NONE):
         CHECKED_OPEN_ADV();
-        target_state = STATE_ADVERTISEMENT;
+        target_state = STATE_CONNECTED;
         break;
     }
 
@@ -534,9 +511,7 @@ static void auth_cancel(struct bt_conn *conn) {
 }
 
 static bool pairing_allowed_for_current_profile(struct bt_conn *conn) {
-    return zmk_ble_active_profile_is_open() ||
-           (IS_ENABLED(CONFIG_BT_SMP_ALLOW_UNAUTH_OVERWRITE) &&
-            bt_addr_le_cmp(zmk_ble_active_profile_addr(), bt_conn_get_dst(conn)) == 0);
+    return zmk_ble_active_profile_is_open() || (IS_ENABLED(CONFIG_BT_SMP_ALLOW_UNAUTH_OVERWRITE) && bt_addr_le_cmp(zmk_ble_active_profile_addr(), bt_conn_get_dst(conn)) == 0);
 }
 
 static enum bt_security_err auth_pairing_accept(struct bt_conn *conn,
