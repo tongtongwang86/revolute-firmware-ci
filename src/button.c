@@ -29,7 +29,12 @@ void handle_button_event(enum button_event event) {
     switch (event) {
     case BUTTON_SINGLE_CLICK:
         LOG_INF("Single Click detected!");
-      
+
+        int err = zmk_ble_set_device_name("newname");
+        if (err < 0) {
+            LOG_ERR("Failed to set device name (err %d)", err);
+        }
+
         break;
     case BUTTON_DOUBLE_CLICK:
         LOG_INF("Double Click detected!");

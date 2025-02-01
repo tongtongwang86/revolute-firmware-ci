@@ -19,8 +19,6 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 int main(void)
 {
-
-    k_sleep(K_SECONDS(2));
     
     LOG_INF("Revooolluuuteee!\n");
 
@@ -36,7 +34,6 @@ int main(void)
     rev_svc_thread_init();
     button_init();
     // LOG_INF("rev_svc_loop thread started\n");
-
 
 
     SensorThreadinit();
