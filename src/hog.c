@@ -159,9 +159,9 @@ BT_GATT_SERVICE_DEFINE(hog_svc,
                            NULL, write_ctrl_point, &ctrl_point),
 );
 
-void hog_init(void)
-{
-}
+
+
+
 
 static void send_mouse_button_1(struct k_work *work)
 {

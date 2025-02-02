@@ -28,7 +28,7 @@ extern struct k_sem stats_notification_sem;
 
 #define REV_WRITENAME_UUID   BT_UUID_DECLARE_128(0x00001527, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
 
-// Define the dummy data structure
+// Define the config data structure
 typedef struct {
     uint8_t deadzone;
     uint8_t up_report[8];

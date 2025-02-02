@@ -3,8 +3,8 @@
 #include "hog.h"
 
 LOG_MODULE_REGISTER(spin, LOG_LEVEL_DBG);
-static struct k_thread print_thread_data;
-static K_THREAD_STACK_DEFINE(print_stack, THREAD_STACK_SIZE);
+static struct k_thread magnetic_thread_data;
+static K_THREAD_STACK_DEFINE(magnetic_stack, THREAD_STACK_SIZE);
 
 uint16_t angle = 0;
 
@@ -29,6 +29,22 @@ int as5600_refresh(const struct device *dev)
 
     return degrees;
 }
+
+bool is_discrete(uint8_t transport, uint8_t report[8]) {
+    switch (transport) {
+        case 5: // keyboard
+        case 9: // consumer
+            return true;
+
+        case 13: // mouse
+            // Check if byte 2 or 3 of the report (index 1 or 2 in C) is nonzero
+            return (report[1] == 0 || report[2] == 0);
+
+        default:
+            return true; // If transport type is unknown, assume discrete
+    }
+}
+
 
 int predictive_update(double new_degree)
 {
@@ -82,10 +98,10 @@ int predictive_update(double new_degree)
 
 
 // Thread entry point
-static void print_thread(void *unused1, void *unused2, void *unused3)
+static void magnetic_thread(void *unused1, void *unused2, void *unused3)
 {
 
-    LOG_INF("Print thread started");
+    LOG_INF("magnetic thread started");
 
     const struct device *const as = DEVICE_DT_GET(DT_INST(0, ams_as5600));
 
@@ -103,49 +119,86 @@ static void print_thread(void *unused1, void *unused2, void *unused3)
 
     while (1) {
         new_degree = as5600_refresh(as);
-
-        int degrees = (int)new_degree;
-        angle = degrees;
         int current_position = predictive_update(new_degree);
         change = (last_position - current_position);
+        angle = (int)new_degree;
 
- int DegreesPerIdent = 360/config.up_identPerRev;
-    int adjustedDegrees = degrees + (DegreesPerIdent / 2) + IDENT_OFFSET;
-    int CurrentIdent = (adjustedDegrees - (adjustedDegrees % DegreesPerIdent)) / DegreesPerIdent;
+
+        if (change > 0)      // clock wise
+            {
+            if (is_discrete(config.up_transport, config.up_report))
+                {
+
+        int degrees = (int)new_degree;
+        int DegreesPerIdent = 360/config.up_identPerRev;
+        int adjustedDegrees = degrees + (DegreesPerIdent / 2) + IDENT_OFFSET;
+        int CurrentIdent = (adjustedDegrees - (adjustedDegrees % DegreesPerIdent)) / DegreesPerIdent;
+
+
+            if (last_ident != CurrentIdent && CurrentIdent != config.up_identPerRev)
+            {   
+                LOG_INF("tick cw");
+                last_ident = CurrentIdent;
+            }
+
+                }else{// handle continuous
+
+
+
+
+                }
+
+
+
+
+
+            last_position = current_position;
+            }
+            else if (change < 0)  // counter clock wise
+            {
+            if (is_discrete(config.dn_transport, config.dn_report))
+                {
+        int degrees = (int)new_degree;
+        int DegreesPerIdent = 360/config.up_identPerRev;
+        int adjustedDegrees = degrees + (DegreesPerIdent / 2) + IDENT_OFFSET;
+        int CurrentIdent = (adjustedDegrees - (adjustedDegrees % DegreesPerIdent)) / DegreesPerIdent;
 
 
             if (last_ident != CurrentIdent && CurrentIdent != config.up_identPerRev)
             {
-
-
-                if (change > 0)
-                {
-                    // clock wise
-                    // LOG_INF("tick cw");
-
-                    // hog_send_mouse_button_1();
-                    
-
-                    last_position = current_position;
-                }
-                else if (change < 0)
-                {
-                    // LOG_INF("tick ccw");
-                //   hog_send_mouse_button_1();
-
-                    last_position = current_position;
-                }
-                else
-                {
-                    // below dead zone
-                }
-
+                // tick
+                LOG_INF("tick ccw");
                 last_ident = CurrentIdent;
             }
+
+                }else{// handle continuous
+
+
+
+
+                }
+
+
+
+
+            last_position = current_position;
+            }
+            else
+            {
+                // below dead zone
+            }
+
+
+
+
+
+
+
+
+
+
+
         
-
-
-
     }
 }
 
@@ -155,8 +208,8 @@ static void print_thread(void *unused1, void *unused2, void *unused3)
 void SensorThreadinit(void)
 {
     // Start the print thread
-    k_thread_create(&print_thread_data, print_stack, K_THREAD_STACK_SIZEOF(print_stack),
-                    print_thread, NULL, NULL, NULL,
+    k_thread_create(&magnetic_thread_data, magnetic_stack, K_THREAD_STACK_SIZEOF(magnetic_stack),
+                    magnetic_thread, NULL, NULL, NULL,
                     THREAD_PRIORITY, 0, K_NO_WAIT);
 
     return 0;

@@ -25,5 +25,7 @@ static int deviceMode;
 
 extern uint16_t angle;
 
+extern int change;
+
 void SensorThreadinit(void);
 #endif //MAGNETIC
