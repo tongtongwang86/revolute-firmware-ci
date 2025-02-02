@@ -23,5 +23,7 @@ static double dead_zone;
 static int numIdents;     
 static int deviceMode;
 
+extern uint16_t angle;
+
 void SensorThreadinit(void);
 #endif //MAGNETIC

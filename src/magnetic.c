@@ -6,6 +6,7 @@ LOG_MODULE_REGISTER(spin, LOG_LEVEL_DBG);
 static struct k_thread print_thread_data;
 static K_THREAD_STACK_DEFINE(print_stack, THREAD_STACK_SIZE);
 
+uint16_t angle = 0;
 
 int as5600_refresh(const struct device *dev)
 {
@@ -99,11 +100,12 @@ static void print_thread(void *unused1, void *unused2, void *unused3)
     int last_report_time = k_cycle_get_32();
     int change = 0;
     int last_ident = (as5600_refresh(as) - (as5600_refresh(as) % config.up_identPerRev)) / config.up_identPerRev;
-    int8_t cappedValue;
+
     while (1) {
         new_degree = as5600_refresh(as);
 
         int degrees = (int)new_degree;
+        angle = degrees;
         int current_position = predictive_update(new_degree);
         change = (last_position - current_position);
 

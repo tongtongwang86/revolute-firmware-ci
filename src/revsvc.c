@@ -1,6 +1,7 @@
 #include "revsvc.h"
 #include "settings.h"
 #include "ble.h"
+#include "magnetic.h"
 
 LOG_MODULE_REGISTER(RevSVC, LOG_LEVEL_DBG);
 
@@ -100,7 +101,7 @@ void generate_clock_based_stats_data(rev_stats_t *stats) {
     memcpy(&stats->quat_data[3], &k, sizeof(float));
 
     // Generate a rotation value based on uptime
-    stats->rotation_value = (uptime_ms / 10) % 360; // Cycles between 0 and 359
+    stats->rotation_value = angle; // Cycles between 0 and 359
 }
 
 
