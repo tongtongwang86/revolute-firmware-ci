@@ -19,6 +19,7 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 int main(void)
 {
+    settings_subsys_init();
     
     LOG_INF("Revooolluuuteee!\n");
 

@@ -116,15 +116,16 @@ bool zmk_ble_active_profile_is_connected(void) {
 #define CHECKED_ADV_STOP()                                                                         \
     err = bt_le_adv_stop();                                                                        \
     advertising_status = ZMK_ADV_NONE;                                                             \
+    LOG_DBG("advertising stopped");                                                                \
     if (err) {                                                                                     \
         LOG_ERR("Failed to stop advertising (err %d)", err);                                       \
         return err;                                                                                \
-    }                                                          \
-    target_state = STATE_CONNECTED;
+    }                                                          
 
 #define CHECKED_DIR_ADV()                                                                          \
     addr = zmk_ble_active_profile_addr();                                                          \
     conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT, addr);                                            \
+    LOG_DBG("Directed advertising to %s", bt_addr_le_str(addr));                                   \
     if (conn != NULL) { /* TODO: Check status of connection */                                     \
         LOG_DBG("Skipping advertising, profile host is already connected");                        \
         bt_conn_unref(conn);                                                                       \
@@ -141,6 +142,8 @@ bool zmk_ble_active_profile_is_connected(void) {
 
 #define CHECKED_OPEN_ADV()                                                                         \
     err = bt_le_adv_start(ZMK_ADV_CONN_NAME, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), rev_ble_sd, ARRAY_SIZE(rev_ble_sd));         \
+    LOG_DBG("Advertising open");                                                                   \
+    target_state = STATE_ADVERTISEMENT;                                                            \
     if (err) {                                                                                     \
         LOG_ERR("Advertising failed to start (err %d)", err);                                      \
         return err;                                                                                \
@@ -156,10 +159,8 @@ int update_advertising(void) {
 
     if (zmk_ble_active_profile_is_open()) {
         desired_adv = ZMK_ADV_CONN;
-        target_state = STATE_PAIRING;
     } else if (!zmk_ble_active_profile_is_connected()) {
         desired_adv = ZMK_ADV_CONN;
-        target_state = STATE_ADVERTISEMENT;
         // Need to fix directed advertising for privacy centrals. See
         // https://github.com/zephyrproject-rtos/zephyr/pull/14984 char
         // addr_str[BT_ADDR_LE_STR_LEN]; bt_addr_le_to_str(zmk_ble_active_profile_addr(), addr_str,
@@ -171,10 +172,12 @@ int update_advertising(void) {
     LOG_DBG("advertising from %d to %d", advertising_status, desired_adv);
 
     switch (desired_adv + CURR_ADV(advertising_status)) {
+    case ZMK_ADV_NONE + CURR_ADV(ZMK_ADV_NONE):
+        target_state = STATE_CONNECTED;
+        break;
     case ZMK_ADV_NONE + CURR_ADV(ZMK_ADV_DIR):
     case ZMK_ADV_NONE + CURR_ADV(ZMK_ADV_CONN):
         CHECKED_ADV_STOP();
-        target_state = STATE_CONNECTED;
         break;
     case ZMK_ADV_DIR + CURR_ADV(ZMK_ADV_DIR):
     case ZMK_ADV_DIR + CURR_ADV(ZMK_ADV_CONN):
@@ -190,7 +193,6 @@ int update_advertising(void) {
         break;
     case ZMK_ADV_CONN + CURR_ADV(ZMK_ADV_NONE):
         CHECKED_OPEN_ADV();
-        target_state = STATE_CONNECTED;
         break;
     }
 
@@ -437,7 +439,7 @@ static void connected(struct bt_conn *conn, uint8_t err) {
     }
 
     LOG_DBG("Connected %s", addr);
-    target_state = STATE_CONNECTED;
+
     update_advertising();
 
     if (is_conn_active_profile(conn)) {
@@ -453,7 +455,6 @@ static void disconnected(struct bt_conn *conn, uint8_t reason) {
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
     LOG_DBG("Disconnected from %s (reason 0x%02x)", addr, reason);
-
     bt_conn_get_info(conn, &info);
 
     if (info.role != BT_CONN_ROLE_PERIPHERAL) {
@@ -616,7 +617,6 @@ int zmk_ble_init(void) {
         LOG_ERR("BLUETOOTH FAILED (%d)", err);
         return err;
     }
-    settings_subsys_init();
     settings_load();
     LOG_DBG("bluetooth init");
 #if IS_ENABLED(CONFIG_SETTINGS)

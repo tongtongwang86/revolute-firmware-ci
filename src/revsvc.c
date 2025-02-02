@@ -1,5 +1,6 @@
 #include "revsvc.h"
 #include "settings.h"
+#include "ble.h"
 
 LOG_MODULE_REGISTER(RevSVC, LOG_LEVEL_DBG);
 
@@ -102,6 +103,29 @@ void generate_clock_based_stats_data(rev_stats_t *stats) {
     stats->rotation_value = (uptime_ms / 10) % 360; // Cycles between 0 and 359
 }
 
+
+static ssize_t write_callback_name(struct bt_conn *conn,
+                                   const struct bt_gatt_attr *attr,
+                                   const void *buf, uint16_t len, uint16_t offset, uint8_t flags) {
+    char name_buf[32]; // Ensure enough space for device name
+    if (len >= sizeof(name_buf)) {
+        return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
+    }
+    
+    memcpy(name_buf, buf, len);
+    name_buf[len] = '\0'; // Null-terminate the string
+    
+    int err = zmk_ble_set_device_name(name_buf);
+    if (err < 0) {
+        LOG_ERR("Failed to set device name (err %d)", err);
+        return err;
+    }
+    
+    LOG_INF("Device name set to: %s", name_buf);
+    return len;
+}
+
+
 // Define the GATT service and characteristics
 BT_GATT_SERVICE_DEFINE(rev_svc,
     BT_GATT_PRIMARY_SERVICE(REV_SVC_UUID),
@@ -116,6 +140,11 @@ BT_GATT_SERVICE_DEFINE(rev_svc,
                            BT_GATT_PERM_READ_ENCRYPT, NULL, NULL, NULL),
 
     BT_GATT_CCC(rev_ccc_stats_cfg_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
+
+    BT_GATT_CHARACTERISTIC(REV_WRITENAME_UUID, BT_GATT_CHRC_WRITE,
+                           BT_GATT_PERM_WRITE_ENCRYPT, NULL, write_callback_name, NULL),
+
+
 );
 
 

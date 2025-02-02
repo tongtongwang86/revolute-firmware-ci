@@ -16,7 +16,7 @@ static struct k_thread pwmled_thread_data;
 static K_THREAD_STACK_DEFINE(pwmled_stack, PWMLED_STACK_SIZE);
 
 // Define current and target LED state
-static led_state_t current_state = STATE_ADVERTISEMENT;
+static led_state_t current_state = STATE_PAIRING;
 
 static uint32_t pulse_width = 0;  // Track the current LED brightness
 
