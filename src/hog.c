@@ -1,19 +1,94 @@
-/** @file
- *  @brief HoG Service sample
- */
-
-/*
- * Copyright (c) 2016 Intel Corporation
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
-
 #include "hog.h"
+#include "revsvc.h"
+#include "magnetic.h"
+// #include "hid_usage.h"
+// #include "hid_usage_pages.h"
+
+LOG_MODULE_REGISTER(hog, LOG_LEVEL_DBG);
+
+#define REPORT_ID_KEYBOARD 1
+#define REPORT_ID_CONSUMER 2
+#define REPORT_ID_MOUSE 3
+#define REPORT_ID_CONTROLLER 4
+#define REVOLUTE_MSGQ_ARRAY_SIZE 32
+
+#define ZMK_HID_REPORT_ID_KEYBOARD 0x01
+#define ZMK_HID_REPORT_ID_LEDS 0x01
+#define ZMK_HID_REPORT_ID_CONSUMER 0x02
+#define ZMK_HID_REPORT_ID_MOUSE 0x03
+#define ZMK_HID_REPORT_ID_CONTROLLER 0x04
+
+
+#define ZMK_HID_MAIN_VAL_DATA (0x00 << 0)
+#define ZMK_HID_MAIN_VAL_CONST (0x01 << 0)
+
+#define ZMK_HID_MAIN_VAL_ARRAY (0x00 << 1)
+#define ZMK_HID_MAIN_VAL_VAR (0x01 << 1)
+
+#define ZMK_HID_MAIN_VAL_ABS (0x00 << 2)
+#define ZMK_HID_MAIN_VAL_REL (0x01 << 2)
+
+#define ZMK_HID_MAIN_VAL_NO_WRAP (0x00 << 3)
+#define ZMK_HID_MAIN_VAL_WRAP (0x01 << 3)
+
+#define ZMK_HID_MAIN_VAL_LIN (0x00 << 4)
+#define ZMK_HID_MAIN_VAL_NON_LIN (0x01 << 4)
+
+#define ZMK_HID_MAIN_VAL_PREFERRED (0x00 << 5)
+#define ZMK_HID_MAIN_VAL_NO_PREFERRED (0x01 << 5)
+
+#define ZMK_HID_MAIN_VAL_NO_NULL (0x00 << 6)
+#define ZMK_HID_MAIN_VAL_NULL (0x01 << 6)
+
+#define ZMK_HID_MAIN_VAL_NON_VOL (0x00 << 7)
+#define ZMK_HID_MAIN_VAL_VOL (0x01 << 7)
+
+#define ZMK_HID_MAIN_VAL_BIT_FIELD (0x00 << 8)
+#define ZMK_HID_MAIN_VAL_BUFFERED_BYTES (0x01 << 8)
 
 enum {
-    HIDS_REMOTE_WAKE = BIT(0),
-    HIDS_NORMALLY_CONNECTABLE = BIT(1),
+    HIDS_INPUT = 0x01,
+    HIDS_OUTPUT = 0x02,
+    HIDS_FEATURE = 0x03,
+};
+
+static uint8_t input_report[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+enum {
+    BT_HIDS_REMOTE_WAKE = BIT(0),
+    BT_HIDS_NORMALLY_CONNECTABLE = BIT(1),
+};
+
+struct hid_revolute_report_body {
+    int id;
+    uint8_t report[8];
+} __packed;
+
+struct hids_report
+{
+    uint8_t id;   /* report id */
+    uint8_t type; /* report type */
+} __packed;
+
+static const struct hids_report input = {
+    .id = REPORT_ID_KEYBOARD,
+    .type = HIDS_INPUT,
+};
+
+
+static const struct hids_report consumer_input = {
+    .id = REPORT_ID_CONSUMER,
+    .type = HIDS_INPUT,
+};
+
+static const struct hids_report mouse_input = {
+    .id = REPORT_ID_MOUSE,
+    .type = HIDS_INPUT,
+};
+
+static const struct hids_report controller_input = {
+    .id = REPORT_ID_CONTROLLER,
+    .type = HIDS_INPUT,
 };
 
 struct hids_info {
@@ -22,195 +97,320 @@ struct hids_info {
     uint8_t flags;
 } __packed;
 
-struct hids_report {
-    uint8_t id;   /* report id */
-    uint8_t type; /* report type */
-} __packed;
-
 static struct hids_info info = {
-    .version = 0x0000,
+    .version = 0x0111,
     .code = 0x00,
-    .flags = HIDS_NORMALLY_CONNECTABLE,
+    .flags = BT_HIDS_REMOTE_WAKE | BT_HIDS_NORMALLY_CONNECTABLE,
 };
 
-enum {
-    HIDS_INPUT = 0x01,
-    HIDS_OUTPUT = 0x02,
-    HIDS_FEATURE = 0x03,
-};
 
-static struct hids_report input = {
-    .id = 0x01,
-    .type = HIDS_INPUT,
-};
 
 static uint8_t simulate_input;
 static uint8_t ctrl_point;
 static uint8_t report_map[] = {
-    0x05, 0x01, /* Usage Page (Generic Desktop Ctrls) */
-    0x09, 0x02, /* Usage (Mouse) */
-    0xA1, 0x01, /* Collection (Application) */
-    0x85, 0x01, /*   Report Id (1) */
-    0x09, 0x01, /*   Usage (Pointer) */
-    0xA1, 0x00, /*   Collection (Physical) */
-    0x05, 0x09, /*     Usage Page (Button) */
-    0x19, 0x01, /*     Usage Minimum (0x01) */
-    0x29, 0x03, /*     Usage Maximum (0x03) */
-    0x15, 0x00, /*     Logical Minimum (0) */
-    0x25, 0x01, /*     Logical Maximum (1) */
-    0x95, 0x03, /*     Report Count (3) */
-    0x75, 0x01, /*     Report Size (1) */
-    0x81, 0x02, /*     Input (Data,Var,Abs,No Wrap,Linear,...) */
-    0x95, 0x01, /*     Report Count (1) */
-    0x75, 0x05, /*     Report Size (5) */
-    0x81, 0x03, /*     Input (Const,Var,Abs,No Wrap,Linear,...) */
-    0x05, 0x01, /*     Usage Page (Generic Desktop Ctrls) */
-    0x09, 0x30, /*     Usage (X) */
-    0x09, 0x31, /*     Usage (Y) */
-    0x15, 0x81, /*     Logical Minimum (129) */
-    0x25, 0x7F, /*     Logical Maximum (127) */
-    0x75, 0x08, /*     Report Size (8) */
-    0x95, 0x02, /*     Report Count (2) */
-    0x81, 0x06, /*     Input (Data,Var,Rel,No Wrap,Linear,...) */
-    0xC0,       /*   End Collection */
-    0xC0,       /* End Collection */
+    0x05, 0x01,  // USAGE_PAGE (Generic Desktop)
+    0x09, 0x06,  // USAGE (Keyboard)
+    0xA1, 0x01,  // COLLECTION (Application)
+    0x85, 0x01,  // REPORT_ID (1)
+    0x05, 0x07,  // USAGE_PAGE (Key Codes)
+    0x19, 0xE0,  // USAGE_MINIMUM (Keyboard LeftControl)
+    0x29, 0xE7,  // USAGE_MAXIMUM (Keyboard Right GUI)
+    0x15, 0x00,  // LOGICAL_MINIMUM (0)
+    0x25, 0x01,  // LOGICAL_MAXIMUM (1)
+    0x75, 0x01,  // REPORT_SIZE (1)
+    0x95, 0x08,  // REPORT_COUNT (8)
+    0x81, 0x02,  // INPUT (Data,Var,Abs)
+    0x75, 0x08,  // REPORT_SIZE (8)
+    0x95, 0x01,  // REPORT_COUNT (1)
+    0x81, 0x03,  // INPUT (Cnst,Var,Abs)
+    0x19, 0x00,  // USAGE_MINIMUM (0)
+    0x29, 0xFF,  // USAGE_MAXIMUM (255)
+    0x15, 0x00,  // LOGICAL_MINIMUM (0)
+    0x26, 0xFF, 0x00,  // LOGICAL_MAXIMUM (255)
+    0x75, 0x08,  // REPORT_SIZE (8)
+    0x95, 0x06,  // REPORT_COUNT (6)
+    0x81, 0x00,  // INPUT (Data,Array,Abs)
+    0xC0,        // END_COLLECTION
+
+    // Consumer Control
+    0x05, 0x0C,  // USAGE_PAGE (Consumer)
+    0x09, 0x01,  // USAGE (Consumer Control)
+    0xA1, 0x01,  // COLLECTION (Application)
+    0x85, 0x02,  // REPORT_ID (2)
+    0x15, 0x00,  // LOGICAL_MINIMUM (0)
+    0x26, 0xFF, 0x00,  // LOGICAL_MAXIMUM (255)
+    0x19, 0x00,  // USAGE_MINIMUM (0)
+    0x29, 0xFF,  // USAGE_MAXIMUM (255)
+    0x75, 0x08,  // REPORT_SIZE (8)
+    0x95, 0x06,  // REPORT_COUNT (6)
+    0x81, 0x00,  // INPUT (Data,Array,Abs)
+    0xC0,        // END_COLLECTION
+
+    // Mouse
+    0x05, 0x01,  // USAGE_PAGE (Generic Desktop)
+    0x09, 0x02,  // USAGE (Mouse)
+    0xA1, 0x01,  // COLLECTION (Application)
+    0x85, 0x03,  // REPORT_ID (3)
+    0x09, 0x01,  // USAGE (Pointer)
+    0xA1, 0x00,  // COLLECTION (Physical)
+
+    0x05, 0x09,  // USAGE_PAGE (Button)
+    0x19, 0x01,  // USAGE_MINIMUM (1)
+    0x29, 0x05,  // USAGE_MAXIMUM (5)
+    0x15, 0x00,  // LOGICAL_MINIMUM (0)
+    0x25, 0x01,  // LOGICAL_MAXIMUM (1)
+    0x75, 0x01,  // REPORT_SIZE (1)
+    0x95, 0x05,  // REPORT_COUNT (5)
+    0x81, 0x02,  // INPUT (Data,Var,Abs)  - 5 button states
+
+    0x75, 0x03,  // REPORT_SIZE (3)
+    0x95, 0x01,  // REPORT_COUNT (1)
+    0x81, 0x03,  // INPUT (Cnst,Var,Abs)  - 3-bit padding
+
+    0x05, 0x01,  // USAGE_PAGE (Generic Desktop)
+    0x09, 0x30,  // USAGE (X)
+    0x09, 0x31,  // USAGE (Y)
+    0x15, 0x81,  // LOGICAL_MINIMUM (-127)
+    0x25, 0x7F,  // LOGICAL_MAXIMUM (127)
+    0x75, 0x08,  // REPORT_SIZE (8)
+    0x95, 0x02,  // REPORT_COUNT (2)
+    0x81, 0x06,  // INPUT (Data,Var,Rel)  - X and Y movement
+
+    0x09, 0x38,  // USAGE (Wheel)
+    0x15, 0x81,  // LOGICAL_MINIMUM (-127)
+    0x25, 0x7F,  // LOGICAL_MAXIMUM (127)
+    0x75, 0x08,  // REPORT_SIZE (8)
+    0x95, 0x01,  // REPORT_COUNT (1)
+    0x81, 0x06,  // INPUT (Data,Var,Rel)  - Scroll wheel movement
+
+    0xC0,        // END_COLLECTION (Physical)
+    0xC0,         // END_COLLECTION (Application)
+
+
+    // Game Controller
+    0x05, 0x01,  // USAGE_PAGE (Generic Desktop)
+    0x09, 0x05,  // USAGE (Game Pad)
+    0xA1, 0x01,  // COLLECTION (Application)
+    0x85, 0x04,  // REPORT_ID (4)
+    0x09, 0x30,  // USAGE (X)
+    0x09, 0x31,  // USAGE (Y)
+    0x09, 0x32,  // USAGE (Z)
+    0x09, 0x33,  // USAGE (Rx)
+    0x15, 0x81,  // LOGICAL_MINIMUM (-127)
+    0x25, 0x7F,  // LOGICAL_MAXIMUM (127)
+    0x75, 0x08,  // REPORT_SIZE (8)
+    0x95, 0x04,  // REPORT_COUNT (4)
+    0x81, 0x02,  // INPUT (Data,Var,Abs)
+    0x05, 0x09,  // USAGE_PAGE (Button)
+    0x19, 0x01,  // USAGE_MINIMUM (1)
+    0x29, 0x10,  // USAGE_MAXIMUM (16)
+    0x15, 0x00,  // LOGICAL_MINIMUM (0)
+    0x25, 0x01,  // LOGICAL_MAXIMUM (1)
+    0x75, 0x01,  // REPORT_SIZE (1)
+    0x95, 0x10,  // REPORT_COUNT (16)
+    0x81, 0x02,  // INPUT (Data,Var,Abs)
+    0x75, 0x08,  // REPORT_SIZE (8)
+    0x95, 0x01,  // REPORT_COUNT (1)
+    0x81, 0x03,  // INPUT (Cnst,Var,Abs)
+    0xC0         // END_COLLECTION
 };
 
-static ssize_t read_info(struct bt_conn *conn,
-                         const struct bt_gatt_attr *attr, void *buf,
-                         uint16_t len, uint16_t offset)
-{
-    return bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data,
-                             sizeof(struct hids_info));
+static ssize_t read_hids_info(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset) {
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data, sizeof(info));
 }
 
-static ssize_t read_report_map(struct bt_conn *conn,
-                               const struct bt_gatt_attr *attr, void *buf,
-                               uint16_t len, uint16_t offset)
-{
-    return bt_gatt_attr_read(conn, attr, buf, len, offset, report_map,
-                             sizeof(report_map));
+static ssize_t read_hids_report_map(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset) {
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, report_map, sizeof(report_map));
 }
 
-static ssize_t read_report(struct bt_conn *conn,
-                           const struct bt_gatt_attr *attr, void *buf,
-                           uint16_t len, uint16_t offset)
-{
-    return bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data,
-                             sizeof(struct hids_report));
+static ssize_t read_hids_input_report(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset) {
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, input_report, sizeof(input_report));
 }
 
-static void input_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
-{
-    simulate_input = (value == BT_GATT_CCC_NOTIFY) ? 1 : 0;
+static ssize_t read_hids_consumer_input_report(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset) {
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, input_report, sizeof(input_report));
 }
 
-static ssize_t read_input_report(struct bt_conn *conn,
-                                 const struct bt_gatt_attr *attr, void *buf,
-                                 uint16_t len, uint16_t offset)
-{
-    return bt_gatt_attr_read(conn, attr, buf, len, offset, NULL, 0);
+static ssize_t read_hids_mouse_input_report(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset) {
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, input_report, sizeof(input_report));
 }
 
-static ssize_t write_ctrl_point(struct bt_conn *conn,
-                                const struct bt_gatt_attr *attr,
-                                const void *buf, uint16_t len, uint16_t offset,
-                                uint8_t flags)
-{
-    uint8_t *value = attr->user_data;
+static ssize_t read_hids_controller_input_report(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset) {
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, input_report, sizeof(input_report));
+}
 
-    if (offset + len > sizeof(ctrl_point)) {
-        return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
-    }
-
-    memcpy(value + offset, buf, len);
-
+static ssize_t write_ctrl_point(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len, uint16_t offset, uint8_t flags) {
+    printk("Control point written\n");
     return len;
 }
 
-#if CONFIG_SAMPLE_BT_USE_AUTHENTICATION
-/* Require encryption using authenticated link-key. */
-#define SAMPLE_BT_PERM_READ BT_GATT_PERM_READ_AUTHEN
-#define SAMPLE_BT_PERM_WRITE BT_GATT_PERM_WRITE_AUTHEN
-#else
-/* Require encryption. */
-#define SAMPLE_BT_PERM_READ BT_GATT_PERM_READ_ENCRYPT
-#define SAMPLE_BT_PERM_WRITE BT_GATT_PERM_WRITE_ENCRYPT
-#endif
+static ssize_t read_hids_report_ref(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset) {
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data, sizeof(struct hids_report));
+}
+
+static void input_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value) {
+    simulate_input = (value == BT_GATT_CCC_NOTIFY) ? 1 : 0;
+}
+
 
 /* HID Service Declaration */
 BT_GATT_SERVICE_DEFINE(hog_svc,
     BT_GATT_PRIMARY_SERVICE(BT_UUID_HIDS),
-    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_INFO, BT_GATT_CHRC_READ,
-                           BT_GATT_PERM_READ, read_info, NULL, &info),
-    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT_MAP, BT_GATT_CHRC_READ,
-                           BT_GATT_PERM_READ, read_report_map, NULL, NULL),
-    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT,
-                           BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
-                           SAMPLE_BT_PERM_READ,
-                           read_input_report, NULL, NULL),
-    BT_GATT_CCC(input_ccc_changed,
-                SAMPLE_BT_PERM_READ | SAMPLE_BT_PERM_WRITE),
-    BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ,
-                       read_report, NULL, &input),
-    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_CTRL_POINT,
-                           BT_GATT_CHRC_WRITE_WITHOUT_RESP,
-                           BT_GATT_PERM_WRITE,
-                           NULL, write_ctrl_point, &ctrl_point),
+    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_INFO, BT_GATT_CHRC_READ, BT_GATT_PERM_READ, read_hids_info, NULL, &info),
+
+    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT_MAP, BT_GATT_CHRC_READ, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_map, NULL, NULL),
+
+    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_READ_ENCRYPT, read_hids_input_report, NULL, NULL),
+    BT_GATT_CCC(input_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
+    BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref, NULL, &input),
+
+    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_READ_ENCRYPT, read_hids_consumer_input_report, NULL, NULL),
+    BT_GATT_CCC(input_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
+    BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref, NULL, &consumer_input),
+
+    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_READ_ENCRYPT, read_hids_mouse_input_report, NULL, NULL),
+    BT_GATT_CCC(input_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
+    BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref, NULL, &mouse_input),
+
+
+    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_READ_ENCRYPT, read_hids_controller_input_report, NULL, NULL),
+    BT_GATT_CCC(input_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
+    BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref, NULL, &controller_input),
+
+
+    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_CTRL_POINT, BT_GATT_CHRC_WRITE_WITHOUT_RESP, BT_GATT_PERM_WRITE, NULL, write_ctrl_point, &ctrl_point),
 );
 
 
+void revolute_up_release_work_handler(struct k_work *work) {
+        if (simulate_input) {
 
+            uint8_t rep[8] = {0,0,0,0,0,0,0,0};
+            // printk("%d",report.id);
+            bt_gatt_notify(NULL, &hog_svc.attrs[config.up_transport], rep, sizeof(rep));
 
-
-static void send_mouse_button_1(struct k_work *work)
-{
-    if (simulate_input) {
-        int8_t report[3] = {0, 0, 0};
-		/* HID Report:
-			 * Byte 0: buttons (lower 3 bits)
-			 * Byte 1: X axis (int8)
-			 * Byte 2: Y axis (int8)
-			 */
-        report[0] |= BIT(0); /* Set Button 1 Pressed */
-        bt_gatt_notify(NULL, &hog_svc.attrs[5], report, sizeof(report));
-    }
+        }
+        k_yield();
+    
 }
 
-static void send_mouse_button_2(struct k_work *work)
-{
-    if (simulate_input) {
-        int8_t report[3] = {0, 0, 0};
-		/* HID Report:
-			 * Byte 0: buttons (lower 3 bits)
-			 * Byte 1: X axis (int8)
-			 * Byte 2: Y axis (int8)
-			 */
-        report[0] |= BIT(1); /* Set Button 2 Pressed */
-        bt_gatt_notify(NULL, &hog_svc.attrs[5], report, sizeof(report));
-    }
+static K_WORK_DEFINE(revolute_up_release_work, revolute_up_release_work_handler);
+
+
+
+
+
+void revolute_up_work_handler(struct k_work *work) {
+        if (simulate_input) {
+
+            uint8_t rep[8] = {config.up_report[0],config.up_report[1],config.up_report[2],config.up_report[3],config.up_report[4],config.up_report[5],config.up_report[6],config.up_report[7]};
+            // printk("%d",report.id);
+            bt_gatt_notify(NULL, &hog_svc.attrs[config.up_transport], rep, sizeof(rep));
+
+        }
+        k_yield();
+    
 }
 
-static void release_mouse(struct k_work *work)
-{
-    if (simulate_input) {
-        int8_t release_report[3] = {0, 0, 0}; /* All bits cleared */
-        bt_gatt_notify(NULL, &hog_svc.attrs[5], release_report, sizeof(release_report));
-    }
+static K_WORK_DEFINE(revolute_up_work, revolute_up_work_handler);
+
+
+void revolute_up_submit() {
+    k_work_submit(&revolute_up_work);
+    k_work_submit(&revolute_up_release_work);
 }
 
-static K_WORK_DEFINE(mouse_button_1_work, send_mouse_button_1);
-static K_WORK_DEFINE(mouse_button_2_work, send_mouse_button_2);
-static K_WORK_DEFINE(release_mouse_button_work, release_mouse);
 
-void hog_send_mouse_button_1(void)
-{
-    k_work_submit(&mouse_button_1_work);
-	k_work_submit(&release_mouse_button_work);
+void revolute_down_release_work_handler(struct k_work *work) {
+        if (simulate_input) {
+
+            uint8_t rep[8] = {0,0,0,0,0,0,0,0};
+            // printk("%d",report.id);
+            bt_gatt_notify(NULL, &hog_svc.attrs[config.dn_transport], rep, sizeof(rep));
+
+        }
+        k_yield();
+    
 }
 
-void hog_send_mouse_button_2(void)
-{
-    k_work_submit(&mouse_button_2_work);
-	k_work_submit(&release_mouse_button_work);
+static K_WORK_DEFINE(revolute_down_release_work, revolute_down_release_work_handler);
+
+
+void revolute_down_work_handler(struct k_work *work) {
+        if (simulate_input) {
+
+            uint8_t rep[8] = {config.dn_report[0],config.dn_report[1],config.dn_report[2],config.dn_report[3],config.dn_report[4],config.dn_report[5],config.dn_report[6],config.dn_report[7]};
+            // printk("%d",report.id);
+            bt_gatt_notify(NULL, &hog_svc.attrs[config.dn_transport], rep, sizeof(rep));
+
+        }
+        k_yield();
+    
 }
+
+static K_WORK_DEFINE(revolute_down_work, revolute_down_work_handler);
+
+
+void revolute_dn_submit() {
+    k_work_submit(&revolute_down_work);
+    k_work_submit(&revolute_down_release_work);
+}
+
+
+
+void revolute_dn_continuous_work_handler(struct k_work *work) {
+        if (simulate_input) {
+
+            int8_t rep[8] = {0,0,0,0,0,0,0,0};
+            LOG_INF("%d\n", change);
+            memcpy(rep, config.dn_report, sizeof(rep));  // Copy original report to rep
+            for (int i = 0; i < 8; i++) {
+            if (rep[i] != 0) {  
+                rep[i] = (int8_t)change;  // Replace nonzero byte
+                break;  // Only replace the first nonzero byte
+            }
+        }
+
+            bt_gatt_notify(NULL, &hog_svc.attrs[config.dn_transport], rep, sizeof(rep));
+
+        }
+        k_yield();
+    
+}
+
+static K_WORK_DEFINE(revolute_dn_continuous_work, revolute_dn_continuous_work_handler);
+
+
+void revolute_dn_cont_submit() {
+    k_work_submit(&revolute_dn_continuous_work);
+}
+
+void revolute_up_continuous_work_handler(struct k_work *work) {
+        if (simulate_input) {
+
+            int8_t rep[8] = {0,0,0,0,0,0,0,0};
+            LOG_INF("%d\n", change);
+            memcpy(rep, config.up_report, sizeof(rep));  // Copy original report to rep
+            for (int i = 0; i < 8; i++) {
+            if (rep[i] != 0) {  
+                rep[i] = (int8_t)change;  // Replace nonzero byte
+                break;  // Only replace the first nonzero byte
+            }
+        }
+
+            bt_gatt_notify(NULL, &hog_svc.attrs[config.up_transport], rep, sizeof(rep));
+
+        }
+        k_yield();
+    
+}
+
+static K_WORK_DEFINE(revolute_up_continuous_work, revolute_up_continuous_work_handler);
+
+
+void revolute_up_cont_submit() {
+    k_work_submit(&revolute_up_continuous_work);
+}
+
+
+

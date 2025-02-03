@@ -39,7 +39,7 @@ void handle_button_event(enum button_event event) {
     case BUTTON_DOUBLE_CLICK:
         LOG_INF("Double Click detected!");
        
-            hog_send_mouse_button_2();
+            // hog_send_mouse_button_2();
             
         break;
     case BUTTON_TRIPLE_CLICK:

@@ -16,11 +16,17 @@
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
+
 /* Function to initialize the HoG service */
 void hog_init(void);
+void revolute_up_submit(void);
+void revolute_dn_submit(void);
+void revolute_up_cont_submit(void);
+void revolute_dn_cont_submit(void);
+
 
 /* Function to send a mouse button 1 press via GATT notification */
-void hog_send_mouse_button_1(void);
+// void hog_send_mouse_button_1(void);
 
 #endif /* HOG_H */
 

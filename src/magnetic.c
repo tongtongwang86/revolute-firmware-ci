@@ -7,6 +7,7 @@ static struct k_thread magnetic_thread_data;
 static K_THREAD_STACK_DEFINE(magnetic_stack, THREAD_STACK_SIZE);
 
 uint16_t angle = 0;
+int change = 0;
 
 int as5600_refresh(const struct device *dev)
 {
@@ -38,7 +39,7 @@ bool is_discrete(uint8_t transport, uint8_t report[8]) {
 
         case 13: // mouse
             // Check if byte 2 or 3 of the report (index 1 or 2 in C) is nonzero
-            return (report[1] == 0 || report[2] == 0);
+            return (report[2] == 0 && report[3] == 0 && report[4] == 0);
 
         default:
             return true; // If transport type is unknown, assume discrete
@@ -114,7 +115,7 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
     double new_degree = as5600_refresh(as);
     int last_position = predictive_update(new_degree);
     int last_report_time = k_cycle_get_32();
-    int change = 0;
+    change = 0;
     int last_ident = (as5600_refresh(as) - (as5600_refresh(as) % config.up_identPerRev)) / config.up_identPerRev;
 
     while (1) {
@@ -127,7 +128,7 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
         if (change > 0)      // clock wise
             {
             if (is_discrete(config.up_transport, config.up_report))
-                {
+                { 
 
         int degrees = (int)new_degree;
         int DegreesPerIdent = 360/config.up_identPerRev;
@@ -138,13 +139,14 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
             if (last_ident != CurrentIdent && CurrentIdent != config.up_identPerRev)
             {   
                 LOG_INF("tick cw");
+                revolute_up_submit();
                 last_ident = CurrentIdent;
             }
 
                 }else{// handle continuous
-
-
-
+                revolute_up_cont_submit();
+                k_msleep(5);
+                
 
                 }
 
@@ -168,12 +170,14 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
             {
                 // tick
                 LOG_INF("tick ccw");
+                revolute_dn_submit();
                 last_ident = CurrentIdent;
             }
 
                 }else{// handle continuous
 
-
+                revolute_dn_cont_submit();
+                k_msleep(5);
 
 
                 }
