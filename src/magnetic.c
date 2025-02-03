@@ -151,9 +151,6 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
                 }
 
 
-
-
-
             last_position = current_position;
             }
             else if (change < 0)  // counter clock wise
@@ -161,12 +158,12 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
             if (is_discrete(config.dn_transport, config.dn_report))
                 {
         int degrees = (int)new_degree;
-        int DegreesPerIdent = 360/config.up_identPerRev;
+        int DegreesPerIdent = 360/config.dn_identPerRev;
         int adjustedDegrees = degrees + (DegreesPerIdent / 2) + IDENT_OFFSET;
         int CurrentIdent = (adjustedDegrees - (adjustedDegrees % DegreesPerIdent)) / DegreesPerIdent;
 
 
-            if (last_ident != CurrentIdent && CurrentIdent != config.up_identPerRev)
+            if (last_ident != CurrentIdent && CurrentIdent != config.dn_identPerRev)
             {
                 // tick
                 LOG_INF("tick ccw");
