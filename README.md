@@ -16,7 +16,7 @@
 - [x] magnetic sensor polling
 - [x] Dual build, ota and non ota
 - [ ] Auto power off
-- [ ] Implement configurations
+- [x] Implement configurations
 - [ ] Done
 
 ## Issues:
