@@ -8,7 +8,7 @@
 #define THREAD_PRIORITY 2
 
 
-#define IDENT_OFFSET 1 // angle offset in degrees
+#define IDENT_OFFSET 8 // angle offset in degrees
 
 static double last_degree;
 static double last_time;

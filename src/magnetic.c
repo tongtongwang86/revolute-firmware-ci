@@ -124,7 +124,7 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
         change = (last_position - current_position);
         angle = (int)new_degree;
 
-
+        LOG_INF("New degree: %d", (int)new_degree);
         if (change > 0)      // clock wise
             {
             if (is_discrete(config.up_transport, config.up_report))
@@ -139,6 +139,7 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
             if (last_ident != CurrentIdent && CurrentIdent != config.up_identPerRev)
             {   
                 LOG_INF("tick cw");
+                
                 revolute_up_submit();
                 last_ident = CurrentIdent;
             }
@@ -167,6 +168,7 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
             {
                 // tick
                 LOG_INF("tick ccw");
+
                 revolute_dn_submit();
                 last_ident = CurrentIdent;
             }
