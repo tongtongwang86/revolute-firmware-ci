@@ -2,7 +2,7 @@
 #define MAGNETIC_H
 
 #include <zephyr/drivers/sensor.h>
-
+#include <zephyr/drivers/i2c.h>
 
 #define THREAD_STACK_SIZE 1024
 #define THREAD_PRIORITY 2

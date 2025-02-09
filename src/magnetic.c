@@ -2,6 +2,20 @@
 #include "revsvc.h"
 #include "hog.h"
 
+
+#define AS5600_I2C_ADDR 0x36  // AS5600 I2C address (can be 0x36 or 0x37 depending on ADDR pin configuration)
+#define AS5600_REG_STATUS 0x0B
+
+#define MAGNET_NOT_DETECTED 0
+#define MAGNET_DETECTED 2
+#define MAGNET_TOO_WEAK 1
+#define MAGNET_TOO_STRONG 3
+
+#define AS5600_ANGLE_REGISTER_H 0x0E
+#define AS5600_FULL_ANGLE       360
+#define AS5600_PULSES_PER_REV   4096
+#define AS5600_MILLION_UNIT     1000000
+
 LOG_MODULE_REGISTER(spin, LOG_LEVEL_DBG);
 static struct k_thread magnetic_thread_data;
 static K_THREAD_STACK_DEFINE(magnetic_stack, THREAD_STACK_SIZE);
@@ -9,27 +23,77 @@ static K_THREAD_STACK_DEFINE(magnetic_stack, THREAD_STACK_SIZE);
 uint16_t angle = 0;
 int change = 0;
 
-int as5600_refresh(const struct device *dev)
+struct as5600_dev_cfg {
+    struct i2c_dt_spec i2c_port;
+};
+
+/* Device runtime data */
+struct as5600_dev_data {
+    uint16_t position; // Stores the current position in raw sensor units (0-4095)
+};
+
+
+int get_magnet_strength(const struct device *dev)
 {
     int ret;
-    struct sensor_value rot_raw;
-    ret = sensor_sample_fetch_chan(dev, SENSOR_CHAN_ROTATION);
-    if (ret != 0)
-    {
-        printk("Sample fetch error: %d\n", ret);
-        return ret;
-    }
-    ret = sensor_channel_get(dev, SENSOR_CHAN_ROTATION, &rot_raw);
-    if (ret != 0)
-    {
-        printk("Sensor channel get error: %d\n", ret);
-        return ret;
+    uint8_t mag_status;
+    uint8_t reg = AS5600_REG_STATUS;
+    
+    // Access the device's configuration from the dev structure
+    const struct as5600_dev_cfg *dev_cfg = dev->config;
+
+    // Write the register address to the AS5600, and then read the status byte
+    ret = i2c_write_read(dev_cfg->i2c_port.bus, AS5600_I2C_ADDR, &reg, sizeof(reg), &mag_status, sizeof(mag_status));
+    if (ret != 0) {
+        printk("I2C read error: %d\n", ret);
+        return ret;  // Return the error code from I2C read
     }
 
-    int degrees = rot_raw.val1;
+    int magnet_strength = MAGNET_NOT_DETECTED;  // Default is no magnet
 
-    return degrees;
+    // Check if a magnet is detected (MD = 1)
+    if (mag_status & 0x20) { // MD is bit 5
+        magnet_strength = MAGNET_DETECTED;
+
+        // Check if the magnet is too weak (ML = 1)
+        if (mag_status & 0x10) { // ML is bit 4
+            magnet_strength = MAGNET_TOO_WEAK;
+        }
+        // Check if the magnet is too strong (MH = 1)
+        else if (mag_status & 0x08) { // MH is bit 3
+            magnet_strength = MAGNET_TOO_STRONG;
+        }
+    }
+
+    return magnet_strength;
 }
+
+
+int as5600_refresh(const struct device *dev)
+{
+    struct as5600_dev_data *dev_data = dev->data;
+    const struct as5600_dev_cfg *dev_cfg = dev->config;
+
+    uint8_t read_data[2] = {0, 0};
+    uint8_t angle_reg = AS5600_ANGLE_REGISTER_H;
+
+    // Perform I2C read using device tree I2C specification
+    int err = i2c_write_read_dt(&dev_cfg->i2c_port,
+                                &angle_reg,
+                                1,
+                                read_data,
+                                sizeof(read_data));
+
+    // If I2C read was successful, combine the high and low bytes to form the 12-bit angle
+    if (!err) {
+        dev_data->position = ((uint16_t)read_data[0] << 8) | read_data[1];
+    }
+
+    // Return the position as a scaled degree (0-360)
+    int degree = (dev_data->position * AS5600_FULL_ANGLE) / AS5600_PULSES_PER_REV;
+    return degree;
+}
+
 
 bool is_discrete(uint8_t transport, uint8_t report[8]) {
     switch (transport) {
