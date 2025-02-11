@@ -57,11 +57,7 @@ int remove_bonded_device(void) {
 
 static int bond_count;
 
-enum advertising_type {
-    ZMK_ADV_NONE,
-    ZMK_ADV_FILTER,
-    ZMK_ADV_CONN,
-} advertising_status;
+enum advertising_type advertising_status = ADV_FILTER;
 
 #define CURR_ADV(adv) (adv << 4)
 
@@ -140,7 +136,7 @@ bool active_profile_connected(void) {
 
 #define CHECKED_ADV_STOP()                                                                         \
     err = bt_le_adv_stop();                                                                        \
-    advertising_status = ZMK_ADV_NONE;                                                             \
+    advertising_status = ADV_NONE;                                                             \
     LOG_DBG("advertising stopped");                                                                \
     if (err) {                                                                                     \
         LOG_ERR("Failed to stop advertising (err %d)", err);                                       \
@@ -155,7 +151,7 @@ bool active_profile_connected(void) {
         LOG_ERR("Filtered advertising failed to start (err %d)", err);                           \
         return err;                                                                              \
     }                                                                                            \
-    advertising_status = ZMK_ADV_FILTER;
+    advertising_status = ADV_FILTER;
 
 
 #define CHECKED_OPEN_ADV()                                                                         \
@@ -166,7 +162,7 @@ bool active_profile_connected(void) {
         LOG_ERR("Advertising failed to start (err %d)", err);                                      \
         return err;                                                                                \
     }                                                                                              \
-    advertising_status = ZMK_ADV_CONN;                                                             
+    advertising_status = ADV_CONN;                                                             
     
 
 
@@ -176,7 +172,7 @@ bool active_profile_connected(void) {
         int err = 0;
         bt_addr_le_t *addr;
         struct bt_conn *conn;
-        enum advertising_type desired_adv = ZMK_ADV_NONE;
+        enum advertising_type desired_adv = ADV_NONE;
     
         bond_count = 0;
         bt_foreach_bond(BT_ID_DEFAULT, add_bonded_addr_to_filter_list, NULL);
@@ -186,38 +182,38 @@ bool active_profile_connected(void) {
             
             if (!active_profile_connected()) {
                 LOG_INF("Bonded not connected");
-                desired_adv = ZMK_ADV_FILTER;
+                desired_adv = ADV_FILTER;
             }else{
                 LOG_INF("Bonded and connected");
-                desired_adv = ZMK_ADV_NONE;
+                desired_adv = ADV_NONE;
             }
 
         }else{
-            desired_adv = ZMK_ADV_CONN;
+            desired_adv = ADV_CONN;
         }
 
         LOG_DBG("advertising from %d to %d", advertising_status, desired_adv);
     
         switch (desired_adv + CURR_ADV(advertising_status)) {
-        case ZMK_ADV_NONE + CURR_ADV(ZMK_ADV_FILTER):
+        case ADV_NONE + CURR_ADV(ADV_FILTER):
             CHECKED_ADV_STOP();
             break;
-        case ZMK_ADV_NONE + CURR_ADV(ZMK_ADV_CONN):
+        case ADV_NONE + CURR_ADV(ADV_CONN):
             CHECKED_ADV_STOP();
             break;
-        case ZMK_ADV_FILTER + CURR_ADV(ZMK_ADV_FILTER):
-        case ZMK_ADV_FILTER + CURR_ADV(ZMK_ADV_CONN):
+        case ADV_FILTER + CURR_ADV(ADV_FILTER):
+        case ADV_FILTER + CURR_ADV(ADV_CONN):
             CHECKED_ADV_STOP();
             CHECKED_FILTER_ADV();
             break;
-        case ZMK_ADV_FILTER + CURR_ADV(ZMK_ADV_NONE):
+        case ADV_FILTER + CURR_ADV(ADV_NONE):
             CHECKED_FILTER_ADV();
             break;
-        case ZMK_ADV_CONN + CURR_ADV(ZMK_ADV_FILTER):
+        case ADV_CONN + CURR_ADV(ADV_FILTER):
             CHECKED_ADV_STOP();
             CHECKED_OPEN_ADV();
             break;
-        case ZMK_ADV_CONN + CURR_ADV(ZMK_ADV_NONE):
+        case ADV_CONN + CURR_ADV(ADV_NONE):
             CHECKED_OPEN_ADV();
             break;
         }
@@ -238,10 +234,10 @@ int zmk_ble_set_device_name(char *name) {
         LOG_ERR("Failed to set new device name (err %d)", err);
         return err;
     }
-    if (advertising_status == ZMK_ADV_CONN) {
+    if (advertising_status == ADV_CONN) {
         // Stop current advertising so it can restart with new name
         err = bt_le_adv_stop();
-        advertising_status = ZMK_ADV_NONE;
+        advertising_status = ADV_NONE;
         if (err) {
             LOG_ERR("Failed to stop advertising (err %d)", err);
             return err;
@@ -279,7 +275,7 @@ static void connected(struct bt_conn *conn, uint8_t err) {
     }
 
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-    advertising_status = ZMK_ADV_NONE;
+    advertising_status = ADV_NONE;
     
 
     if (err) {

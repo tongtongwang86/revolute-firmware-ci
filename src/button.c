@@ -20,6 +20,9 @@ enum button_event {
     BUTTON_LONG_HOLD,
 };
 
+enum power_type power_status = PWR_ON;
+
+
 static struct k_work_delayable button_work;
 static struct k_work_delayable long_hold_work;
 static struct k_work_delayable debounce_work;
@@ -42,6 +45,7 @@ void handle_button_event(enum button_event event) {
         break;
     case BUTTON_LONG_HOLD:
         LOG_INF("Long Hold detected! Turning off");
+        power_status = PWR_OFF;
         k_sleep(K_MSEC(2000));
         power_off();
         break;

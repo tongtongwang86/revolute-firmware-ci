@@ -29,8 +29,15 @@ typedef enum {
     STATE_ONFULL
 } led_state_t;
 
+enum power_type {
+    PWR_OFF,
+    PWR_HOLD,
+    PWR_ON,
+};
+extern enum power_type power_status;
 
 extern led_state_t target_state;
+
 
 void power_off(void);
 void power_on(void);

@@ -5,7 +5,12 @@
 
 #define ZMK_BLE_PROFILE_NAME_MAX 15
 
-
+enum advertising_type {
+    ADV_NONE,
+    ADV_FILTER,
+    ADV_CONN,
+};
+extern enum advertising_type advertising_status;
 
 #define ZMK_BLE_PROFILE_COUNT CONFIG_BT_MAX_PAIRED
 

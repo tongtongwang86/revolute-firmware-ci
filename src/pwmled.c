@@ -1,12 +1,9 @@
-
 #include "pwmled.h"
+#include <math.h>
 
 LOG_MODULE_REGISTER(pwmled, LOG_LEVEL_INF);
-#define NUM_STEPS      100U  // Number of steps for both fade-in and fade-out
-#define FADE_DURATION_MS 1000U // Duration of fade-in and fade-out in milliseconds
-#define SLEEP_MSEC     (FADE_DURATION_MS / NUM_STEPS)  // Adjust the sleep for the fade duration
 
-#define PWM_LED0       DT_ALIAS(pwm_led0)
+#define PWM_LED0 DT_ALIAS(pwm_led0)
 static const struct pwm_dt_spec pwm_led0 = PWM_DT_SPEC_GET(PWM_LED0);
 
 #define PWMLED_STACK_SIZE 1024
@@ -15,169 +12,100 @@ static const struct pwm_dt_spec pwm_led0 = PWM_DT_SPEC_GET(PWM_LED0);
 static struct k_thread pwmled_thread_data;
 static K_THREAD_STACK_DEFINE(pwmled_stack, PWMLED_STACK_SIZE);
 
-// Define current and target LED state
-static led_state_t current_state = STATE_PAIRING;
+extern enum power_type power_status;
+extern enum advertising_type advertising_status;
 
-static uint32_t pulse_width = 0;  // Track the current LED brightness
+static float brightness = 0;      // Current LED brightness (0 to 1)
+static float velocity = 0;        // Rate of change of brightness
+static float target_brightness = 0; // Target LED brightness
+static float mass = 5, spring_k = 30, damping_b = 4;  // Physics properties
 
-// Function to set LED pulse width
-static void set_led_pulse(uint32_t pulse_width) {
+static void set_led_pulse(float normalized_brightness) {
+    uint32_t pulse_width = (uint32_t)(normalized_brightness * pwm_led0.period);
     int ret = pwm_set_pulse_dt(&pwm_led0, pulse_width);
     if (ret) {
         printk("Error %d: failed to set pulse width\n", ret);
     }
 }
 
-
-
-// Function for fade-in effect (0 -> max brightness -> 0)
-static void fade_in(void) {
-    uint32_t step_up = pwm_led0.period / NUM_STEPS;  // Fade-up step
-    uint32_t step_down = step_up;                   // Fade-down step (same size for symmetry)
+static void update_physics(float dt) {
+    // Calculate acceleration from Hooke's Law and damping
+    float acceleration = (-spring_k * (brightness - target_brightness) - damping_b * velocity) / mass;
     
-    // Fade up: 0 -> max brightness
-    for (uint32_t i = 0; i < NUM_STEPS; i++) {
-        pulse_width = i * step_up;
-        set_led_pulse(pulse_width);  // Inverted
-        k_sleep(K_MSEC(SLEEP_MSEC));
-    }
+    // Integrate velocity and position using simple Euler integration
+    velocity += acceleration * dt;
+    brightness += velocity * dt;
 
-    // Fade down: max brightness -> 0
-    for (uint32_t i = NUM_STEPS; i > 0; i--) {
-        pulse_width = i * step_down;
-        set_led_pulse(pulse_width);  // Inverted
-        k_sleep(K_MSEC(SLEEP_MSEC));
-    }
-    pulse_width = 0;
-    set_led_pulse(pulse_width);  // Ensure the LED is completely off
+    // Clamp brightness between 0 and 1
+
 }
 
-
-// Function for fade-out effect (from current brightness -> 0)
-static void fade_out(void) {
-    uint32_t current_brightness = pulse_width;
-    uint32_t step_down = current_brightness / NUM_STEPS;
-
-    // Fade down: current brightness -> 0
-    for (uint32_t i = 0; i < NUM_STEPS; i++) {
-        pulse_width = current_brightness - (i * step_down);
-        set_led_pulse(pulse_width);  // Inverted
-        k_sleep(K_MSEC(SLEEP_MSEC));
-    }
-
-    pulse_width = 0;
-    set_led_pulse(pulse_width);  // Ensure the LED is completely off
-}
-
-
-// PWMLED thread entry point
 static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
-    uint32_t blink_step = pwm_led0.period / 2;  // For fast blink in pairing state
-    uint32_t breath_step = pwm_led0.period / NUM_STEPS;
-
-    fade_in();
-
     while (1) {
-        // Handle state transitions
-        if (current_state != target_state) {
-             if (target_state == STATE_OFF) {
-                // Fade-out from current brightness to 0 when turning from any state to off
-                fade_out();
+        // Update physics parameters based on state
+        if (power_status == PWR_OFF) {
+            mass = 10;
+            spring_k = 20;
+            damping_b = 5;
+            target_brightness = 0;
+        } else if (power_status == PWR_HOLD) {
+            mass = 5;
+            spring_k = 30;
+            damping_b = 4;
+            target_brightness = 0.5;
+        } else if (power_status == PWR_ON) {
+            switch (advertising_status) {
+                case ADV_NONE:
+                    mass = 1;
+                    spring_k = 40;
+                    damping_b = 2;
+                    target_brightness = 0.5 + 0.4 * sin(k_uptime_get() * 0.002);  // Slow breathing
+                    break;
+                case ADV_FILTER:
+                    mass = .3;
+                    spring_k = 80;
+                    damping_b = 1;
+                    target_brightness = 0.5 + 0.4 * sin(k_uptime_get() * 0.01); // Fast breathing
+                    break;
+                case ADV_CONN:
+                    mass = 0.01;
+                    spring_k = 80;
+                    damping_b = 6;
+                    target_brightness = (k_uptime_get() % 400 < 200) ? 1.0 : -1.0;  // Fast blink
+                    break;
             }
-
-            current_state = target_state;  // Apply the new state immediately
         }
 
-        // Handle LED behavior based on state
-        switch (current_state) {
-        case STATE_OFF:
-            set_led_pulse(0);  // LED is off
-            k_sleep(K_MSEC(SLEEP_MSEC));
-            break;
+        // Run the physics simulation step (assuming 10ms per cycle)
+        update_physics(0.01);
+        
 
-        case STATE_PAIRING: {
-            // Fast blinking (no fading)
-            for (int i = 0; i < 3; i++) {
-                if (current_state != target_state) {
-                    // If the state changes, exit the loop and apply the new state
-                    break;
-                }
-                set_led_pulse(blink_step);
-                k_sleep(K_MSEC(200));  // Blink on
-                set_led_pulse(0);
-                k_sleep(K_MSEC(200));  // Blink off
-            }
-            break;
-        }
+        LOG_INF("brightness: %f", brightness);
+        if (brightness < 0) {
+            brightness = 0;
+            velocity = 0;  // Stop movement when hitting the lower bound
+        }else if (brightness > 1) {
+            brightness = 1;
+            velocity = 0;  // Stop movement when hitting the upper bound
+        } 
 
-        case STATE_ADVERTISEMENT: {
-            // Fast breathing, same rate as pairing blink
-            for (int i = 0; i < NUM_STEPS; i++) {
-                if (current_state != target_state) {
-                    // If the state changes, exit the loop and apply the new state
-                    break;
-                }
-                pulse_width = (i * pwm_led0.period) / NUM_STEPS;
-                set_led_pulse(pulse_width);
-                k_sleep(K_MSEC(200 / NUM_STEPS));  // Fast breathing rate
-            }
-            for (int i = NUM_STEPS; i > 0; i--) {
-                if (current_state != target_state) {
-                    // If the state changes, exit the loop and apply the new state
-                    break;
-                }
-                pulse_width = (i * pwm_led0.period) / NUM_STEPS;
-                set_led_pulse(pulse_width);
-                k_sleep(K_MSEC(200 / NUM_STEPS));  // Fast breathing rate
-            }
-            break;
-        }
+        // Apply LED brightness
+        set_led_pulse(brightness);
 
-        case STATE_CONNECTED: {
-            // Slow breathing (not requested but could be added later)
-            for (int i = 0; i < NUM_STEPS; i++) {
-                if (current_state != target_state) {
-                    // If the state changes, exit the loop and apply the new state
-                    break;
-                }
-                pulse_width = (i * pwm_led0.period) / NUM_STEPS;
-                set_led_pulse(pulse_width);
-                k_sleep(K_MSEC(2000 / NUM_STEPS));
-            }
-            for (int i = NUM_STEPS; i > 0; i--) {
-                if (current_state != target_state) {
-                    // If the state changes, exit the loop and apply the new state
-                    break;
-                }
-                pulse_width = (i * pwm_led0.period) / NUM_STEPS;
-                set_led_pulse(pulse_width);
-                k_sleep(K_MSEC(2000 / NUM_STEPS));
-            }
-            break;
-        }
 
-        default:
-            break;
-        }
+        // Sleep for 10ms
+        k_sleep(K_MSEC(10));
     }
 }
-
-
 
 int pwmled_init(void) {
-    // Ensure the LED starts off
-    current_state = STATE_ADVERTISEMENT;
-    target_state = STATE_ADVERTISEMENT;
-   
-     if (!pwm_is_ready_dt(&pwm_led0)) {
+    if (!pwm_is_ready_dt(&pwm_led0)) {
         printk("Error: PWM device %s is not ready\n", pwm_led0.dev->name);
-        return -1; // Return error if PWM device isn't ready
+        return -1;
     }
 
-    // Set the LED pulse width to 0 immediately (turn off LED before the thread runs)
     set_led_pulse(0);
 
-    // Start the PWMLED thread
     k_thread_create(&pwmled_thread_data, pwmled_stack, K_THREAD_STACK_SIZEOF(pwmled_stack),
                     pwmled_thread, NULL, NULL, NULL,
                     PWMLED_THREAD_PRIORITY, 0, K_NO_WAIT);

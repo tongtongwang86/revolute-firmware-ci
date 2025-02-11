@@ -5,6 +5,7 @@
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/logging/log.h>
 #include "power.h"
+#include "ble.h"
 
 
 extern led_state_t target_state;

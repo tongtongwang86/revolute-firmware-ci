@@ -8,6 +8,7 @@
 #include <stdlib.h>  // For atoi()
 #include <ble.h>
 #include <power.h>
+#include <pwmled.h>
 
 #define THREAD_STACK_SIZE 1024
 #define THREAD_PRIORITY 5
@@ -20,6 +21,16 @@ static const struct device *cdc_acm_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console
 
 struct k_thread console_thread_data;
 
+// Function to convert enum value to string
+const char* advertising_status_to_string(enum advertising_type status) {
+    switch (status) {
+        case ADV_NONE:   return "ADV_NONE";
+        case ADV_FILTER: return "ADV_FILTER";
+        case ADV_CONN:   return "ADV_CONN";
+        default:         return "UNKNOWN";
+    }
+}
+
 void process_command(const char *cmd) {
     char *open_paren = strchr(cmd, '(');
     char *close_paren = strchr(cmd, ')');
@@ -31,9 +42,19 @@ void process_command(const char *cmd) {
 
     //     int arg = atoi(open_paren);  // Convert argument to integer
 
-    //     if (strcmp(cmd, "zmk_ble_prof_select") == 0) {
-    //         zmk_ble_prof_select(arg);
-    //     }  else {
+    //     if (strcmp(cmd, "damping") == 0) {
+    //         damping_b = arg;
+    //         LOG_INF("damping_b: %d", arg);
+    //     } else if (strcmp(cmd, "center") == 0) {
+    //         center = arg;
+    //         LOG_INF("center: %d", arg);
+    //     } else if (strcmp(cmd, "spring") == 0) {
+    //         spring_k = arg;
+    //         LOG_INF("spring_k: %d", arg);
+    //     } else if (strcmp(cmd, "mass") == 0) {
+    //         mass = arg;
+    //         LOG_INF("mass: %d", arg);
+    //     } else {
     //         LOG_INF("Unknown command: %s", cmd);
     //     }
     // } else 
@@ -53,6 +74,8 @@ void process_command(const char *cmd) {
         }
     } else if (strcmp(cmd, "hi") == 0) {
         LOG_INF(":>");
+    } else if (strcmp(cmd, "adv_status") == 0) {
+        LOG_INF("Advertising Status: %s", advertising_status_to_string(advertising_status));
     } else if (strcmp(cmd, "poweroff") == 0) {
         power_off();
     } else if (strcmp(cmd, "update_advertising") == 0) {
