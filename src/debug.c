@@ -14,6 +14,8 @@
 #define THREAD_PRIORITY 5
 #define BUFFER_SIZE 64
 
+#if IS_ENABLED(CONFIG_LOG) //only include debug console if console is enabled
+
 LOG_MODULE_REGISTER(cdc_acm_read, LOG_LEVEL_DBG);
 
 K_THREAD_STACK_DEFINE(console_thread_stack, THREAD_STACK_SIZE);
@@ -127,3 +129,5 @@ static int debug_init(void) {
 }
 
 SYS_INIT(debug_init, APPLICATION, 50);
+
+#endif

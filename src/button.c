@@ -44,9 +44,9 @@ void handle_button_event(enum button_event event) {
         remove_bonded_device();
         break;
     case BUTTON_LONG_HOLD:
-        LOG_INF("Long Hold detected! Turning off");
         power_status = PWR_OFF;
-        k_sleep(K_MSEC(2000));
+        LOG_INF("Long Hold detected! Turning off");
+        k_sleep(K_MSEC(2500));
         power_off();
         break;
     default:

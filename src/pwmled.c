@@ -42,15 +42,24 @@ static void update_physics(float dt) {
 }
 
 static void fade_in(void) {
-    uint32_t start_time = k_uptime_get();
-    while (k_uptime_get() - start_time < 2000) { // Run for 2 seconds
-        float time_elapsed = (k_uptime_get() - start_time) / 1000.0f; // Convert to seconds
-        target_brightness = 0.5f * (1 - cosf(M_PI * time_elapsed)); // Smooth transition
+    const float step = 0.05f; // Adjust step size for desired speed
+    const float max_brightness = 1.0f;
+    
+    // Fade in
+    for (float brightness = 0.0f; brightness <= max_brightness; brightness += step) {
+        set_led_pulse(brightness);
+        k_sleep(K_MSEC(40)); // Sleep for 10ms
+    }
 
-        set_led_pulse(target_brightness);
-        k_sleep(K_MSEC(10)); // Sleep for 10ms
+    // Fade out
+    for (float brightness = max_brightness; brightness >= 0.0f; brightness -= step) {
+        set_led_pulse(brightness);
+        k_sleep(K_MSEC(65)); // Sleep for 10ms
     }
 }
+
+
+
 
 static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
     fade_in();
@@ -58,10 +67,10 @@ static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
     while (1) {
         // Update physics parameters based on state
         if (power_status == PWR_OFF) {
-            mass = 10;
-            spring_k = 50;
-            damping_b = 4;
-            target_brightness = 0;
+            mass = 1;
+            spring_k = 3;
+            damping_b = 7;
+            target_brightness = -10;
         } else if (power_status == PWR_HOLD) {
             mass = 5;
             spring_k = 30;
