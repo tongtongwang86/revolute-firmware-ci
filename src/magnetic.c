@@ -256,21 +256,23 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
             }
 
 
-
-
-
-
-
-
-
-
-
         
     }
 }
 
 
+void suspend_magnetic_thread(void)
+{
+    k_thread_suspend(&magnetic_thread_data);
+    LOG_INF("Print thread suspended");
+}
 
+// Function to resume the print thread
+void resume_magnetic_thread(void)
+{
+    k_thread_resume(&magnetic_thread_data);
+    LOG_INF("Print thread resumed");
+}
 
 void SensorThreadinit(void)
 {

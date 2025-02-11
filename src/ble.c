@@ -18,7 +18,7 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/drivers/gpio.h>
-
+#include <zephyr/bluetooth/addr.h>
 #include "power.h"
 #include <ble.h>
 
@@ -29,22 +29,54 @@
 LOG_MODULE_REGISTER(ble, LOG_LEVEL_DBG);
 
 
-#include <ble.h>
+
+// Initialize with a zeroed address
+static bt_addr_le_t active_profile_addr = { 0 };
+
+// Function to get the active profile address
+bt_addr_le_t *zmk_ble_active_profile_addr(void) {
+    return &active_profile_addr;
+}
+
+
+// Function to remove a bond
+int remove_bonded_device(void) {
+
+    // Try to unpair the device
+    int err= bt_unpair(BT_ID_DEFAULT,BT_ADDR_LE_ANY);
+    if (err) {
+        LOG_ERR("Failed to unpair device %s (err %d)", err);
+        return err;
+    }
+
+    update_advertising();
+
+    return 0;
+}
+
+
+static int bond_count;
 
 enum advertising_type {
     ZMK_ADV_NONE,
-    ZMK_ADV_DIR,
+    ZMK_ADV_FILTER,
     ZMK_ADV_CONN,
 } advertising_status;
 
 #define CURR_ADV(adv) (adv << 4)
 
-#define ZMK_ADV_CONN_NAME                                                                          \
+#define ADV_CONN_NAME                                                                          \
     BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME | BT_LE_ADV_OPT_USE_NAME |  \
                         BT_LE_ADV_OPT_FORCE_NAME_IN_AD,                                            \
                     BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
 
-static struct zmk_ble_profile profiles[ZMK_BLE_PROFILE_COUNT];
+#define ADV_FILTERED_NAME                                                                      \
+    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME | BT_LE_ADV_OPT_USE_NAME |  \
+                        BT_LE_ADV_OPT_FORCE_NAME_IN_AD | BT_LE_ADV_OPT_FILTER_CONN |               \
+                        BT_LE_ADV_OPT_FILTER_SCAN_REQ,                                             \
+                    BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
+                
+
 static uint8_t active_profile;
 
 #define DEVICE_NAME CONFIG_BT_DEVICE_NAME
@@ -64,53 +96,46 @@ static const struct bt_data rev_ble_sd[] = {
 	BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_128_ENCODE(0x00001523, 0x1212, 0xefde, 0x1523, 0x785feabcd133)),
 };
 
-static void raise_profile_changed_event(void) {
-    LOG_DBG("raise_zmk_ble_active_profile_changed");
-    // raise_zmk_ble_active_profile_changed((struct zmk_ble_active_profile_changed){
-    //     .index = active_profile, .profile = &profiles[active_profile]}
-    //     );
+static void add_bonded_addr_to_filter_list(const struct bt_bond_info *info, void *data)
+{
+	char addr_str[BT_ADDR_LE_STR_LEN];
+
+	bt_le_filter_accept_list_add(&info->addr);
+	bt_addr_le_to_str(&info->addr, addr_str, sizeof(addr_str));
+	printk("Added %s to advertising accept filter list\n", addr_str);
+	bond_count++;
 }
 
-static void raise_profile_changed_event_callback(struct k_work *work) {
-    raise_profile_changed_event();
-}
+bool active_profile_bonded(void) {
 
-K_WORK_DEFINE(raise_profile_changed_event_work, raise_profile_changed_event_callback);
+    bond_count = 0;
+	bt_foreach_bond(BT_ID_DEFAULT, add_bonded_addr_to_filter_list, NULL);
 
-bool zmk_ble_active_profile_is_open(void) {
-    return !bt_addr_le_cmp(&profiles[active_profile].peer, BT_ADDR_LE_ANY);
-}
-
-void set_profile_address(uint8_t index, const bt_addr_le_t *addr) {
-    char setting_name[17];
-    char addr_str[BT_ADDR_LE_STR_LEN];
-
-    bt_addr_le_to_str(addr, addr_str, sizeof(addr_str));
-
-    memcpy(&profiles[index].peer, addr, sizeof(bt_addr_le_t));
-    sprintf(setting_name, "ble/profiles/%d", index);
-    LOG_DBG("Setting profile addr for %s to %s", setting_name, addr_str);
-#if IS_ENABLED(CONFIG_SETTINGS)
-    settings_save_one(setting_name, &profiles[index], sizeof(struct zmk_ble_profile));
-#endif
-    k_work_submit(&raise_profile_changed_event_work);
-}
-
-bool zmk_ble_active_profile_is_connected(void) {
-    struct bt_conn *conn;
-    struct bt_conn_info info;
-    bt_addr_le_t *addr = zmk_ble_active_profile_addr();
-    if (!bt_addr_le_cmp(addr, BT_ADDR_LE_ANY)) {
-        return false;
-    } else if ((conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT, addr)) == NULL) {
+    if (bond_count) {
+        return true;
+    } else {
         return false;
     }
 
-    bt_conn_get_info(conn, &info);
+}
 
-    bt_conn_unref(conn);
 
-    return info.state == BT_CONN_STATE_CONNECTED;
+static bool is_connected = false;
+
+static void conn_check(struct bt_conn *conn, void *data) {
+    struct bt_conn_info info;
+
+    if (bt_conn_get_info(conn, &info) == 0) {
+        if (info.state == BT_CONN_STATE_CONNECTED) {  // Ensure it's actively connected
+            is_connected = true;
+        }
+    }
+}
+
+bool active_profile_connected(void) {
+    is_connected = false;
+    bt_conn_foreach(BT_CONN_TYPE_LE, conn_check, NULL); // Check all LE connections
+    return is_connected;
 }
 
 #define CHECKED_ADV_STOP()                                                                         \
@@ -122,26 +147,19 @@ bool zmk_ble_active_profile_is_connected(void) {
         return err;                                                                                \
     }                                                          
 
-#define CHECKED_DIR_ADV()                                                                          \
-    addr = zmk_ble_active_profile_addr();                                                          \
-    conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT, addr);                                            \
-    LOG_DBG("Directed advertising to %s", bt_addr_le_str(addr));                                   \
-    if (conn != NULL) { /* TODO: Check status of connection */                                     \
-        LOG_DBG("Skipping advertising, profile host is already connected");                        \
-        bt_conn_unref(conn);                                                                       \
-        return 0;                                                                                  \
-    }                                                                                              \
-    err = bt_le_adv_start(BT_LE_ADV_CONN_DIR_LOW_DUTY(addr), zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad),   \
-                          rev_ble_sd, ARRAY_SIZE(rev_ble_sd));                                                                \
-    if (err) {                                                                                     \
-        LOG_ERR("Advertising failed to start (err %d)", err);                                      \
-        return err;                                                                                \
-    }                                                                                              \
-    advertising_status = ZMK_ADV_DIR;                                                             
-    
+#define CHECKED_FILTER_ADV()                                                                      \
+    err = bt_le_adv_start(ADV_FILTERED_NAME, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), rev_ble_sd, ARRAY_SIZE(rev_ble_sd)); \
+    LOG_DBG("Advertising with filter enabled");                                                  \
+    target_state = STATE_ADVERTISEMENT;                                                          \
+    if (err) {                                                                                   \
+        LOG_ERR("Filtered advertising failed to start (err %d)", err);                           \
+        return err;                                                                              \
+    }                                                                                            \
+    advertising_status = ZMK_ADV_FILTER;
+
 
 #define CHECKED_OPEN_ADV()                                                                         \
-    err = bt_le_adv_start(ZMK_ADV_CONN_NAME, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), rev_ble_sd, ARRAY_SIZE(rev_ble_sd));         \
+    err = bt_le_adv_start(ADV_CONN_NAME, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), rev_ble_sd, ARRAY_SIZE(rev_ble_sd));         \
     LOG_DBG("Advertising open");                                                                   \
     target_state = STATE_ADVERTISEMENT;                                                            \
     if (err) {                                                                                     \
@@ -151,183 +169,66 @@ bool zmk_ble_active_profile_is_connected(void) {
     advertising_status = ZMK_ADV_CONN;                                                             
     
 
-int update_advertising(void) {
-    int err = 0;
-    bt_addr_le_t *addr;
-    struct bt_conn *conn;
-    enum advertising_type desired_adv = ZMK_ADV_NONE;
 
-    if (zmk_ble_active_profile_is_open()) {
-        desired_adv = ZMK_ADV_CONN;
-    } else if (!zmk_ble_active_profile_is_connected()) {
-        desired_adv = ZMK_ADV_CONN;
-        // Need to fix directed advertising for privacy centrals. See
-        // https://github.com/zephyrproject-rtos/zephyr/pull/14984 char
-        // addr_str[BT_ADDR_LE_STR_LEN]; bt_addr_le_to_str(zmk_ble_active_profile_addr(), addr_str,
-        // sizeof(addr_str));
 
-        // LOG_DBG("Directed advertising to %s", addr_str);
-        // desired_adv = ZMK_ADV_DIR;
-    }
-    LOG_DBG("advertising from %d to %d", advertising_status, desired_adv);
+    int update_advertising(void) {
+    
+        int err = 0;
+        bt_addr_le_t *addr;
+        struct bt_conn *conn;
+        enum advertising_type desired_adv = ZMK_ADV_NONE;
+    
+        bond_count = 0;
+        bt_foreach_bond(BT_ID_DEFAULT, add_bonded_addr_to_filter_list, NULL);
 
-    switch (desired_adv + CURR_ADV(advertising_status)) {
-    case ZMK_ADV_NONE + CURR_ADV(ZMK_ADV_NONE):
-        target_state = STATE_CONNECTED;
-        break;
-    case ZMK_ADV_NONE + CURR_ADV(ZMK_ADV_DIR):
-    case ZMK_ADV_NONE + CURR_ADV(ZMK_ADV_CONN):
-        CHECKED_ADV_STOP();
-        break;
-    case ZMK_ADV_DIR + CURR_ADV(ZMK_ADV_DIR):
-    case ZMK_ADV_DIR + CURR_ADV(ZMK_ADV_CONN):
-        CHECKED_ADV_STOP();
-        CHECKED_DIR_ADV();
-        break;
-    case ZMK_ADV_DIR + CURR_ADV(ZMK_ADV_NONE):
-        CHECKED_DIR_ADV();
-        break;
-    case ZMK_ADV_CONN + CURR_ADV(ZMK_ADV_DIR):
-        CHECKED_ADV_STOP();
-        CHECKED_OPEN_ADV();
-        break;
-    case ZMK_ADV_CONN + CURR_ADV(ZMK_ADV_NONE):
-        CHECKED_OPEN_ADV();
-        break;
-    }
+        if (active_profile_bonded()) {
+            LOG_INF("Bonded");
+            
+            if (!active_profile_connected()) {
+                LOG_INF("Bonded not connected");
+                desired_adv = ZMK_ADV_FILTER;
+            }else{
+                LOG_INF("Bonded and connected");
+                desired_adv = ZMK_ADV_NONE;
+            }
 
-    return 0;
-};
+        }else{
+            desired_adv = ZMK_ADV_CONN;
+        }
 
-static void update_advertising_callback(struct k_work *work) { update_advertising(); }
+        LOG_DBG("advertising from %d to %d", advertising_status, desired_adv);
+    
+        switch (desired_adv + CURR_ADV(advertising_status)) {
+        case ZMK_ADV_NONE + CURR_ADV(ZMK_ADV_FILTER):
+            CHECKED_ADV_STOP();
+            break;
+        case ZMK_ADV_NONE + CURR_ADV(ZMK_ADV_CONN):
+            CHECKED_ADV_STOP();
+            break;
+        case ZMK_ADV_FILTER + CURR_ADV(ZMK_ADV_FILTER):
+        case ZMK_ADV_FILTER + CURR_ADV(ZMK_ADV_CONN):
+            CHECKED_ADV_STOP();
+            CHECKED_FILTER_ADV();
+            break;
+        case ZMK_ADV_FILTER + CURR_ADV(ZMK_ADV_NONE):
+            CHECKED_FILTER_ADV();
+            break;
+        case ZMK_ADV_CONN + CURR_ADV(ZMK_ADV_FILTER):
+            CHECKED_ADV_STOP();
+            CHECKED_OPEN_ADV();
+            break;
+        case ZMK_ADV_CONN + CURR_ADV(ZMK_ADV_NONE):
+            CHECKED_OPEN_ADV();
+            break;
+        }
+    
+        return 0;
+    };
+
+    static void update_advertising_callback(struct k_work *work) { update_advertising(); }
 
 K_WORK_DEFINE(update_advertising_work, update_advertising_callback);
 
-static void clear_profile_bond(uint8_t profile) {
-    if (bt_addr_le_cmp(&profiles[profile].peer, BT_ADDR_LE_ANY)) {
-        LOG_DBG("erase profile()");
-        bt_unpair(BT_ID_DEFAULT, &profiles[profile].peer);
-        set_profile_address(profile, BT_ADDR_LE_ANY);
-    }
-}
-
-void zmk_ble_clear_bonds(void) {
-    LOG_DBG("zmk_ble_clear_bonds()");
-
-    clear_profile_bond(active_profile);
-    update_advertising();
-};
-
-void zmk_ble_clear_all_bonds(void) {
-    LOG_DBG("zmk_ble_clear_all_bonds()");
-
-    // Unpair all profiles
-    for (int i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
-        clear_profile_bond(i);
-    }
-
-    // Automatically switch to profile 0
-    zmk_ble_prof_select(0);
-    update_advertising();
-};
-
-int zmk_ble_active_profile_index(void) { return active_profile; }
-
-int zmk_ble_profile_index(const bt_addr_le_t *addr) {
-    for (int i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
-        if (bt_addr_le_cmp(addr, &profiles[i].peer) == 0) {
-            return i;
-        }
-    }
-    return -ENODEV;
-}
-
-#if IS_ENABLED(CONFIG_SETTINGS)
-static void ble_save_profile_work(struct k_work *work) {
-    settings_save_one("ble/active_profile", &active_profile, sizeof(active_profile));
-}
-
-static struct k_work_delayable ble_save_work;
-#endif
-
-static int ble_save_profile(void) {
-#if IS_ENABLED(CONFIG_SETTINGS)
-    return k_work_reschedule(&ble_save_work, K_MSEC(600));
-#else
-    return 0;
-#endif
-}
-
-int zmk_ble_prof_select(uint8_t index) {
-    if (index >= ZMK_BLE_PROFILE_COUNT) {
-        return -ERANGE;
-    }
-
-    LOG_DBG("profile %d", index);
-    if (active_profile == index) {
-        return 0;
-    }
-
-    active_profile = index;
-    ble_save_profile();
-
-    update_advertising();
-
-    raise_profile_changed_event();
-
-    return 0;
-};
-
-int zmk_ble_prof_next(void) {
-    LOG_DBG("profile next");
-    return zmk_ble_prof_select((active_profile + 1) % ZMK_BLE_PROFILE_COUNT);
-};
-
-int zmk_ble_prof_prev(void) {
-    LOG_DBG("profile prev");
-    return zmk_ble_prof_select((active_profile + ZMK_BLE_PROFILE_COUNT - 1) %
-                               ZMK_BLE_PROFILE_COUNT);
-};
-
-int zmk_ble_prof_disconnect(uint8_t index) {
-    if (index >= ZMK_BLE_PROFILE_COUNT)
-        return -ERANGE;
-
-    bt_addr_le_t *addr = &profiles[index].peer;
-    struct bt_conn *conn;
-    int result;
-
-    if (!bt_addr_le_cmp(addr, BT_ADDR_LE_ANY)) {
-        return -ENODEV;
-    } else if ((conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT, addr)) == NULL) {
-        return -ENODEV;
-    }
-
-    result = bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
-    LOG_DBG("Disconnected from profile %d: %d", index, result);
-
-    bt_conn_unref(conn);
-    return result;
-}
-
-bt_addr_le_t *zmk_ble_active_profile_addr(void) { return &profiles[active_profile].peer; }
-
-struct bt_conn *zmk_ble_active_profile_conn(void) {
-    struct bt_conn *conn;
-    bt_addr_le_t *addr = zmk_ble_active_profile_addr();
-
-    if (!bt_addr_le_cmp(addr, BT_ADDR_LE_ANY)) {
-        LOG_WRN("Not sending, no active address for current profile");
-        return NULL;
-    } else if ((conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT, addr)) == NULL) {
-        LOG_WRN("Not sending, not connected to active profile");
-        return NULL;
-    }
-
-    return conn;
-}
-
-char *zmk_ble_active_profile_name(void) { return profiles[active_profile].name; }
 
 int zmk_ble_set_device_name(char *name) {
     // Copy new name to advertising parameters
@@ -351,70 +252,19 @@ int zmk_ble_set_device_name(char *name) {
 
 
 
-#if IS_ENABLED(CONFIG_SETTINGS)
 
-static int ble_profiles_handle_set(const char *name, size_t len, settings_read_cb read_cb,
-                                   void *cb_arg) {
-    const char *next;
-
-    LOG_DBG("Setting BLE value %s", name);
-
-    if (settings_name_steq(name, "profiles", &next) && next) {
-        char *endptr;
-        uint8_t idx = strtoul(next, &endptr, 10);
-        if (*endptr != '\0') {
-            LOG_WRN("Invalid profile index: %s", next);
-            return -EINVAL;
-        }
-
-        if (len != sizeof(struct zmk_ble_profile)) {
-            LOG_ERR("Invalid profile size (got %d expected %d)", len,
-                    sizeof(struct zmk_ble_profile));
-            return -EINVAL;
-        }
-
-        if (idx >= ZMK_BLE_PROFILE_COUNT) {
-            LOG_WRN("Profile address for index %d is larger than max of %d", idx,
-                    ZMK_BLE_PROFILE_COUNT);
-            return -EINVAL;
-        }
-
-        int err = read_cb(cb_arg, &profiles[idx], sizeof(struct zmk_ble_profile));
-        if (err <= 0) {
-            LOG_ERR("Failed to handle profile address from settings (err %d)", err);
-            return err;
-        }
-
-        char addr_str[BT_ADDR_LE_STR_LEN];
-        bt_addr_le_to_str(&profiles[idx].peer, addr_str, sizeof(addr_str));
-
-        LOG_DBG("Loaded %s address for profile %d", addr_str, idx);
-    } else if (settings_name_steq(name, "active_profile", &next) && !next) {
-        if (len != sizeof(active_profile)) {
-            return -EINVAL;
-        }
-
-        int err = read_cb(cb_arg, &active_profile, sizeof(active_profile));
-        if (err <= 0) {
-            LOG_ERR("Failed to handle active profile from settings (err %d)", err);
-            return err;
-        }
+static void zmk_ble_ready(int err) {
+    LOG_DBG("ready? %d", err);
+    if (err) {
+        LOG_ERR("Bluetooth init failed (err %d)", err);
+        return;
     }
 
-
-    return 0;
-};
-
-static int zmk_ble_complete_startup(void);
-
-static struct settings_handler profiles_handler = {
-    .name = "ble", .h_set = ble_profiles_handle_set, .h_commit = zmk_ble_complete_startup};
-
-#endif /* IS_ENABLED(CONFIG_SETTINGS) */
-
-static bool is_conn_active_profile(const struct bt_conn *conn) {
-    return bt_addr_le_cmp(bt_conn_get_dst(conn), &profiles[active_profile].peer) == 0;
+    update_advertising();
 }
+
+
+
 
 static void connected(struct bt_conn *conn, uint8_t err) {
     char addr[BT_ADDR_LE_STR_LEN];
@@ -440,12 +290,10 @@ static void connected(struct bt_conn *conn, uint8_t err) {
 
     LOG_DBG("Connected %s", addr);
 
+
     update_advertising();
 
-    if (is_conn_active_profile(conn)) {
-        LOG_DBG("Active profile connected");
-        k_work_submit(&raise_profile_changed_event_work);
-    }
+
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason) {
@@ -466,10 +314,6 @@ static void disconnected(struct bt_conn *conn, uint8_t reason) {
     // connection for a profile as active, and not start advertising yet.
     k_work_submit(&update_advertising_work);
 
-    if (is_conn_active_profile(conn)) {
-        LOG_DBG("Active profile disconnected");
-        k_work_submit(&raise_profile_changed_event_work);
-    }
 }
 
 static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_security_err err) {
@@ -482,6 +326,7 @@ static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_
     } else {
         LOG_ERR("Security failed: %s level %u err %d", addr, level, err);
     }
+
 }
 
 static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t latency,
@@ -491,6 +336,7 @@ static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t l
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
     LOG_DBG("%s: interval %d latency %d timeout %d", addr, interval, latency, timeout);
+
 }
 
 static struct bt_conn_cb conn_callbacks = {
@@ -509,22 +355,17 @@ static void auth_cancel(struct bt_conn *conn) {
 
 
     LOG_DBG("Pairing cancelled: %s", addr);
+
 }
 
-static bool pairing_allowed_for_current_profile(struct bt_conn *conn) {
-    return zmk_ble_active_profile_is_open() || (IS_ENABLED(CONFIG_BT_SMP_ALLOW_UNAUTH_OVERWRITE) && bt_addr_le_cmp(zmk_ble_active_profile_addr(), bt_conn_get_dst(conn)) == 0);
-}
 
 static enum bt_security_err auth_pairing_accept(struct bt_conn *conn,
                                                 const struct bt_conn_pairing_feat *const feat) {
     struct bt_conn_info info;
     bt_conn_get_info(conn, &info);
 
-    LOG_DBG("role %d, open? %s", info.role, zmk_ble_active_profile_is_open() ? "yes" : "no");
-    if (info.role == BT_CONN_ROLE_PERIPHERAL && !pairing_allowed_for_current_profile(conn)) {
-        LOG_WRN("Rejecting pairing request to taken profile %d", active_profile);
-        return BT_SECURITY_ERR_PAIR_NOT_ALLOWED;
-    }
+    LOG_DBG("role %d", info.role);
+
 
     return BT_SECURITY_ERR_SUCCESS;
 };
@@ -541,19 +382,10 @@ static void auth_pairing_complete(struct bt_conn *conn, bool bonded) {
         LOG_DBG("SKIPPING FOR ROLE %d", info.role);
         return;
     }
-
-    if (!pairing_allowed_for_current_profile(conn)) {
-        LOG_ERR("Pairing completed but current profile is not open: %s", addr);
-        bt_unpair(BT_ID_DEFAULT, dst);
-        return;
-    }
-
-    set_profile_address(active_profile, dst);
     update_advertising();
 };
 
 static struct bt_conn_auth_cb zmk_ble_auth_cb_display = {
-    // .pairing_accept = auth_pairing_accept,
     .cancel = auth_cancel,
 };
 
@@ -561,46 +393,8 @@ static struct bt_conn_auth_info_cb zmk_ble_auth_info_cb_display = {
     .pairing_complete = auth_pairing_complete,
 };
 
-static void zmk_ble_ready(int err) {
-    LOG_DBG("ready? %d", err);
-    if (err) {
-        LOG_ERR("Bluetooth init failed (err %d)", err);
-        return;
-    }
-
-    update_advertising();
-}
-
 static int zmk_ble_complete_startup(void) {
 
-// #if IS_ENABLED(CONFIG_ZMK_BLE_CLEAR_BONDS_ON_START)
-//     LOG_WRN("Clearing all existing BLE bond information from the keyboard");
-
-//     bt_unpair(BT_ID_DEFAULT, NULL);
-
-//     for (int i = 0; i < 8; i++) {
-//         char setting_name[15];
-//         sprintf(setting_name, "ble/profiles/%d", i);
-
-//         int err = settings_delete(setting_name);
-//         if (err) {
-//             LOG_ERR("Failed to delete setting: %d", err);
-//         }
-//     }
-
-//     // Hardcoding a reasonable hardcoded value of peripheral addresses
-//     // to clear so we properly clear a split central as well.
-//     for (int i = 0; i < 8; i++) {
-//         char setting_name[32];
-//         sprintf(setting_name, "ble/peripheral_addresses/%d", i);
-
-//         int err = settings_delete(setting_name);
-//         if (err) {
-//             LOG_ERR("Failed to delete setting: %d", err);
-//         }
-//     }
-
-// #endif // IS_ENABLED(CONFIG_ZMK_BLE_CLEAR_BONDS_ON_START)
 
     bt_conn_cb_register(&conn_callbacks);
     bt_conn_auth_cb_register(&zmk_ble_auth_cb_display);
@@ -611,22 +405,42 @@ static int zmk_ble_complete_startup(void) {
     return 0;
 }
 
-int zmk_ble_init(void) {
+
+
+static int zmk_ble_init(void) {
+
+    LOG_INF("Bluetooth init");
+
     int err = bt_enable(NULL);
+
     if (err < 0 && err != -EALREADY) {
         LOG_ERR("BLUETOOTH FAILED (%d)", err);
         return err;
     }
-    settings_load();
-    LOG_DBG("bluetooth init");
+
 #if IS_ENABLED(CONFIG_SETTINGS)
-    settings_register(&profiles_handler);
-    k_work_init_delayable(&ble_save_work, ble_save_profile_work);
-#endif
+    settings_load();
+    #endif
     zmk_ble_complete_startup();
+
 
     return 0;
 }
 
+void disable_bluetooth(void) {
+    int err = bt_le_adv_stop();
+    if (err) {
+        printk("Failed to stop advertising (err %d)\n", err);
+    } else {
+        printk("Bluetooth advertising stopped.\n");
+    }
+	
+	 err = bt_disable();
+    if (err) {
+        printk("Failed to disable Bluetooth (err %d)\n", err);
+    } else {
+        printk("Bluetooth disabled.\n");
+    }
+}
 
-// SYS_INIT(zmk_ble_init, APPLICATION, 50);
+SYS_INIT(zmk_ble_init, APPLICATION, 50);

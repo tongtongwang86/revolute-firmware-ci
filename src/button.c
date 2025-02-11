@@ -30,6 +30,7 @@ void handle_button_event(enum button_event event) {
     case BUTTON_SINGLE_CLICK:
         LOG_INF("Single Click detected!");
 
+        zmk_ble_clear_all_bonds();
         // int err = zmk_ble_set_device_name("newname");
         // if (err < 0) {
         //     LOG_ERR("Failed to set device name (err %d)", err);
@@ -45,7 +46,8 @@ void handle_button_event(enum button_event event) {
     case BUTTON_TRIPLE_CLICK:
         LOG_INF("Triple Click detected!");
 
-        zmk_ble_clear_all_bonds();
+        
+        
         // target_state = STATE_PAIRING;
         break;
     case BUTTON_LONG_HOLD:

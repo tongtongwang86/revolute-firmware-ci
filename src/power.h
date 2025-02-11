@@ -24,7 +24,9 @@ typedef enum {
     STATE_OFF,
     STATE_PAIRING,
     STATE_ADVERTISEMENT,
-    STATE_CONNECTED
+    STATE_CONNECTED,
+    STATE_STANDBY,
+    STATE_ONFULL
 } led_state_t;
 
 

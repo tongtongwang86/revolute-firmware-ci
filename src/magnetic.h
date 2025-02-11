@@ -28,4 +28,7 @@ extern uint16_t angle;
 extern int change;
 
 void SensorThreadinit(void);
+void suspend_magnetic_thread(void);
+void resume_magnetic_thread(void);
+
 #endif //MAGNETIC

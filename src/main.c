@@ -19,32 +19,35 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 int main(void)
 {
-    settings_subsys_init();
+    // settings_subsys_init();
     
     LOG_INF("Revooolluuuteee!\n");
 
-    int err = zmk_ble_init();
-    if (err < 0) {
-        LOG_ERR("bluetooth init failed (err %d)", err);
-        return err;
-    }
-    LOG_INF("bluetooth inited\n");
 
 
-    batteryThreadinit();
-    rev_svc_thread_init();
-    button_init();
+    // int err = zmk_ble_init();
+    // if (err < 0) {
+    //     LOG_ERR("bluetooth init failed (err %d)", err);
+    //     return err;
+    // }
+    // LOG_INF("bluetooth inited\n");
+
+
+
+    // batteryThreadinit();
+    // rev_svc_thread_init();
+    // button_init();
     // LOG_INF("rev_svc_loop thread started\n");
 
 
-    SensorThreadinit();
+    // SensorThreadinit();
 
 
-	 err = pwmled_init();
-    if (err < 0) {
-        LOG_ERR("LED initialization failed (err %d)", err);
-        return err;
-    }
+	// int err = pwmled_init();
+    // if (err < 0) {
+    //     LOG_ERR("LED initialization failed (err %d)", err);
+    //     return err;
+    // }
 
     return 0;
 }
