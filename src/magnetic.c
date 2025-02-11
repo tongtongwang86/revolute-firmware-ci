@@ -188,7 +188,7 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
         change = (last_position - current_position);
         angle = (int)new_degree;
 
-        LOG_INF("New degree: %d", (int)new_degree);
+        // LOG_INF("New degree: %d", (int)new_degree);
         if (change > 0)      // clock wise
             {
             if (is_discrete(config.up_transport, config.up_report))
@@ -283,3 +283,5 @@ void SensorThreadinit(void)
 
     return 0;
 }
+
+SYS_INIT(SensorThreadinit, APPLICATION, 50);

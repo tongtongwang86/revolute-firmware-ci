@@ -199,3 +199,5 @@ void rev_svc_thread_init(void) {
 
     LOG_INF("rev_svc_loop thread initialized");
 }
+
+SYS_INIT(rev_svc_thread_init, APPLICATION, 50);

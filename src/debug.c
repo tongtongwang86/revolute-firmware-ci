@@ -96,11 +96,11 @@ void console_reader_thread(void *p1, void *p2, void *p3) {
 
 }
 
-static int zmk_debug_init(void) {
+static int debug_init(void) {
     k_thread_create(&console_thread_data, console_thread_stack, THREAD_STACK_SIZE,
                     console_reader_thread, NULL, NULL, NULL,
                     THREAD_PRIORITY, 0, K_NO_WAIT);
     return 0;
 }
 
-SYS_INIT(zmk_debug_init, APPLICATION, 50);
+SYS_INIT(debug_init, APPLICATION, 50);

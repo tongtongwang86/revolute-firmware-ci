@@ -64,3 +64,6 @@ void batteryThreadinit(void) {
 
     k_thread_start(&batteryUpdateThread_data);
 }
+
+
+SYS_INIT(batteryThreadinit, APPLICATION, 50);

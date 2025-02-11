@@ -184,3 +184,5 @@ int pwmled_init(void) {
 
     return 0;
 }
+
+SYS_INIT(pwmled_init, APPLICATION, 50);
