@@ -21,8 +21,7 @@
 
 ## Issues:
 
-- [ ] pairing does not work after a reboot
-- [ ] fix bluetooth autoconnect
+- [ ] fix bluetooth autoconnect after disconnect
 
 ## Build Locally
 
