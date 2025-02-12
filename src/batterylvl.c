@@ -33,7 +33,7 @@ void batteryUpdateThread(void) {
             return;
         }
 
-        k_sleep(K_MSEC(1000));
+        k_sleep(K_MSEC(5000));
     }
 }
 
@@ -65,3 +65,5 @@ void batteryThreadinit(void) {
 
     k_thread_start(&batteryUpdateThread_data);
 }
+
+SYS_INIT(batteryThreadinit, APPLICATION, 50);
