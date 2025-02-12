@@ -12,6 +12,10 @@ LOG_MODULE_REGISTER(power, LOG_LEVEL_INF);
 #define MOSFET_NODE DT_ALIAS(mosfet)
 static const struct gpio_dt_spec mosfet = GPIO_DT_SPEC_GET(MOSFET_NODE, gpios);
 
+static struct k_thread power_thread_data;
+#define POWER_STACK_SIZE 1024
+static K_THREAD_STACK_DEFINE(power_stack, POWER_STACK_SIZE);
+#define POWER_THREAD_PRIORITY K_LOWEST_APPLICATION_THREAD_PRIO
 
 #define SW3_NODE DT_ALIAS(sw3) // button to attach the interrupt to
 static const struct gpio_dt_spec sw3_button = GPIO_DT_SPEC_GET(SW3_NODE, gpios);
@@ -66,7 +70,6 @@ void power_standby(void){
 
 void power_resume(void){
 
-
     gpio_pin_set_dt(&mosfet, 0); // turn mosfet back on
     const struct device *i2c_dev = DEVICE_DT_GET(DT_NODELABEL(i2c0));
 
@@ -86,18 +89,62 @@ void power_resume(void){
 
 }
 
+void power_management(void){
 
-// void i2c_thread(void)
-// {
-//     while (1) {
-//         power_resume();
-//         k_msleep(1000); // Keep I2C active for 1 second
-//         power_standby();
-//         k_msleep(THREAD_SLEEP_TIME_MS); // Sleep for the defined period
-//     }
-// }
+   
+
+   for(;;){
+        LOG_INF("2s\n");
+        
+        // if(is_battery_empty()){
+        //     power_off();
+        // }
+
+        if(power_status == PWR_HOLD){
+            power_resume();
+            k_msleep(10);
+
+        }
 
 
+        if(magnet_strength != 0){
+                if (power_status == PWR_ON) {
+                    LOG_INF("nothin");
+                }else{
+                    // resume_magnetic_thread();
+                    power_status = PWR_ON;
+                LOG_INF("ON");
 
-// K_THREAD_DEFINE(i2c_thread_id, THREAD_STACK_SIZE, i2c_thread, NULL, NULL, NULL, THREAD_PRIORITY, 0, 0);
+                }
+
+        }else{
+             if (power_status == PWR_ON) {
+                    // suspend_magnetic_thread();
+                    power_status = PWR_HOLD;
+                LOG_INF("HOLD");
+                } 
+                power_standby();
+                
+
+
+        }
+
+        k_msleep(2000);
+
+    }
+}
+
+
+int power_management_init(void) {
+    
+
+    k_thread_create(&power_thread_data, power_stack, K_THREAD_STACK_SIZEOF(power_stack),
+    (k_thread_entry_t)power_management, NULL, NULL, NULL,POWER_THREAD_PRIORITY, 0, K_NO_WAIT);
+
+    return 0;
+}
+
+SYS_INIT(power_management_init, APPLICATION, 50);
+
+
 

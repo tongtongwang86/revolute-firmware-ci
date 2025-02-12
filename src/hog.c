@@ -395,7 +395,7 @@ void revolute_dn_continuous_work_handler(struct k_work *work) {
         if (simulate_input) {
 
             int8_t rep[8] = {0,0,0,0,0,0,0,0};
-            LOG_INF("%d\n", change);
+            // LOG_INF("%d\n", change);
             memcpy(rep, config.dn_report, sizeof(rep));  // Copy original report to rep
             for (int i = 0; i < 8; i++) {
             if (rep[i] != 0) {  

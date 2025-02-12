@@ -9,6 +9,8 @@
 #include <ble.h>
 #include <power.h>
 #include <pwmled.h>
+#include <batterylvl.h>
+#include <magnetic.h>
 
 #define THREAD_STACK_SIZE 1024
 #define THREAD_PRIORITY 5
@@ -76,6 +78,10 @@ void process_command(const char *cmd) {
         }
     } else if (strcmp(cmd, "hi") == 0) {
         LOG_INF(":>");
+    } else if (strcmp(cmd, "battery") == 0) {
+        printbatterystats();
+    } else if (strcmp(cmd, "magnet_strength") == 0) {
+        LOG_INF("strength: %d", get_magnet_strength());
     } else if (strcmp(cmd, "adv_status") == 0) {
         LOG_INF("Advertising Status: %s", advertising_status_to_string(advertising_status));
     } else if (strcmp(cmd, "poweroff") == 0) {

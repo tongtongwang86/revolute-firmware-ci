@@ -1,6 +1,7 @@
 #include "magnetic.h"
 #include "revsvc.h"
 #include "hog.h"
+#include "power.h"
 
 
 #define AS5600_I2C_ADDR 0x36  // AS5600 I2C address (can be 0x36 or 0x37 depending on ADDR pin configuration)
@@ -20,8 +21,13 @@ LOG_MODULE_REGISTER(spin, LOG_LEVEL_DBG);
 static struct k_thread magnetic_thread_data;
 static K_THREAD_STACK_DEFINE(magnetic_stack, THREAD_STACK_SIZE);
 
+const struct device *const as = DEVICE_DT_GET(DT_INST(0, ams_as5600));
+
+
 uint16_t angle = 0;
 int change = 0;
+
+uint8_t magnet_strength = 0;
 
 struct as5600_dev_cfg {
     struct i2c_dt_spec i2c_port;
@@ -54,15 +60,21 @@ int get_magnet_strength(const struct device *dev)
     // Check if a magnet is detected (MD = 1)
     if (mag_status & 0x20) { // MD is bit 5
         magnet_strength = MAGNET_DETECTED;
-
+        printk("Magnet detected\n");
         // Check if the magnet is too weak (ML = 1)
         if (mag_status & 0x10) { // ML is bit 4
             magnet_strength = MAGNET_TOO_WEAK;
+            printk("Magnet too weak\n");
+
         }
         // Check if the magnet is too strong (MH = 1)
         else if (mag_status & 0x08) { // MH is bit 3
             magnet_strength = MAGNET_TOO_STRONG;
+            printk("Magnet too strong\n");
         }
+    }else{
+        printk("Magnet not detected\n");
+
     }
 
     return magnet_strength;
@@ -168,7 +180,6 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
 
     LOG_INF("magnetic thread started");
 
-    const struct device *const as = DEVICE_DT_GET(DT_INST(0, ams_as5600));
 
     if (as == NULL || !device_is_ready(as))
     {
@@ -183,12 +194,15 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
     int last_ident = (as5600_refresh(as) - (as5600_refresh(as) % config.up_identPerRev)) / config.up_identPerRev;
 
     while (1) {
+       
         new_degree = as5600_refresh(as);
         int current_position = predictive_update(new_degree);
         change = (last_position - current_position);
         angle = (int)new_degree;
-
+        magnet_strength = get_magnet_strength(as);
         // LOG_INF("New degree: %d", (int)new_degree);
+
+         if(power_status == PWR_ON){
         if (change > 0)      // clock wise
             {
             if (is_discrete(config.up_transport, config.up_report))
@@ -254,8 +268,7 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
             {
                 // below dead zone
             }
-
-
+        }
         
     }
 }

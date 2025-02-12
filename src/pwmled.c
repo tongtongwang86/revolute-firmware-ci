@@ -72,10 +72,10 @@ static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
             damping_b = 7;
             target_brightness = -10;
         } else if (power_status == PWR_HOLD) {
-            mass = 5;
-            spring_k = 30;
+            mass = 1;
+            spring_k = 50;
             damping_b = 4;
-            target_brightness = 0.5;
+            target_brightness = 0.2;
         } else if (power_status == PWR_ON) {
             switch (advertising_status) {
                 case ADV_NONE:
@@ -104,7 +104,7 @@ static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
         
 
         float normalized_brightness;
-        LOG_INF("brightness: %f", brightness);
+        // LOG_INF("brightness: %f", brightness);
         if (brightness < 0) {
             normalized_brightness = 0;
             velocity = 0;  // Stop movement when hitting the lower bound
