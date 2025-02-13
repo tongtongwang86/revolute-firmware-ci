@@ -78,8 +78,6 @@ void process_command(const char *cmd) {
         }
     } else if (strcmp(cmd, "hi") == 0) {
         LOG_INF(":>");
-    } else if (strcmp(cmd, "battery") == 0) {
-        printbatterystats();
     } else if (strcmp(cmd, "magnet_strength") == 0) {
         LOG_INF("strength: %d", get_magnet_strength());
     } else if (strcmp(cmd, "adv_status") == 0) {

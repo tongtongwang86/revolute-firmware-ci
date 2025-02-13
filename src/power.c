@@ -52,7 +52,7 @@ void power_off(void) {
 void power_standby(void){
 
 
-    suspend_magnetic_thread();
+    // suspend_magnetic_thread();
 
     const struct device *i2c_dev = DEVICE_DT_GET(DT_NODELABEL(i2c0));
 
@@ -84,67 +84,10 @@ void power_resume(void){
     } else {
         printk("I2C device is not ready.\n");
     }
-    resume_magnetic_thread();
+    // resume_magnetic_thread();
     LOG_INF("resumed\n");
 
 }
-
-void power_management(void){
-
-   
-
-   for(;;){
-        LOG_INF("2s\n");
-        
-        // if(is_battery_empty()){
-        //     power_off();
-        // }
-
-        if(power_status == PWR_HOLD){
-            power_resume();
-            k_msleep(10);
-
-        }
-
-
-        if(magnet_strength != 0){
-                if (power_status == PWR_ON) {
-                    LOG_INF("nothin");
-                }else{
-                    // resume_magnetic_thread();
-                    power_status = PWR_ON;
-                LOG_INF("ON");
-
-                }
-
-        }else{
-             if (power_status == PWR_ON) {
-                    // suspend_magnetic_thread();
-                    power_status = PWR_HOLD;
-                LOG_INF("HOLD");
-                } 
-                power_standby();
-                
-
-
-        }
-
-        k_msleep(2000);
-
-    }
-}
-
-
-int power_management_init(void) {
-    
-
-    k_thread_create(&power_thread_data, power_stack, K_THREAD_STACK_SIZEOF(power_stack),
-    (k_thread_entry_t)power_management, NULL, NULL, NULL,POWER_THREAD_PRIORITY, 0, K_NO_WAIT);
-
-    return 0;
-}
-
-SYS_INIT(power_management_init, APPLICATION, 50);
 
 
 

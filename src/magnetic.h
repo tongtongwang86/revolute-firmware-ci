@@ -27,11 +27,12 @@ extern uint16_t angle;
 
 extern int change;
 
-extern uint8_t magnet_strength;
 
 void SensorThreadinit(void);
 void suspend_magnetic_thread(void);
 void resume_magnetic_thread(void);
 
+bool is_battery_empty(void);
+void sendbattery(void);
 
 #endif //MAGNETIC

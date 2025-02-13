@@ -2,7 +2,11 @@
 #include "revsvc.h"
 #include "hog.h"
 #include "power.h"
+#include "batterylvl.h"
 
+int last_ident;
+int last_position;
+double new_degree;
 
 #define AS5600_I2C_ADDR 0x36  // AS5600 I2C address (can be 0x36 or 0x37 depending on ADDR pin configuration)
 #define AS5600_REG_STATUS 0x0B
@@ -23,6 +27,7 @@ static K_THREAD_STACK_DEFINE(magnetic_stack, THREAD_STACK_SIZE);
 
 const struct device *const as = DEVICE_DT_GET(DT_INST(0, ams_as5600));
 
+// K_MUTEX_DEFINE(i2c_mutex);
 
 uint16_t angle = 0;
 int change = 0;
@@ -107,6 +112,7 @@ int as5600_refresh(const struct device *dev)
 }
 
 
+
 bool is_discrete(uint8_t transport, uint8_t report[8]) {
     switch (transport) {
         case 5: // keyboard
@@ -174,6 +180,87 @@ int predictive_update(double new_degree)
 }
 
 
+
+void calculate_and_send(void){
+
+       
+    new_degree = as5600_refresh(as);
+    int current_position = predictive_update(new_degree);
+    change = (last_position - current_position);
+    angle = (int)new_degree;
+    // LOG_INF("New degree: %d", (int)new_degree);
+
+     
+    if (change > 0)      // clock wise
+        {
+        if (is_discrete(config.up_transport, config.up_report))
+            { 
+
+    int degrees = (int)new_degree;
+    int DegreesPerIdent = 360/config.up_identPerRev;
+    int adjustedDegrees = degrees + (DegreesPerIdent / 2) + IDENT_OFFSET;
+    int CurrentIdent = (adjustedDegrees - (adjustedDegrees % DegreesPerIdent)) / DegreesPerIdent;
+
+
+        if (last_ident != CurrentIdent && CurrentIdent != config.up_identPerRev)
+        {   
+            LOG_INF("tick cw");
+            
+            revolute_up_submit();
+            last_ident = CurrentIdent;
+        }
+
+            }else{// handle continuous
+            revolute_up_cont_submit();
+            k_msleep(5);
+            
+
+            }
+
+
+        last_position = current_position;
+        }
+        else if (change < 0)  // counter clock wise
+        {
+        if (is_discrete(config.dn_transport, config.dn_report))
+            {
+        int degrees = (int)new_degree;
+        int DegreesPerIdent = 360/config.dn_identPerRev;
+        int adjustedDegrees = degrees + (DegreesPerIdent / 2) + IDENT_OFFSET;
+        int CurrentIdent = (adjustedDegrees - (adjustedDegrees % DegreesPerIdent)) / DegreesPerIdent;
+
+
+        if (last_ident != CurrentIdent && CurrentIdent != config.dn_identPerRev)
+        {
+            // tick
+            LOG_INF("tick ccw");
+
+            revolute_dn_submit();
+            last_ident = CurrentIdent;
+        }
+
+            }else{// handle continuous
+
+            revolute_dn_cont_submit();
+            k_msleep(5);
+
+
+            }
+
+
+
+        last_position = current_position;
+        }
+        else
+        {
+            // below dead zone
+        }
+    
+    
+    
+}
+
+
 // Thread entry point
 static void magnetic_thread(void *unused1, void *unused2, void *unused3)
 {
@@ -187,105 +274,74 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
         return;
     }
 
-    double new_degree = as5600_refresh(as);
-    int last_position = predictive_update(new_degree);
-    int last_report_time = k_cycle_get_32();
+    new_degree = as5600_refresh(as);
+    last_position = predictive_update(new_degree);
+    // int lasttime = k_cycle_get_32();
     change = 0;
-    int last_ident = (as5600_refresh(as) - (as5600_refresh(as) % config.up_identPerRev)) / config.up_identPerRev;
+    last_ident = (as5600_refresh(as) - (as5600_refresh(as) % config.up_identPerRev)) / config.up_identPerRev;
 
+    double lasttime = k_cycle_get_32();
     while (1) {
-       
-        new_degree = as5600_refresh(as);
-        int current_position = predictive_update(new_degree);
-        change = (last_position - current_position);
-        angle = (int)new_degree;
-        magnet_strength = get_magnet_strength(as);
-        // LOG_INF("New degree: %d", (int)new_degree);
-
-         if(power_status == PWR_ON){
-        if (change > 0)      // clock wise
-            {
-            if (is_discrete(config.up_transport, config.up_report))
-                { 
-
-        int degrees = (int)new_degree;
-        int DegreesPerIdent = 360/config.up_identPerRev;
-        int adjustedDegrees = degrees + (DegreesPerIdent / 2) + IDENT_OFFSET;
-        int CurrentIdent = (adjustedDegrees - (adjustedDegrees % DegreesPerIdent)) / DegreesPerIdent;
-
-
-            if (last_ident != CurrentIdent && CurrentIdent != config.up_identPerRev)
-            {   
-                LOG_INF("tick cw");
-                
-                revolute_up_submit();
-                last_ident = CurrentIdent;
-            }
-
-                }else{// handle continuous
-                revolute_up_cont_submit();
-                k_msleep(5);
-                
-
-                }
-
-
-            last_position = current_position;
-            }
-            else if (change < 0)  // counter clock wise
-            {
-            if (is_discrete(config.dn_transport, config.dn_report))
-                {
-        int degrees = (int)new_degree;
-        int DegreesPerIdent = 360/config.dn_identPerRev;
-        int adjustedDegrees = degrees + (DegreesPerIdent / 2) + IDENT_OFFSET;
-        int CurrentIdent = (adjustedDegrees - (adjustedDegrees % DegreesPerIdent)) / DegreesPerIdent;
-
-
-            if (last_ident != CurrentIdent && CurrentIdent != config.dn_identPerRev)
-            {
-                // tick
-                LOG_INF("tick ccw");
-
-                revolute_dn_submit();
-                last_ident = CurrentIdent;
-            }
-
-                }else{// handle continuous
-
-                revolute_dn_cont_submit();
-                k_msleep(5);
-
-
-                }
-
-
-
-
-            last_position = current_position;
-            }
-            else
-            {
-                // below dead zone
-            }
-        }
         
+        double time = k_cycle_get_32();
+        uint32_t elapsed_ms = k_ticks_to_ms_floor32(time - lasttime);
+
+        // printk("Elapsed time: %d", elapsed_ms);
+        if (elapsed_ms > 2000) {
+
+            if(power_status == PWR_ON){
+                
+                if (is_battery_empty()){
+                    power_off();
+                } else if(advertising_status == ADV_NONE){
+
+                    sendbattery();
+                }
+
+                if(!get_magnet_strength(as)){
+                    power_status = PWR_HOLD;
+                    power_standby();
+                    k_msleep(2000);
+                }
+            }else{
+
+                power_resume();
+                k_msleep(10);
+
+                if (is_battery_empty()){
+                    power_off();
+                } else if(advertising_status == ADV_NONE){
+
+                    sendbattery();
+                }
+                
+                if(get_magnet_strength(as)){
+                    power_status = PWR_ON;
+                    
+                }else{
+                    
+                    // power_status = PWR_HOLD;
+                    power_standby();
+                    k_msleep(2000);
+
+                }
+            }
+
+           
+    
+
+                lasttime = time;
+        }
+  
+        
+
+        if(power_status == PWR_ON){
+            calculate_and_send();
+        }
+
     }
 }
 
-
-void suspend_magnetic_thread(void)
-{
-    k_thread_suspend(&magnetic_thread_data);
-    LOG_INF("Print thread suspended");
-}
-
-// Function to resume the print thread
-void resume_magnetic_thread(void)
-{
-    k_thread_resume(&magnetic_thread_data);
-    LOG_INF("Print thread resumed");
-}
 
 void SensorThreadinit(void)
 {

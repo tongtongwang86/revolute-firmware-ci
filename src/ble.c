@@ -403,7 +403,7 @@ static int zmk_ble_complete_startup(void) {
 
 
 
-static int zmk_ble_init(void) {
+static int ble_init(void) {
 
     LOG_INF("Bluetooth init");
 
@@ -439,4 +439,4 @@ void disable_bluetooth(void) {
     }
 }
 
-SYS_INIT(zmk_ble_init, APPLICATION, 50);
+SYS_INIT(ble_init, APPLICATION, 50);
