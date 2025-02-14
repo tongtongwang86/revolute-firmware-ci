@@ -37,6 +37,11 @@ int change = 0;
 
 uint8_t magnet_strength = 0;
 
+rev_timer_t timer = {
+    .autoofftimer = 0,
+    .autoFilterOffTimer = 300000
+};
+
 struct as5600_dev_cfg {
     struct i2c_dt_spec i2c_port;
 };
@@ -391,51 +396,37 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
     last_ident = (as5600_refresh(as) - (as5600_refresh(as) % config.up_identPerRev)) / config.up_identPerRev;
 
     double lasttime = k_cycle_get_32();
+    double last_input_time = k_cycle_get_32();
     // double lasttime2 = 0;
     while (1) {
         
         double time = k_cycle_get_32();
         uint32_t elapsed_ms = k_ticks_to_ms_floor32(time - lasttime);
-        // uint32_t elapsed_ms2 = k_ticks_to_ms_floor32(time - lasttime);
-        // printk("Elapsed time: %d", elapsed_ms);
-
-        // if (elapsed_ms % 10 == 0){
-        //     LOG_INF("10ms");
-        //     if (check_no_movement()){
-        //         LOG_INF("no movement detected");
-        //         power_status = PWR_HOLD;
-        //         power_standby();
-        //     }
-
-        //     lasttime2 = time;
-        // }
-
-       
+        uint32_t elapsed_no_input_time = k_ticks_to_ms_floor32(time - last_input_time);
 
             switch (power_status) {
                 case PWR_ON:
-                if (elapsed_ms > 2000) {
-            
+                    if (elapsed_ms > 2000) {
+                        if (is_battery_empty()) {
+                            power_off();
+                        } else if (advertising_status == ADV_NONE) {
+                            sendbattery();
+                        }
                 
-                    if (is_battery_empty()) {
-                        power_off();
-                    } else if (advertising_status == ADV_NONE) {
-                        sendbattery();
-                    }
-            
-                    if (!get_magnet_strength(as) || advertising_status != ADV_NONE ) {
-                        power_status = PWR_STANDBY;
-                        power_standby();
-                        k_msleep(2000);
-                    }else if (check_no_movement()){
-                        power_status = PWR_HOLD;
-                        power_standby();
-                        k_msleep(10);
+                        if (!get_magnet_strength(as) || advertising_status != ADV_NONE ) {
+                            power_status = PWR_STANDBY;
+                            power_standby();
+                            k_msleep(2000);
+                        }else if (check_no_movement()){
+                            power_status = PWR_HOLD;
+                            power_standby();
+                            k_msleep(10);
+                        }else{
 
-
+                            last_input_time = time;
+                        }
+                        lasttime = time;
                     }
-                    lasttime = time;
-                }
                     break;
             
                 case PWR_STANDBY:
@@ -446,7 +437,17 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
                         power_off();
                     } else if (advertising_status == ADV_NONE) {
                         sendbattery();
+
+                        if(timer.autoofftimer != 0 && elapsed_no_input_time > timer.autoofftimer){
+                            power_off();
+                        }
+
+                    } else { // either ADV_FILTER or ADV_CONN
+                        if(timer.autoFilterOffTimer != 0 && elapsed_no_input_time > timer.autoFilterOffTimer){
+                            power_off();
+                        }
                     }
+                   
             
                     if (get_magnet_strength(as)) {
                         power_status = PWR_ON;
@@ -456,47 +457,49 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
                     }
                     break;
                 case PWR_HOLD:
-                power_resume();
-                k_msleep(10);
-                
-                if (is_battery_empty()) {
-                    power_off();
-                } else if (advertising_status == ADV_NONE) {
-                    sendbattery();
-                }
-
-                new_degree = as5600_refresh(as);
-                int current_position = predictive_update(new_degree);
-                change = (last_position - current_position);
-
-                if (!check_no_movement()) {
-                    power_status = PWR_ON;
-                } else if(advertising_status != ADV_NONE){
-                    power_status = PWR_STANDBY;
-                    power_standby();
-                    k_msleep(2000);
-                } else {
-                    power_standby();
+                    power_resume();
                     k_msleep(10);
-                }
+                    
+                    if (is_battery_empty()) {
+                        power_off();
+                    } else if (advertising_status == ADV_NONE) {
+                        sendbattery();
+                    }
+                    if(timer.autoofftimer != 0 && elapsed_no_input_time > timer.autoofftimer){
+                        power_off();
+                    }
+
+                    new_degree = as5600_refresh(as);
+                    int current_position = predictive_update(new_degree);
+                    change = (last_position - current_position);
+
+                    if (!check_no_movement()) {
+                        power_status = PWR_ON;
+                    } else if(advertising_status != ADV_NONE){
+                        
+                        power_status = PWR_STANDBY;
+                        power_standby();
+                        k_msleep(2000);
+
+                    } else {
+                        
+
+                        power_standby();
+                        k_msleep(10);
+                    }
                 break;
             
                 default:
                     // Handle other power status cases if any (e.g., error state)
                     break;
             }
-            
 
            
-    
-
-                // lasttime = time;
-        // }
-  
-        
+            
 
         if(power_status == PWR_ON && advertising_status == ADV_NONE){
             calculate_and_send();
+            last_input_time = time;
         }
 
     }

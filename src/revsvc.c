@@ -126,6 +126,48 @@ static ssize_t write_callback_name(struct bt_conn *conn,
     return len;
 }
 
+// Read callback for the timer characteristic
+static ssize_t read_callback_timer(struct bt_conn *conn,
+    const struct bt_gatt_attr *attr,
+    void *buf, uint16_t len, uint16_t offset) {
+const uint8_t *value = (const uint8_t *)&timer;
+size_t value_len = sizeof(timer);
+
+if (offset >= value_len) {
+return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
+}
+
+size_t to_copy = MIN(len, value_len - offset);
+memcpy(buf, value + offset, to_copy);
+
+return to_copy;
+}
+
+// Write callback for the timer characteristic
+static ssize_t write_callback_timer(struct bt_conn *conn,
+     const struct bt_gatt_attr *attr,
+     const void *buf, uint16_t len, uint16_t offset, uint8_t flags) {
+uint8_t *value = (uint8_t *)&timer;
+size_t value_len = sizeof(timer);
+
+if (offset >= value_len) {
+return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
+}
+
+size_t to_copy = MIN(len, value_len - offset);
+memcpy(value + offset, buf, to_copy);
+
+// Log the updated timer values
+LOG_INF("Updated timers:");
+LOG_INF("autoofftimer: %u ms", timer.autoofftimer);
+LOG_INF("autoFilterOffTimer: %u ms", timer.autoFilterOffTimer);
+
+// Optionally save to flash
+save_config();
+
+return to_copy;
+}
+
 
 // Define the GATT service and characteristics
 BT_GATT_SERVICE_DEFINE(rev_svc,
@@ -144,6 +186,10 @@ BT_GATT_SERVICE_DEFINE(rev_svc,
 
     BT_GATT_CHARACTERISTIC(REV_WRITENAME_UUID, BT_GATT_CHRC_WRITE,
                            BT_GATT_PERM_WRITE_ENCRYPT, NULL, write_callback_name, NULL),
+
+    BT_GATT_CHARACTERISTIC(REV_WRITETIMER_UUID, BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
+                            BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT,
+                            read_callback_timer, write_callback_timer, NULL)
 
 
 );

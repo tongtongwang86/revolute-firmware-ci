@@ -18,13 +18,15 @@ static int direction;
 static double speed_threshold;
 
 static double continuous_counter ; 
-static double dead_zone;     
+static double dead_zone;
 static int numIdents;     
 static int deviceMode;
 
 extern uint16_t angle;
 
 extern int change;
+extern uint32_t autoofftimer;
+extern uint32_t autoFilterOffTimer;
 
 extern uint16_t CW_IDENT_OFFSET ; // angle offset in degrees
 extern uint16_t CCW_IDENT_OFFSET ; // angle offset in degrees

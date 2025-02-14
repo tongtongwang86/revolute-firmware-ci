@@ -52,6 +52,16 @@ void process_command(const char *cmd) {
         } else if (strcmp(cmd, "CCW_IDENT_OFFSET") == 0) {
             CCW_IDENT_OFFSET = arg;
             LOG_INF("ccw: %d", arg);
+        } else if (strcmp(cmd, "autoFilterOffTimer") == 0) {
+            LOG_INF("filteroff: %d", timer.autoFilterOffTimer);
+            timer.autoFilterOffTimer = arg;
+            save_config();
+            LOG_INF("filteroff: %d", arg);
+        } else if (strcmp(cmd, "autoofftimer") == 0) {
+            LOG_INF("autoofftimer: %d", timer.autoofftimer);
+            timer.autoofftimer = arg;
+            save_config();
+            LOG_INF("autooff: %d", arg);
         } else {
             LOG_INF("Unknown command: %s", cmd);
         }

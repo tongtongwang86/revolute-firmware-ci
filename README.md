@@ -15,9 +15,9 @@
 - [x] Sensor poll rate testing
 - [x] magnetic sensor polling
 - [x] Dual build, ota and non ota
-- [ ] Auto power off
+- [x] Auto power off
 - [x] Implement configurations
-- [ ] Done
+- [x] Done
 
 ## Issues:
 

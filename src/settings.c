@@ -8,9 +8,15 @@ LOG_MODULE_REGISTER(Settings, LOG_LEVEL_DBG);
 static int settings_set(const char *name, size_t len, settings_read_cb read_cb, void *cb_arg)
 {
     if (strcmp(name, "config") == 0) {
-        ssize_t read_len = read_cb(cb_arg, &config, sizeof(config));  // This should now work
+        ssize_t read_len = read_cb(cb_arg, &config, sizeof(config));
         if (read_len == sizeof(config)) {
             LOG_INF("Loaded config from flash");
+            return 0;
+        }
+    } else if (strcmp(name, "rev_timer") == 0) {
+        ssize_t read_len = read_cb(cb_arg, &timer, sizeof(timer));
+        if (read_len == sizeof(timer)) {
+            LOG_INF("Loaded timer from flash");
             return 0;
         }
     }
@@ -20,11 +26,18 @@ static int settings_set(const char *name, size_t len, settings_read_cb read_cb, 
 static int settings_get(const char *name, char *val, int val_len_max)
 {
     if (strcmp(name, "config") == 0) {
-        if (val_len_max < sizeof(config)) {  // This should now work
+        if (val_len_max < sizeof(config)) {
             return -ENOMEM;
         }
-        memcpy(val, &config, sizeof(config));  // This should now work
+        memcpy(val, &config, sizeof(config));
         return sizeof(config);
+    }
+    else if (strcmp(name, "rev_timer") == 0) {
+        if (val_len_max < sizeof(timer)) {
+            return -ENOMEM;
+        }
+        memcpy(val, &timer, sizeof(timer));
+        return sizeof(timer);
     }
     return -ENOENT;
 }
@@ -41,7 +54,15 @@ void save_config(void)
     } else {
         LOG_INF("Config saved to flash");
     }
+
+    rc = settings_save_one("rev_module/rev_timer", &timer, sizeof(timer));
+    if (rc) {
+        LOG_ERR("Failed to save timer settings (err %d)", rc);
+    } else {
+        LOG_INF("Timer settings saved to flash");
+    }
 }
+
 
 void load_config(void)
 {

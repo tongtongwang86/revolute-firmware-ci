@@ -28,6 +28,8 @@ extern struct k_sem stats_notification_sem;
 
 #define REV_WRITENAME_UUID   BT_UUID_DECLARE_128(0x00001527, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
 
+#define REV_WRITETIMER_UUID   BT_UUID_DECLARE_128(0x00001528, 0x1212, 0xefde, 0x1523, 0x785feabcd133)
+
 // Define the config data structure
 typedef struct {
     uint8_t deadzone;
@@ -45,8 +47,14 @@ typedef struct {
     uint16_t rotation_value;
 } rev_stats_t;
 
+typedef struct {
+    uint32_t autoofftimer; // Quaternion data (floats packed as uint32_t)
+    uint32_t autoFilterOffTimer;
+} rev_timer_t;
+
 extern rev_config_t config;
 extern rev_stats_t stats;
+extern rev_timer_t timer;
 
 
 // Public functions
