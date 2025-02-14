@@ -72,10 +72,27 @@ static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
             damping_b = 7;
             target_brightness = -10;
         } else if (power_status == PWR_STANDBY) {
-            mass = 1;
-            spring_k = 50;
-            damping_b = 4;
-            target_brightness = 0.1;
+            switch (advertising_status) {
+                case ADV_NONE:
+                    mass = 1;
+                    spring_k = 50;
+                    damping_b = 4;
+                    target_brightness = 0.1;
+                    break;
+                case ADV_FILTER:
+                    mass = .4;
+                    spring_k = 40;
+                    damping_b = 5;
+                    target_brightness = 0.5 + 0.6 * sin(k_uptime_get() * 0.01); // Fast breathing
+                    break;
+                case ADV_CONN:
+                    mass = 1;
+                    spring_k = 40;
+                    damping_b = 3;
+                    target_brightness =  0.5 + 5 * sin(k_uptime_get() * 0.01); // Fast breathing
+                    break;
+            }
+            
         } else if (power_status == PWR_HOLD) {
             mass = 1;
             spring_k = 50;

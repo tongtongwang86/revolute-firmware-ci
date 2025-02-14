@@ -423,7 +423,7 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
                         sendbattery();
                     }
             
-                    if (!get_magnet_strength(as)) {
+                    if (!get_magnet_strength(as) || advertising_status != ADV_NONE ) {
                         power_status = PWR_STANDBY;
                         power_standby();
                         k_msleep(2000);
@@ -471,6 +471,10 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
 
                 if (!check_no_movement()) {
                     power_status = PWR_ON;
+                } else if(advertising_status != ADV_NONE){
+                    power_status = PWR_STANDBY;
+                    power_standby();
+                    k_msleep(2000);
                 } else {
                     power_standby();
                     k_msleep(10);
@@ -491,7 +495,7 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
   
         
 
-        if(power_status == PWR_ON){
+        if(power_status == PWR_ON && advertising_status == ADV_NONE){
             calculate_and_send();
         }
 
