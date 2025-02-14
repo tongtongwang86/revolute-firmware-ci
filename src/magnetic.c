@@ -231,7 +231,7 @@ void calculate_and_send(void){
         int CurrentIdent = (adjustedDegrees - (adjustedDegrees % DegreesPerIdent)) / DegreesPerIdent;
 
 
-        if (last_ident != CurrentIdent && CurrentIdent != config.dn_identPerRev)
+        if (last_ident != CurrentIdent && CurrentIdent != 0)
         {
             // tick
             LOG_INF("tick ccw");
@@ -284,7 +284,7 @@ void calculate_and_sendnew(void){
     int CurrentIdent = (adjustedDegrees - (adjustedDegrees % DegreesPerIdent)) / DegreesPerIdent;
 
 
-        if (last_ident != CurrentIdent && CurrentIdent != 0)
+        if (last_ident != CurrentIdent && CurrentIdent != config.up_identPerRev)
         {   
             LOG_INF("tick cw");
             LOG_INF("CurrentIdent: %d", CurrentIdent);
@@ -351,11 +351,11 @@ bool check_no_movement (void){
     }else if (change == 0 && last_angle_data.last_angle == new_degree){ // no change and last angle is equal to new angle
         // no movement detected
         if (k_uptime_get_32() - last_angle_data.timestamp > 5000){
-            CW_IDENT_OFFSET = (int)new_degree % (360/config.up_identPerRev); // angle offset in degrees
-            CCW_IDENT_OFFSET = (int)new_degree % (360/config.dn_identPerRev); // angle offset in degrees
+            CW_IDENT_OFFSET = ((int)new_degree % (360/config.up_identPerRev))/2; // angle offset in degrees
+            CCW_IDENT_OFFSET = ((int)new_degree % (360/config.dn_identPerRev))/2; // angle offset in degrees
 
-            // LOG_INF("CW_IDENT_OFFSET: %d", CW_IDENT_OFFSET);
-            // LOG_INF("CCW_IDENT_OFFSET: %d", CCW_IDENT_OFFSET);
+            LOG_INF("CW_IDENT_OFFSET: %d", CW_IDENT_OFFSET);
+            LOG_INF("CCW_IDENT_OFFSET: %d", CCW_IDENT_OFFSET);
             return true;
         }else{
 
