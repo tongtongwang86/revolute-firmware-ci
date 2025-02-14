@@ -71,6 +71,11 @@ static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
             spring_k = 3;
             damping_b = 7;
             target_brightness = -10;
+        } else if (power_status == PWR_STANDBY) {
+            mass = 1;
+            spring_k = 50;
+            damping_b = 4;
+            target_brightness = 0.1;
         } else if (power_status == PWR_HOLD) {
             mass = 1;
             spring_k = 50;

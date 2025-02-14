@@ -21,6 +21,9 @@ double new_degree;
 #define AS5600_PULSES_PER_REV   4096
 #define AS5600_MILLION_UNIT     1000000
 
+uint16_t CW_IDENT_OFFSET ; // angle offset in degrees
+uint16_t CCW_IDENT_OFFSET ; // angle offset in degrees
+
 LOG_MODULE_REGISTER(spin, LOG_LEVEL_DBG);
 static struct k_thread magnetic_thread_data;
 static K_THREAD_STACK_DEFINE(magnetic_stack, THREAD_STACK_SIZE);
@@ -179,8 +182,6 @@ int predictive_update(double new_degree)
     return (int)continuous_counter;
 }
 
-
-
 void calculate_and_send(void){
 
        
@@ -198,7 +199,7 @@ void calculate_and_send(void){
 
     int degrees = (int)new_degree;
     int DegreesPerIdent = 360/config.up_identPerRev;
-    int adjustedDegrees = degrees + (DegreesPerIdent / 2) + IDENT_OFFSET;
+    int adjustedDegrees = degrees + (DegreesPerIdent / 2) + CW_IDENT_OFFSET;
     int CurrentIdent = (adjustedDegrees - (adjustedDegrees % DegreesPerIdent)) / DegreesPerIdent;
 
 
@@ -226,7 +227,7 @@ void calculate_and_send(void){
             {
         int degrees = (int)new_degree;
         int DegreesPerIdent = 360/config.dn_identPerRev;
-        int adjustedDegrees = degrees + (DegreesPerIdent / 2) + IDENT_OFFSET;
+        int adjustedDegrees = degrees + (DegreesPerIdent / 2) + CCW_IDENT_OFFSET;
         int CurrentIdent = (adjustedDegrees - (adjustedDegrees % DegreesPerIdent)) / DegreesPerIdent;
 
 
@@ -261,6 +262,115 @@ void calculate_and_send(void){
 }
 
 
+void calculate_and_sendnew(void){
+
+       
+    new_degree = as5600_refresh(as);
+
+    int current_position = predictive_update(new_degree);
+    change = (last_position - current_position);
+    angle = (int)new_degree;
+    // LOG_INF("New degree: %d", (int)new_degree % (360/config.up_identPerRev));
+
+     
+    if (change > 0)      // clock wise
+        {
+       
+
+    int degrees = (int)new_degree;
+    int DegreesPerIdent = 360/config.up_identPerRev;
+    int adjustedDegrees = degrees + (DegreesPerIdent / 2) + CW_IDENT_OFFSET;
+    // LOG_INF("adjustedDegrees: %d", CCW_IDENT_OFFSET);
+    int CurrentIdent = (adjustedDegrees - (adjustedDegrees % DegreesPerIdent)) / DegreesPerIdent;
+
+
+        if (last_ident != CurrentIdent && CurrentIdent != 0)
+        {   
+            LOG_INF("tick cw");
+            LOG_INF("CurrentIdent: %d", CurrentIdent);
+            LOG_INF("CurrentIdent: %d", degrees);
+            revolute_up_submit();
+            last_ident = CurrentIdent;
+        }
+
+            
+
+
+        last_position = current_position;
+        }
+        else if (change < 0)  // counter clock wise
+        {
+      
+        int degrees = (int)new_degree;
+        int DegreesPerIdent = 360/config.dn_identPerRev;
+        int adjustedDegrees = degrees + (DegreesPerIdent / 2) + CCW_IDENT_OFFSET;
+        // LOG_INF("adjustedDegrees: %d", CCW_IDENT_OFFSET); 
+        int CurrentIdent = (adjustedDegrees - (adjustedDegrees % DegreesPerIdent)) / DegreesPerIdent;
+
+
+        if (last_ident != CurrentIdent && CurrentIdent != 0)
+        {
+            // tick
+            LOG_INF("tick ccw");
+            LOG_INF("CurrentIdent: %d", CurrentIdent);
+            LOG_INF("CurrentIdent: %d", degrees);
+            revolute_dn_submit();
+            last_ident = CurrentIdent;
+        }
+
+            
+
+
+
+        last_position = current_position;
+        }
+        else
+        {
+            // below dead zone
+        }
+    
+    
+    
+}
+
+struct angle_data {
+    uint16_t last_angle;      // Store the angle as a float (or appropriate type)
+    uint32_t timestamp;    // Store the timestamp in milliseconds or another unit
+};
+
+struct angle_data last_angle_data = {0.0, 0};
+
+
+
+bool check_no_movement (void){
+
+    if (change == 0 && last_angle_data.last_angle != new_degree){   //no change and last angle is not equal to new angle
+        last_angle_data.last_angle = new_degree;
+        last_angle_data.timestamp = k_uptime_get_32();
+        return false;
+    }else if (change == 0 && last_angle_data.last_angle == new_degree){ // no change and last angle is equal to new angle
+        // no movement detected
+        if (k_uptime_get_32() - last_angle_data.timestamp > 5000){
+            CW_IDENT_OFFSET = (int)new_degree % (360/config.up_identPerRev); // angle offset in degrees
+            CCW_IDENT_OFFSET = (int)new_degree % (360/config.dn_identPerRev); // angle offset in degrees
+
+            // LOG_INF("CW_IDENT_OFFSET: %d", CW_IDENT_OFFSET);
+            // LOG_INF("CCW_IDENT_OFFSET: %d", CCW_IDENT_OFFSET);
+            return true;
+        }else{
+
+            return false;
+        }
+
+    }else{ // movement detected
+        return false;
+
+    }
+    
+  
+}
+
+
 // Thread entry point
 static void magnetic_thread(void *unused1, void *unused2, void *unused3)
 {
@@ -281,57 +391,103 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
     last_ident = (as5600_refresh(as) - (as5600_refresh(as) % config.up_identPerRev)) / config.up_identPerRev;
 
     double lasttime = k_cycle_get_32();
+    // double lasttime2 = 0;
     while (1) {
         
         double time = k_cycle_get_32();
         uint32_t elapsed_ms = k_ticks_to_ms_floor32(time - lasttime);
-
+        // uint32_t elapsed_ms2 = k_ticks_to_ms_floor32(time - lasttime);
         // printk("Elapsed time: %d", elapsed_ms);
-        if (elapsed_ms > 2000) {
 
-            if(power_status == PWR_ON){
+        // if (elapsed_ms % 10 == 0){
+        //     LOG_INF("10ms");
+        //     if (check_no_movement()){
+        //         LOG_INF("no movement detected");
+        //         power_status = PWR_HOLD;
+        //         power_standby();
+        //     }
+
+        //     lasttime2 = time;
+        // }
+
+       
+
+            switch (power_status) {
+                case PWR_ON:
+                if (elapsed_ms > 2000) {
+            
                 
-                if (is_battery_empty()){
-                    power_off();
-                } else if(advertising_status == ADV_NONE){
+                    if (is_battery_empty()) {
+                        power_off();
+                    } else if (advertising_status == ADV_NONE) {
+                        sendbattery();
+                    }
+            
+                    if (!get_magnet_strength(as)) {
+                        power_status = PWR_STANDBY;
+                        power_standby();
+                        k_msleep(2000);
+                    }else if (check_no_movement()){
+                        power_status = PWR_HOLD;
+                        power_standby();
+                        k_msleep(10);
 
-                    sendbattery();
+
+                    }
+                    lasttime = time;
                 }
-
-                if(!get_magnet_strength(as)){
-                    power_status = PWR_HOLD;
-                    power_standby();
-                    k_msleep(2000);
-                }
-            }else{
-
+                    break;
+            
+                case PWR_STANDBY:
+                    power_resume();
+                    k_msleep(10);
+            
+                    if (is_battery_empty()) {
+                        power_off();
+                    } else if (advertising_status == ADV_NONE) {
+                        sendbattery();
+                    }
+            
+                    if (get_magnet_strength(as)) {
+                        power_status = PWR_ON;
+                    } else {
+                        power_standby();
+                        k_msleep(2000);
+                    }
+                    break;
+                case PWR_HOLD:
                 power_resume();
                 k_msleep(10);
-
-                if (is_battery_empty()){
+                
+                if (is_battery_empty()) {
                     power_off();
-                } else if(advertising_status == ADV_NONE){
-
+                } else if (advertising_status == ADV_NONE) {
                     sendbattery();
                 }
-                
-                if(get_magnet_strength(as)){
-                    power_status = PWR_ON;
-                    
-                }else{
-                    
-                    // power_status = PWR_HOLD;
-                    power_standby();
-                    k_msleep(2000);
 
+                new_degree = as5600_refresh(as);
+                int current_position = predictive_update(new_degree);
+                change = (last_position - current_position);
+
+                if (!check_no_movement()) {
+                    power_status = PWR_ON;
+                } else {
+                    power_standby();
+                    k_msleep(10);
                 }
+                break;
+            
+                default:
+                    // Handle other power status cases if any (e.g., error state)
+                    break;
             }
+            
 
            
     
 
-                lasttime = time;
-        }
+                // lasttime = time;
+        // }
   
         
 

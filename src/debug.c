@@ -39,29 +39,23 @@ void process_command(const char *cmd) {
     char *open_paren = strchr(cmd, '(');
     char *close_paren = strchr(cmd, ')');
 
-    // if (open_paren && close_paren && close_paren > open_paren) {
-    //     *open_paren = '\0';  // Split command name
-    //     open_paren++;  // Move to argument
-    //     *close_paren = '\0';  // Null-terminate argument
+    if (open_paren && close_paren && close_paren > open_paren) {
+        *open_paren = '\0';  // Split command name
+        open_paren++;  // Move to argument
+        *close_paren = '\0';  // Null-terminate argument
 
-    //     int arg = atoi(open_paren);  // Convert argument to integer
+        int arg = atoi(open_paren);  // Convert argument to integer
 
-    //     if (strcmp(cmd, "damping") == 0) {
-    //         damping_b = arg;
-    //         LOG_INF("damping_b: %d", arg);
-    //     } else if (strcmp(cmd, "center") == 0) {
-    //         center = arg;
-    //         LOG_INF("center: %d", arg);
-    //     } else if (strcmp(cmd, "spring") == 0) {
-    //         spring_k = arg;
-    //         LOG_INF("spring_k: %d", arg);
-    //     } else if (strcmp(cmd, "mass") == 0) {
-    //         mass = arg;
-    //         LOG_INF("mass: %d", arg);
-    //     } else {
-    //         LOG_INF("Unknown command: %s", cmd);
-    //     }
-    // } else 
+        if (strcmp(cmd, "CW_IDENT_OFFSET") == 0) {
+            CW_IDENT_OFFSET = arg;
+            LOG_INF("cw: %d", arg);
+        } else if (strcmp(cmd, "CCW_IDENT_OFFSET") == 0) {
+            CCW_IDENT_OFFSET = arg;
+            LOG_INF("ccw: %d", arg);
+        } else {
+            LOG_INF("Unknown command: %s", cmd);
+        }
+    } else 
     if (strcmp(cmd, "remove_bonded_device") == 0) {
         remove_bonded_device();
     } else if (strcmp(cmd, "active_profile_bonded") == 0) {

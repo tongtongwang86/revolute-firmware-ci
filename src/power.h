@@ -31,6 +31,7 @@ typedef enum {
 
 enum power_type {
     PWR_OFF,
+    PWR_STANDBY,
     PWR_HOLD,
     PWR_ON,
 };

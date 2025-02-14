@@ -8,7 +8,6 @@
 #define THREAD_PRIORITY 2
 
 
-#define IDENT_OFFSET 8 // angle offset in degrees
 
 static double last_degree;
 static double last_time;
@@ -27,6 +26,8 @@ extern uint16_t angle;
 
 extern int change;
 
+extern uint16_t CW_IDENT_OFFSET ; // angle offset in degrees
+extern uint16_t CCW_IDENT_OFFSET ; // angle offset in degrees
 
 void SensorThreadinit(void);
 void suspend_magnetic_thread(void);
