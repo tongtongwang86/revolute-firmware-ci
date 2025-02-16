@@ -37,5 +37,6 @@ void resume_magnetic_thread(void);
 
 bool is_battery_empty(void);
 void sendbattery(void);
+void power_off_timer_reschedule(void);
 
 #endif //MAGNETIC

@@ -217,7 +217,7 @@ bool active_profile_connected(void) {
             CHECKED_OPEN_ADV();
             break;
         }
-    
+        // power_off_timer_reschedule();
         return 0;
     };
 

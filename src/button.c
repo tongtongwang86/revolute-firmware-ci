@@ -46,7 +46,8 @@ void handle_button_event(enum button_event event) {
     case BUTTON_LONG_HOLD:
         power_status = PWR_OFF;
         LOG_INF("Long Hold detected! Turning off");
-        k_sleep(K_MSEC(2500));
+        // k_sleep(K_MSEC(2500));
+        set0();
         power_off();
         break;
     default:

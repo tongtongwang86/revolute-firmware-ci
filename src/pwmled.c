@@ -58,12 +58,23 @@ static void fade_in(void) {
     }
 }
 
+void set0(void) {
+    const float step = 0.05f; // Adjust step size for desired speed
+    for (float brightness ; brightness >= 0.0f; brightness -= step) {
+        set_led_pulse(brightness);
+        k_sleep(K_MSEC(65)); // Sleep for 10ms
+    }
+
+
+
+
+}
+
 
 
 
 static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
-    fade_in();
-
+    set_led_pulse(1);
     while (1) {
         // Update physics parameters based on state
         if (power_status == PWR_OFF) {
@@ -153,8 +164,8 @@ int pwmled_init(void) {
     }
 
     set_led_pulse(0);
-    
-
+    fade_in();
+    // set_led_pulse(1);
     k_thread_create(&pwmled_thread_data, pwmled_stack, K_THREAD_STACK_SIZEOF(pwmled_stack),
                     pwmled_thread, NULL, NULL, NULL,
                     PWMLED_THREAD_PRIORITY, 0, K_NO_WAIT);

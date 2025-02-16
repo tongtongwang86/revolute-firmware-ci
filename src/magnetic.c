@@ -29,18 +29,59 @@ static struct k_thread magnetic_thread_data;
 static K_THREAD_STACK_DEFINE(magnetic_stack, THREAD_STACK_SIZE);
 
 const struct device *const as = DEVICE_DT_GET(DT_INST(0, ams_as5600));
+struct k_work_delayable power_off_work;
 
 // K_MUTEX_DEFINE(i2c_mutex);
+
+rev_timer_t timer = {
+    .autoofftimer = 10,
+    .autoFilterOffTimer = 10
+};
+
+void power_off_handler(struct k_work *work)
+{
+    printk("Auto-off timer expired, powering off...\n");
+    power_status = PWR_OFF;
+    // k_sleep(K_MSEC(4500));
+    // Call power_off to shut down the system
+    set0();
+    power_off();
+}
+
+
+void power_off_timer_reschedule(void)
+{
+    // Start the auto-off timer
+
+    k_work_cancel(&power_off_work);
+
+    if(advertising_status == ADV_NONE){
+
+        // if(timer.autoofftimer != 0){
+
+            k_work_schedule(&power_off_work, K_SECONDS(600));
+            printk("rescheduled auto off...\n");
+        // }
+
+    
+    }else{
+        // if(timer.autoFilterOffTimer != 0){ 
+
+            k_work_schedule(&power_off_work, K_SECONDS(600));
+            printk("rescheduled filter off...\n");
+        // }
+    }
+
+
+}
+
 
 uint16_t angle = 0;
 int change = 0;
 
 uint8_t magnet_strength = 0;
 
-rev_timer_t timer = {
-    .autoofftimer = 0,
-    .autoFilterOffTimer = 300000
-};
+
 
 struct as5600_dev_cfg {
     struct i2c_dt_spec i2c_port;
@@ -381,7 +422,8 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
 {
 
     LOG_INF("magnetic thread started");
-
+    k_work_init_delayable(&power_off_work, power_off_handler);
+    k_work_schedule(&power_off_work, K_SECONDS(600));
 
     if (as == NULL || !device_is_ready(as))
     {
@@ -398,32 +440,35 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
     double lasttime = k_cycle_get_32();
     double last_input_time = k_cycle_get_32();
     // double lasttime2 = 0;
+
     while (1) {
         
         double time = k_cycle_get_32();
         uint32_t elapsed_ms = k_ticks_to_ms_floor32(time - lasttime);
-        uint32_t elapsed_no_input_time = k_ticks_to_ms_floor32(time - last_input_time);
+        // uint32_t elapsed_no_input_time = k_ticks_to_ms_floor32(time - last_input_time);
 
             switch (power_status) {
                 case PWR_ON:
                     if (elapsed_ms > 2000) {
+
                         if (is_battery_empty()) {
                             power_off();
                         } else if (advertising_status == ADV_NONE) {
                             sendbattery();
+                            power_off_timer_reschedule();
                         }
                 
                         if (!get_magnet_strength(as) || advertising_status != ADV_NONE ) {
                             power_status = PWR_STANDBY;
+                            power_off_timer_reschedule();
+                            printk("a\n");
                             power_standby();
                             k_msleep(2000);
                         }else if (check_no_movement()){
                             power_status = PWR_HOLD;
+                            power_off_timer_reschedule();
                             power_standby();
                             k_msleep(10);
-                        }else{
-
-                            last_input_time = time;
                         }
                         lasttime = time;
                     }
@@ -438,19 +483,12 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
                     } else if (advertising_status == ADV_NONE) {
                         sendbattery();
 
-                        if(timer.autoofftimer != 0 && elapsed_no_input_time > timer.autoofftimer){
-                            power_off();
-                        }
-
-                    } else { // either ADV_FILTER or ADV_CONN
-                        if(timer.autoFilterOffTimer != 0 && elapsed_no_input_time > timer.autoFilterOffTimer){
-                            power_off();
-                        }
-                    }
+                    } 
                    
             
                     if (get_magnet_strength(as)) {
                         power_status = PWR_ON;
+
                     } else {
                         power_standby();
                         k_msleep(2000);
@@ -465,9 +503,6 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
                     } else if (advertising_status == ADV_NONE) {
                         sendbattery();
                     }
-                    if(timer.autoofftimer != 0 && elapsed_no_input_time > timer.autoofftimer){
-                        power_off();
-                    }
 
                     new_degree = as5600_refresh(as);
                     int current_position = predictive_update(new_degree);
@@ -478,12 +513,12 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
                     } else if(advertising_status != ADV_NONE){
                         
                         power_status = PWR_STANDBY;
+
                         power_standby();
                         k_msleep(2000);
 
                     } else {
                         
-
                         power_standby();
                         k_msleep(10);
                     }
@@ -499,7 +534,6 @@ static void magnetic_thread(void *unused1, void *unused2, void *unused3)
 
         if(power_status == PWR_ON && advertising_status == ADV_NONE){
             calculate_and_send();
-            last_input_time = time;
         }
 
     }
