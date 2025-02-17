@@ -21,7 +21,10 @@
 
 ## Issues:
 
+- [ ] revolute keys not working on ipad and vision pro
+- [ ] bluetooth not working after extended time even though revolute is still on
 - [ ] fix bluetooth autoconnect after disconnect
+
 
 ## Build Locally
 
