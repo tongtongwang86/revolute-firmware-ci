@@ -26,7 +26,7 @@
 			compatible = "gpio-leds";
 			blueled: led_0 {
 					/* LED 0 on P0.03, LED on when pin is high */
-					gpios = < &gpio0 3 GPIO_ACTIVE_HIGH >;
+					gpios = < &gpio1 10 GPIO_ACTIVE_HIGH >;
 					label = "LED 0";
 			};
 			mosfet: mosfet_0 {
@@ -76,6 +76,7 @@
 		pwm-led0 = &pwm_led0;
 		led0 = &blueled;
 		sw3 = &button_down;
+		button0 = &button_down;
 		led-strip = &led_strip;
 
 	};
