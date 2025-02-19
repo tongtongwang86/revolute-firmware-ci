@@ -1,45 +1,74 @@
 /*
- * Copyright (c) 2016 Intel Corporation
+ * Copyright (c) 2017 Linaro Limited
+ * Copyright (c) 2018 Intel Corporation
+ * Copyright (c) 2024 TOKITA Hiroshi
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
+ #include <errno.h>
+ #include <string.h>
+ 
+ #define LOG_LEVEL 4
+ #include <zephyr/logging/log.h>
+ LOG_MODULE_REGISTER(main);
+ 
  #include <zephyr/kernel.h>
- #include <zephyr/drivers/gpio.h>
+ #include <zephyr/drivers/led_strip.h>
+ #include <zephyr/device.h>
+ #include <zephyr/drivers/spi.h>
+ #include <zephyr/sys/util.h>
  
- /* 1000 msec = 1 sec */
- #define SLEEP_TIME_MS   1000
+ #define STRIP_NODE		DT_ALIAS(led_strip)
  
- /* The devicetree node identifier for the "led0" alias. */
- #define LED0_NODE DT_ALIAS(led0)
+ #if DT_NODE_HAS_PROP(DT_ALIAS(led_strip), chain_length)
+ #define STRIP_NUM_PIXELS	DT_PROP(DT_ALIAS(led_strip), chain_length)
+ #else
+ #error Unable to determine length of LED strip
+ #endif
  
- /*
-  * A build error on this line means your board is unsupported.
-  * See the sample documentation for information on how to fix this.
-  */
- static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+ #define DELAY_TIME K_MSEC(1000)
+ 
+ #define RGB(_r, _g, _b) { .r = (_r), .g = (_g), .b = (_b) }
+ 
+ static const struct led_rgb colors[] = {
+	 RGB(0x0f, 0x00, 0x00), /* red */
+	 RGB(0x00, 0x0f, 0x00), /* green */
+	 RGB(0x00, 0x00, 0x0f), /* blue */
+ };
+ 
+ static struct led_rgb pixels[STRIP_NUM_PIXELS];
+ 
+ static const struct device *const strip = DEVICE_DT_GET(STRIP_NODE);
  
  int main(void)
  {
-	 int ret;
+	 size_t color = 0;
+	 int rc;
  
-	 if (!gpio_is_ready_dt(&led)) {
+	 if (device_is_ready(strip)) {
+		 LOG_INF("Found LED strip device %s", strip->name); 
+	 } else {
+		 LOG_ERR("LED strip device %s is not ready", strip->name);
 		 return 0;
 	 }
  
-	 ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
-	 if (ret < 0) {
-		 return 0;
-	 }
- 
+	 LOG_INF("Displaying pattern on strip");
 	 while (1) {
-		 ret = gpio_pin_toggle_dt(&led);
-		 if (ret < 0) {
-			 return 0;
+		 for (size_t cursor = 0; cursor < ARRAY_SIZE(pixels); cursor++) {
+			 memset(&pixels, 0x00, sizeof(pixels));
+			 memcpy(&pixels[cursor], &colors[color], sizeof(struct led_rgb));
+ 
+			 rc = led_strip_update_rgb(strip, pixels, STRIP_NUM_PIXELS);
+			 if (rc) {
+				 LOG_ERR("couldn't update strip: %d", rc);
+			 }
+ 
+			 k_sleep(DELAY_TIME);
 		 }
-		 printk("Hello World! %s\n", CONFIG_BOARD);
-		 k_msleep(SLEEP_TIME_MS);
+ 
+		 color = (color + 1) % ARRAY_SIZE(colors);
 	 }
+ 
 	 return 0;
  }
- 

@@ -99,30 +99,25 @@
 };
 
 
-&spi1 {
+
+
+i2s_led: &i2s0 {
 	status = "okay";
-    compatible = "nordic,nrf-spim";
-	pinctrl-0 = <&spi1_default>;
-	pinctrl-1 = <&spi1_sleep>;
-	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&i2s0_default_alt>;
+	pinctrl-names = "default";
 
-    led_strip: ws2812@0 {
-        compatible = "worldsemi,ws2812-spi";
+	led_strip: ws2812@0 {
+		compatible = "worldsemi,ws2812-i2s";
 
-        /* SPI */
-        reg = <0>; /* ignored, but necessary for SPI bindings */
-		spi-max-frequency = <4000000>; /* 8 MHz, replace with the desired frequency */
-
-        /* WS2812 */
-        chain-length = <16>; /* arbitrary; change at will */
-       spi-one-frame = <0x70>;
-       spi-zero-frame = <0x40>;    
-	   color-mapping = <LED_COLOR_ID_GREEN LED_COLOR_ID_RED LED_COLOR_ID_BLUE>;
-
+		reg = <0>;
+		chain-length = <3>; /* arbitrary; change at will */
+		color-mapping = <LED_COLOR_ID_GREEN
+					LED_COLOR_ID_RED
+					LED_COLOR_ID_BLUE>;
+		reset-delay = <500>;
 	};
 };
 
- 
 
 &spi2 {
 	status = "disabled";
