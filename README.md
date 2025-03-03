@@ -1,6 +1,6 @@
 # Revolute Wireless Firmware Continuous Integration using GitHub Actions
 
-## New Firmware Roadmap
+## Core functions:
 
 - [x] Get GitHub Action to build firmware
 - [x] Bluetooth Peripheral sample app
@@ -19,10 +19,13 @@
 - [x] Implement configurations
 - [x] Done
 
-## Issues:
+## Currently working on:
 
 - [ ] fix bluetooth autoconnect after disconnect
 - [ ] fix revolute not working on iphone, ipad, vision pro
+- [ ] add new magnetic sensor implementation
+- [ ] new power saving implementations
+- [ ] user configurable button 
 
 ## Build Locally
 
