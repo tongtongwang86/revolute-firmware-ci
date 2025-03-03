@@ -22,6 +22,7 @@
 ## Issues:
 
 - [ ] fix bluetooth autoconnect after disconnect
+- [ ] fix revolute not working on iphone, ipad, vision pro
 
 ## Build Locally
 
