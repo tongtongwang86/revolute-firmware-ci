@@ -25,7 +25,8 @@
 - [ ] fix revolute not working on iphone, ipad, vision pro
 - [ ] add new magnetic sensor implementation
 - [ ] new power saving implementations
-- [ ] user configurable button 
+- [ ] user configurable button
+- [ ] controller support
 
 ## Build Locally
 
