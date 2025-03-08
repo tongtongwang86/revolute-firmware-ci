@@ -24,6 +24,7 @@
 - [ ] fix bluetooth autoconnect after disconnect
 - [ ] fix revolute not working on iphone, ipad, vision pro
 - [ ] add new magnetic sensor implementation
+- [ ] optimize off power consumption
 - [ ] new power saving implementations
 - [ ] user configurable button
 - [ ] controller support
