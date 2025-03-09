@@ -29,7 +29,7 @@ jobs:
     - name: Configure Build for STM32F103C8 (Blue Pill)
       working-directory: blackmagic
       run: |
-        meson setup build --cross-file cross-file/bluepill.ini -Dprobe=bluepill -Dtargets=cortexm,stm -Drtt_support=false
+        meson setup build --cross-file cross-file/bluepill.ini -Dprobe=bluepill -Dtargets=cortexm,stm -Drtt_support=true
 
     - name: Compile Firmware
       working-directory: blackmagic
