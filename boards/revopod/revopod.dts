@@ -63,6 +63,11 @@
 				gpios = <&gpio1 8 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 				label = "Button 3";
 			};
+
+			Halleffect_down: button_2 {
+				gpios = <&gpio0 15 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+				label = "Button 2";
+			};
 		
 	};
 
@@ -78,6 +83,7 @@
 		sw3 = &button_down;
 		button0 = &button_down;
 		led-strip = &led_strip;
+		halleffect = &Halleffect_down;
 
 	};
 };
