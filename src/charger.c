@@ -3,6 +3,9 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/logging/log.h>
 
+// 启用日志
+LOG_MODULE_REGISTER(my_log_module, LOG_LEVEL_INF);
+
 /* BQ25180 I2C Address */
 #define BQ25180_I2C_ADDR 0x6A
 
@@ -58,7 +61,7 @@ void bq25180_init(void) {
     /* Configure System Regulation */
     bq25180_write_reg(SYS_REG_REG, 0x40); // SYS Regulation = 4.5V, SYS Mode = Normal
 
-    printk("BQ25180 Initialized\n");
+    LOG_INF("BQ25180 Initialized");
 }
 
 /* Monitor Charger Status */
@@ -71,41 +74,41 @@ void bq25180_monitor(void) {
     bq25180_read_reg(FLAG0_REG, &flag0);
 
     /* Print Status */
-    printk("STAT0: 0x%02X, STAT1: 0x%02X, FLAG0: 0x%02X\n", stat0, stat1, flag0);
+    LOG_INF("STAT0: 0x%02X, STAT1: 0x%02X, FLAG0: 0x%02X", stat0, stat1, flag0);
 
     /* Check Charging Status */
     if ((stat0 & 0x60) == 0x20) {
-        printk("Charging: Constant Voltage Mode\n");
+        LOG_INF("Charging: Constant Voltage Mode");
     } else if ((stat0 & 0x60) == 0x40) {
-        printk("Charging: Constant Current Mode\n");
+        LOG_INF("Charging: Constant Current Mode");
     } else if ((stat0 & 0x60) == 0x60) {
-        printk("Charging Complete\n");
+        LOG_INF("Charging Complete");
     }
 
     /* Check Faults */
     if (flag0 & 0x80) {
-        printk("Fault: TS Fault Detected\n");
+        LOG_INF("Fault: TS Fault Detected");
     }
     if (flag0 & 0x40) {
-        printk("Fault: Input Current Limit Active\n");
+        LOG_INF("Fault: Input Current Limit Active");
     }
     if (flag0 & 0x20) {
-        printk("Fault: DPPM Active\n");
+        LOG_INF("Fault: DPPM Active");
     }
     if (flag0 & 0x10) {
-        printk("Fault: VINDPM Active\n");
+        LOG_INF("Fault: VINDPM Active");
     }
     if (flag0 & 0x08) {
-        printk("Fault: Thermal Regulation Active\n");
+        LOG_INF("Fault: Thermal Regulation Active");
     }
     if (flag0 & 0x04) {
-        printk("Fault: Input Overvoltage Detected\n");
+        LOG_INF("Fault: Input Overvoltage Detected");
     }
     if (flag0 & 0x02) {
-        printk("Fault: Battery Undervoltage Detected\n");
+        LOG_INF("Fault: Battery Undervoltage Detected");
     }
     if (flag0 & 0x01) {
-        printk("Fault: Battery Overcurrent Detected\n");
+        LOG_INF("Fault: Battery Overcurrent Detected");
     }
 }
 
@@ -114,7 +117,7 @@ void charger(void) {
     /* Initialize I2C */
     i2c_dev = device_get_binding("I2C_0");
     if (!i2c_dev) {
-        printk("I2C Device Not Found\n");
+        LOG_INF("I2C Device Not Found");
         return;
     }
 
@@ -126,4 +129,4 @@ void charger(void) {
         bq25180_monitor();
         k_sleep(K_SECONDS(5)); // Check status every 5 seconds
     }
-}
+}    
