@@ -177,6 +177,7 @@ static void poll_sensor(const struct device *dev)
         k_sleep(K_MSEC(1));
 
         rotationToQuaternion( value.rx, value.ry, value.rz);
+        send_mouse_xy(value.ry, value.rz);
         printf("dt:%f,rx:%f,ry:%f,rz:%f",DELTA_T, value.rx, value.ry, value.rz);
 
     printf("r:%f,i:%f,j:%f,k:%f\n", q_est.q1, q_est.q2, q_est.q3,q_est.q4);
