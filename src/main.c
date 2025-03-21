@@ -153,9 +153,44 @@ static int set_sampling_freq(const struct device *dev)
 
 
 
+int8_t cap_to_int8(float value) {
+    if (value > 127) {
+        return 127;
+    } else if (value < -128) {
+        return -128;
+    } else {
+        return (int8_t)value;  // Implicit cast to int8_t
+    }
+}
 
+// Function to calculate and print the change in roll and pitch
+void print_roll_pitch_change(sensorData input) {
 
+    // input.x, input.y, input.z, input.rx, input.ry, input.rz
+    // Calculate the quaternion difference (delta quaternion)
+    // quaternion delta_q;
+    // quat_sub(&delta_q, q_est, q_est_prev);
 
+    // // Roll change is approximated by the change in q2 (i component)
+    // float delta_yaw = delta_q.q1;
+
+    // float delta_roll = delta_q.q2;
+
+    // // Pitch change is approximated by the change in q3 (j component)
+    // float delta_pitch = delta_q.q3;
+    // q_est_prev = q_est;
+
+    // Convert directly to int8_t (implicitly capped by conversion)
+    int8_t capped_delta_yaw = cap_to_int8(-input.rz * 300);   // Scaling for precision
+    int8_t capped_delta_roll = cap_to_int8(input.rx * 100);   // Scaling for precision
+    int8_t capped_delta_pitch = cap_to_int8(input.ry * 100); // Scaling for precision
+    // Print the changes in roll and pitch
+    printf("roll:%f,pitch:%f\n", capped_delta_yaw, capped_delta_pitch);
+    int err = send_mouse_xy(capped_delta_yaw,capped_delta_pitch);
+    printk("%d\n",err);
+    // Update previous quaternion for the next iteration
+    
+}
 
 
 static void poll_sensor(const struct device *dev)
@@ -177,7 +212,7 @@ static void poll_sensor(const struct device *dev)
         k_sleep(K_MSEC(1));
 
         rotationToQuaternion( value.rx, value.ry, value.rz);
-        send_mouse_xy(value.ry, value.rz);
+        print_roll_pitch_change(value);
         printf("dt:%f,rx:%f,ry:%f,rz:%f",DELTA_T, value.rx, value.ry, value.rz);
 
     printf("r:%f,i:%f,j:%f,k:%f\n", q_est.q1, q_est.q2, q_est.q3,q_est.q4);
