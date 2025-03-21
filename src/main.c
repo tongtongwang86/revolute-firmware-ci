@@ -181,12 +181,12 @@ void print_roll_pitch_change(sensorData input) {
     // q_est_prev = q_est;
 
     // Convert directly to int8_t (implicitly capped by conversion)
-    int8_t capped_delta_yaw = cap_to_int8(input.rz * 300);   // Scaling for precision
+    int8_t capped_delta_yaw = cap_to_int8(input.rz * 300)*-1 ;  // Scaling for precision
     int8_t capped_delta_roll = cap_to_int8(input.rx * 100);   // Scaling for precision
     int8_t capped_delta_pitch = cap_to_int8(input.ry * 100); // Scaling for precision
     // Print the changes in roll and pitch
     printf("roll:%f,pitch:%f\n", capped_delta_yaw, capped_delta_pitch);
-    int err = send_mouse_xy(-capped_delta_yaw,capped_delta_roll);
+    int err = send_mouse_xy(capped_delta_yaw,capped_delta_roll);
     printk("%d\n",err);
     // Update previous quaternion for the next iteration
     
