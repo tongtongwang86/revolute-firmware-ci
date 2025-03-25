@@ -191,13 +191,14 @@
 
 	};
 
-	bq25180: bq25180@6A {  // Update the I2C address if different
+	bq25180: bq25180@6a {  // Update the I2C address if different
         compatible = "ti,bq25180";
-        reg = <0x6A>;  // I2C address of BQ25180
+        reg = <0x6a>;  // I2C address of BQ25180
         constant-charge-current-max-microamp = <100000>; // 100mA
         constant-charge-voltage-max-microvolt = <4200000>; // 4.2V
         precharge-voltage-threshold-microvolt = <3000000>; // 3.0V
         re-charge-voltage-microvolt = <4100000>; // 4.1V
+		int-gpios = <&gpio0 20 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 	};
 
 };
