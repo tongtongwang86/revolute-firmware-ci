@@ -7,142 +7,118 @@
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 #define BQ25180_I2C_ADDR 0x6A
+#define MAX_RETRIES 3
+#define RETRY_DELAY_MS 10
+#define POLL_INTERVAL_MS 1000  // Faster polling when VIN is unstable
 
 // Register addresses from datasheet
 #define BQ25180_STAT0_REG 0x00
 #define BQ25180_STAT1_REG 0x01
 
+// Status bits
+#define VIN_PGOOD_STAT  BIT(0)
+#define CHG_STAT_MASK   0b11000000
+
 const struct device *i2c_dev = DEVICE_DT_GET(DT_NODELABEL(i2c0));
 const struct gpio_dt_spec bq25180_int = GPIO_DT_SPEC_GET(DT_NODELABEL(bq25180), int_gpios);
 
-static K_SEM_DEFINE(i2c_sem, 1, 1);  // I2C access semaphore
+static struct k_work_delayable status_work;
+static atomic_t vin_changed = ATOMIC_INIT(false);
 
-static int read_bq25180_reg(uint8_t reg, uint8_t *val)
+static int read_bq25180_reg_with_retry(uint8_t reg, uint8_t *val)
 {
     int ret;
+    int attempts = 0;
     
-    if (k_is_in_isr()) {
-        // If we're in interrupt context, try to take the semaphore without waiting
-        if (k_sem_take(&i2c_sem, K_NO_WAIT) != 0) {
-            return -EBUSY;
-        }
-    } else {
-        k_sem_take(&i2c_sem, K_FOREVER);
-    }
-    
-    ret = i2c_reg_read_byte(i2c_dev, BQ25180_I2C_ADDR, reg, val);
-    k_sem_give(&i2c_sem);
+    do {
+        ret = i2c_reg_read_byte(i2c_dev, BQ25180_I2C_ADDR, reg, val);
+        if (ret == 0) return 0;
+        k_msleep(RETRY_DELAY_MS);
+    } while (++attempts < MAX_RETRIES);
     
     return ret;
 }
 
-static void update_charging_status(void)
+static void report_status(struct k_work *work)
 {
-    uint8_t stat0, stat1;
-    static enum {
-        STATE_UNKNOWN,
-        STATE_NOT_CHARGING,
-        STATE_CHARGING_CC,
-        STATE_CHARGING_CV,
-        STATE_FULL
-    } last_state = STATE_UNKNOWN;
+    uint8_t stat0;
+    static bool last_vin = false;
+    static uint8_t last_chg_state = 0xFF;
     
-    if (read_bq25180_reg(BQ25180_STAT0_REG, &stat0) < 0) {
-        LOG_ERR("Failed to read STAT0");
-        return;
+    if (read_bq25180_reg_with_retry(BQ25180_STAT0_REG, &stat0) < 0) {
+        LOG_ERR("Status read failed");
+        goto reschedule;
     }
-    
-    if (read_bq25180_reg(BQ25180_STAT1_REG, &stat1) < 0) {
-        LOG_ERR("Failed to read STAT1");
-        return;
+
+    bool current_vin = stat0 & VIN_PGOOD_STAT;
+    uint8_t current_chg_state = (stat0 & CHG_STAT_MASK) >> 6;
+
+    // Always report VIN changes immediately
+    if (current_vin != last_vin || atomic_get(&vin_changed)) {
+        LOG_INF("Input voltage: %s", current_vin ? "Present" : "Absent");
+        last_vin = current_vin;
+        atomic_set(&vin_changed, false);
     }
-    
-    // Decode status (from datasheet page 28)
-    bool vin_present = stat0 & BIT(0);
-    uint8_t chg_status = (stat0 >> 5) & 0x03;
-    
-    if (!vin_present) {
-        if (last_state != STATE_NOT_CHARGING) {
-            LOG_INF("Not charging (No input voltage)");
-            last_state = STATE_NOT_CHARGING;
-        }
-        return;
+
+    // Only report charging state if VIN is present
+    if (current_vin && current_chg_state != last_chg_state) {
+        const char *states[] = {
+            "Not Charging", 
+            "Constant Current", 
+            "Constant Voltage", 
+            "Fully Charged"
+        };
+        LOG_INF("Charging state: %s", states[current_chg_state]);
+        last_chg_state = current_chg_state;
+    } else if (!current_vin && last_chg_state != 0xFF) {
+        LOG_INF("Charging state: Not Charging (No input)");
+        last_chg_state = 0xFF;
     }
-    
-    switch (chg_status) {
-        case 0b01:  // Constant Current
-            if (last_state != STATE_CHARGING_CC) {
-                LOG_INF("Charging (Constant Current)");
-                last_state = STATE_CHARGING_CC;
-            }
-            break;
-            
-        case 0b10:  // Constant Voltage
-            if (last_state != STATE_CHARGING_CV) {
-                LOG_INF("Charging (Constant Voltage)");
-                last_state = STATE_CHARGING_CV;
-            }
-            break;
-            
-        case 0b11:  // Charge Complete
-            if (last_state != STATE_FULL) {
-                LOG_INF("Battery fully charged");
-                last_state = STATE_FULL;
-            }
-            break;
-            
-        default:  // Not charging
-            if (last_state != STATE_NOT_CHARGING) {
-                LOG_INF("Not charging (Input present)");
-                last_state = STATE_NOT_CHARGING;
-            }
-            break;
-    }
+
+reschedule:
+    // Faster polling when VIN was recently removed
+    k_work_reschedule(&status_work, 
+                     K_MSEC(last_vin ? 5000 : POLL_INTERVAL_MS));
 }
 
-static void bq25180_int_callback(const struct device *dev, struct gpio_callback *cb,
+static void bq25180_int_callback(const struct device *dev,
+                                struct gpio_callback *cb,
                                 uint32_t pins)
 {
-    // Schedule work to handle the interrupt in thread context
-    update_charging_status();
+    atomic_set(&vin_changed, true);
+    k_work_reschedule(&status_work, K_NO_WAIT);
 }
 
-void main(void) 
+void main(void)
 {
     static struct gpio_callback int_cb_data;
-    
-    if (!device_is_ready(i2c_dev)) {
-        LOG_ERR("I2C device not ready");
+
+    if (!device_is_ready(i2c_dev) || !device_is_ready(bq25180_int.port)) {
+        LOG_ERR("Hardware not ready");
         return;
     }
 
-    // Configure interrupt pin
-    if (!device_is_ready(bq25180_int.port)) {
-        LOG_ERR("Interrupt GPIO controller not ready");
-        return;
-    }
-
+    // Configure interrupt
     int ret = gpio_pin_configure_dt(&bq25180_int, GPIO_INPUT);
+    ret |= gpio_pin_interrupt_configure_dt(&bq25180_int, 
+                                         GPIO_INT_EDGE_BOTH); // Trigger on both edges
     if (ret < 0) {
-        LOG_ERR("Could not configure interrupt GPIO");
-        return;
-    }
-
-    ret = gpio_pin_interrupt_configure_dt(&bq25180_int, 
-                                        GPIO_INT_EDGE_TO_ACTIVE);
-    if (ret < 0) {
-        LOG_ERR("Could not configure interrupt");
+        LOG_ERR("Interrupt setup failed");
         return;
     }
 
     gpio_init_callback(&int_cb_data, bq25180_int_callback, BIT(bq25180_int.pin));
     gpio_add_callback(bq25180_int.port, &int_cb_data);
 
-    // Initial status check
-    update_charging_status();
+    // Initialize delayed work
+    k_work_init_delayable(&status_work, report_status);
+
+    // Initial read and start polling
+    k_work_reschedule(&status_work, K_NO_WAIT);
 
     while (1) {
-        k_sleep(K_SECONDS(10));  // Periodic check in case we miss interrupts
-        update_charging_status();
+        k_sleep(K_SECONDS(30)); // Secondary safety net
+        atomic_set(&vin_changed, true);
+        k_work_reschedule(&status_work, K_NO_WAIT);
     }
 }
