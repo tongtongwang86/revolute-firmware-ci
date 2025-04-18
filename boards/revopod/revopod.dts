@@ -34,6 +34,16 @@
 				gpios = < &gpio0 11 GPIO_ACTIVE_HIGH >;
 				label = "Mosfet";
 		};
+		gpio0_pin23: gpio0_pin23 {
+			//compatible = "gpio-leds"; // or "gpio-keys" depending on your use
+			gpios = <&gpio0 23 GPIO_ACTIVE_HIGH>;
+			label = "GPIO0_PIN23";
+		};
+		gpio1_pin15: gpio1_pin15 {
+			//compatible = "gpio-leds"; // or "gpio-keys" depending on your use
+			gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
+			label = "GPIO1_PIN15";
+		};
 
 			
 
