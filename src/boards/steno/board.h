@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef _NICENANO_H
-#define _NICENANO_H
+#ifndef _STENO_H
+#define _STENO_H
 
 #define _PINNUM(port, pin)    ((port)*32 + (pin))
 
@@ -47,8 +47,8 @@
 //--------------------------------------------------------------------+
 // BLE OTA
 //--------------------------------------------------------------------+
-#define BLEDIS_MANUFACTURER  "Nice Keyboards"
-#define BLEDIS_MODEL         "nice!nano"
+#define BLEDIS_MANUFACTURER  "Tongtonginc"
+#define BLEDIS_MODEL         "Steno"
 
 //--------------------------------------------------------------------+
 // USB
@@ -57,9 +57,9 @@
 #define USB_DESC_UF2_PID       0x00B3
 #define USB_DESC_CDC_ONLY_PID  0x00B3
 
-#define UF2_PRODUCT_NAME  "nice!nano"
-#define UF2_VOLUME_LABEL  "NICENANO"
-#define UF2_BOARD_ID      "nRF52840-nicenano"
-#define UF2_INDEX_URL     "https://nicekeyboards.com/docs/nice-nano"
+#define UF2_PRODUCT_NAME  "steno"
+#define UF2_VOLUME_LABEL  "Tongtonginc"
+#define UF2_BOARD_ID      "nRF52840-steno"
+#define UF2_INDEX_URL     "https://tongtonginc.com"
 
-#endif // _NICENANO_H
+#endif // _STENO_H

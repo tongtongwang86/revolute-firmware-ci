@@ -18,6 +18,7 @@ jobs:
       matrix:
         board:
           - 'revolute'
+          - 'steno'
           - 'revoluteWireless'  
     steps:
     - name: Setup Python
