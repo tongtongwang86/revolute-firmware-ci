@@ -60,7 +60,7 @@ jobs:
     - name: Linker Map
       run: make BOARD=${{ matrix.board }} linkermap
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.board }}
         path: _bin/${{ matrix.board }}
