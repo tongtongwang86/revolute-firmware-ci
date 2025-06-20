@@ -3,6 +3,10 @@
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/devicetree.h>
+#include <math.h>
+#define M_PI 3.14159265358979323846
+static float previous_angle = 0.0f;
+static bool first_sample = true;
 
 // Match the node from your devicetree
 #define TLV493_NODE DT_NODELABEL(tlv493)
@@ -63,6 +67,38 @@ static void configure_tlv493_low_power_mode_preserve(void) {
     }
 }
 
+static void configure_tlv493_fast_mode_preserve(void) {
+    uint8_t reg0 = 0, reg1 = 0, reg2 = 0, reg3 = 0;
+
+    // Read registers 0x00 through 0x03
+    if (i2c_reg_read_byte_dt(&dev_i2c, 0x00, &reg0) < 0 ||
+        i2c_reg_read_byte_dt(&dev_i2c, 0x01, &reg1) < 0 ||
+        i2c_reg_read_byte_dt(&dev_i2c, 0x02, &reg2) < 0 ||
+        i2c_reg_read_byte_dt(&dev_i2c, 0x03, &reg3) < 0) {
+        printk("Failed to read configuration registers\n");
+        return;
+    }
+
+    // Clear bits 2:0 (INT, FAST, LOW)
+    reg1 &= ~0x07;
+
+    // Set INT = 0, FAST = 1, LOW = 0
+    reg1 |= (1 << 1);  // FAST = 1
+
+    // Calculate new parity over all 4 config bytes
+    uint8_t parity = calculate_parity(reg0, reg1, reg2, reg3);
+
+    // Set parity bit (bit 7)
+    reg1 = (reg1 & 0x7F) | (parity << 7);
+
+    // Write back only modified register (reg1 at address 0x01)
+    int ret = i2c_reg_write_byte_dt(&dev_i2c, 0x01, reg1);
+    if (ret < 0) {
+        printk("Failed to write MOD1 register: %d\n", ret);
+    } else {
+        printk("Fast mode configured, MOD1 updated with preserved bits.\n");
+    }
+}
 
 
 
@@ -105,6 +141,57 @@ static void tlv493_general_reset(const struct i2c_dt_spec *i2c) {
     }
 }
 
+
+
+static float prev_cos = 0.0f;
+static float prev_sin = 0.0f;
+static bool first_vector = true;
+
+static void track_rotation_direction(int16_t bx, int16_t by) {
+    // Normalize the vector
+    float mag = sqrtf((float)bx * bx + (float)by * by);
+    if (mag < 1e-3) {
+        printk("Vector too small — skipping\n");
+        return;
+    }
+
+    float cos_curr = bx / mag;
+    float sin_curr = by / mag;
+
+    if (first_vector) {
+        prev_cos = cos_curr;
+        prev_sin = sin_curr;
+        first_vector = false;
+        return;
+    }
+
+    // 2D cross product: x1*y2 - y1*x2
+    float cross = prev_cos * sin_curr - prev_sin * cos_curr;
+
+    // if (cross > 0) {
+    //     printk("Rotation: CCW (Counter-Clockwise)\n");
+    // } else if (cross < 0) {
+    //     printk("Rotation: CW (Clockwise)\n");
+    // } else {
+    //     // printk("No rotation detected\n");
+    // }
+    printf(" %f , 1 , -1 \n", cross);
+
+    float angle_rad = atan2f((float)by, (float)bx);
+float angle_deg = angle_rad * (180.0f / M_PI);
+if (angle_deg < 0) {
+    angle_deg += 360.0f;
+}
+
+// Print with printf if float is supported
+// printf("%.2f , 0, 360\n", angle_deg);
+
+    // Update for next comparison
+    prev_cos = cos_curr;
+    prev_sin = sin_curr;
+}
+
+
 static void read_magnetic_data(void) {
     uint8_t raw[6];
     int ret = i2c_burst_read_dt(&dev_i2c, 0x00, raw, sizeof(raw));
@@ -133,8 +220,16 @@ static void read_magnetic_data(void) {
     int16_t by = extract_12bit(raw[1], raw[4]);
     int16_t bz = extract_12bit(raw[2], raw[5]);
 
-    printk("%d, %d, %d,\n", bx, by, bz);
+    // printk("%d, %d, %d, 400 , -400\n", bx, by, bz);
+    float fx = (float)bx;
+float fy = (float)by;
+float strength = sqrtf(fx * fx + fy * fy);
+// printf(" %.2f\n", strength);
+
+    //  track_rotation(bx, by);
+    track_rotation_direction(bx, by);
 }
+
 
 
 void main(void) {
@@ -147,11 +242,11 @@ void main(void) {
 		k_msleep(5); // Wait 5 milliseconds
     i2c_scan_bus(&dev_i2c);       
 	read_magnetic_data();         // 🔍 Scan for devices first
-	// configure_tlv493_low_power_mode_full();
-    configure_tlv493_low_power_mode_preserve(); // 💡 Must be called first
+    // configure_tlv493_low_power_mode_preserve(); // 💡 Must be called first
+    configure_tlv493_fast_mode_preserve(); // 💡 Must be called first
 
     while (1) {
         read_magnetic_data();
-        k_msleep(100);
+        k_msleep(10);
     }
 }
