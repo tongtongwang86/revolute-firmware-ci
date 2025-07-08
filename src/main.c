@@ -8,6 +8,10 @@
 static float previous_angle = 0.0f;
 static bool first_sample = true;
 
+
+#define DEGREE_THRESHOLD 10.0f
+#define RAD_THRESHOLD (DEGREE_THRESHOLD * (M_PI / 180.0f))
+
 // Match the node from your devicetree
 #define TLV493_NODE DT_NODELABEL(tlv493)
 
@@ -148,9 +152,9 @@ static float prev_sin = 0.0f;
 static bool first_vector = true;
 
 static void track_rotation_direction(int16_t bx, int16_t by) {
-    // Normalize the vector
+    // Normalize the magnetic vector
     float mag = sqrtf((float)bx * bx + (float)by * by);
-    if (mag < 1e-3) {
+    if (mag < 1e-3f) {
         printk("Vector too small — skipping\n");
         return;
     }
@@ -165,30 +169,23 @@ static void track_rotation_direction(int16_t bx, int16_t by) {
         return;
     }
 
-    // 2D cross product: x1*y2 - y1*x2
-    float cross = prev_cos * sin_curr - prev_sin * cos_curr;
+    // Compute sin(Δθ) and cos(Δθ) using vector dot/cross
+    float delta_cos = prev_cos * cos_curr + prev_sin * sin_curr;
+    float delta_sin = prev_cos * sin_curr - prev_sin * cos_curr;
 
-    // if (cross > 0) {
-    //     printk("Rotation: CCW (Counter-Clockwise)\n");
-    // } else if (cross < 0) {
-    //     printk("Rotation: CW (Clockwise)\n");
-    // } else {
-    //     // printk("No rotation detected\n");
-    // }
-    printf(" %f , 1 , -1 \n", cross);
+    float angle_squared = delta_sin * delta_sin + (1.0f - delta_cos) * (1.0f - delta_cos);
 
-    float angle_rad = atan2f((float)by, (float)bx);
-float angle_deg = angle_rad * (180.0f / M_PI);
-if (angle_deg < 0) {
-    angle_deg += 360.0f;
-}
+    if (angle_squared > RAD_THRESHOLD * RAD_THRESHOLD) {
+        if (delta_sin > 0.0f) {
+            printk("CCW\n");
+        } else if (delta_sin < 0.0f) {
+            printk("CW\n");
+        }
 
-// Print with printf if float is supported
-// printf("%.2f , 0, 360\n", angle_deg);
-
-    // Update for next comparison
-    prev_cos = cos_curr;
-    prev_sin = sin_curr;
+        // Update baseline
+        prev_cos = cos_curr;
+        prev_sin = sin_curr;
+    }
 }
 
 
@@ -201,7 +198,7 @@ static void read_magnetic_data(void) {
 
         // Step 1: General reset
         tlv493_general_reset(&dev_i2c);
-        k_msleep(5);  // Allow time for sensor reset
+        // k_msleep(5);  // Allow time for sensor reset
 
         // Step 2: Reconfigure low-power mode
         configure_tlv493_low_power_mode_preserve();
@@ -247,6 +244,6 @@ void main(void) {
 
     while (1) {
         read_magnetic_data();
-        k_msleep(10);
+        // k_msleep(10);
     }
 }
