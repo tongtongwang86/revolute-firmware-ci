@@ -1,4 +1,5 @@
 #include "power.h"
+#include "sensor.h"
 #include <zephyr/kernel.h>
 
 #define THREAD_STACK_SIZE 1024
@@ -17,9 +18,12 @@ static const struct gpio_dt_spec sw3_button = GPIO_DT_SPEC_GET(SW3_NODE, gpios);
 
 
 void power_off(void) {
-
-    
-
+    tlv493_general_reset();
+    // Allow time for sensor reset
+    k_msleep(5);
+    configure_tlv493_poweroff_mode();
+    //sleep 
+    k_msleep(1000);
     int rc;
 
     // Configure SW3 GPIO as input with interrupt

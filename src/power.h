@@ -13,7 +13,6 @@
 
 
 void power_off(void);
-void power_on(void);
 
 #endif // POWER_H
 
