@@ -17,4 +17,6 @@ void tlv493_general_reset(void);
 void register_cw_callback(rotation_callback_t cb);
 void register_ccw_callback(rotation_callback_t cb);
 
+float sensor_get_strength(int16_t bx, int16_t by);
+
 #endif // SENSOR_H

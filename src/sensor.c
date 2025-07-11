@@ -15,6 +15,10 @@ static const struct i2c_dt_spec dev_i2c = I2C_DT_SPEC_GET(TLV493_NODE);
 static rotation_callback_t cw_callback = NULL;
 static rotation_callback_t ccw_callback = NULL;
 
+
+static int64_t last_max_sleep_time_ms = 0;
+
+
 static float prev_cos = 0.0f;
 static float prev_sin = 0.0f;
 
@@ -193,8 +197,15 @@ printf("velocity: %.6f\n", velocity_metric);
         // if (sleep_ms > max_sleep_ms) sleep_ms = max_sleep_ms;
 
         sleep_ms = min_sleep_ms;
+        last_max_sleep_time_ms = k_uptime_get();  // 🕒 Record time when sleep is maxed out
     }else{
         sleep_ms = max_sleep_ms;
+        int64_t now = k_uptime_get();
+        int64_t idle_duration = now - last_max_sleep_time_ms;
+        if (idle_duration > 5000) {
+            printk("System idle for over 5 seconds\n");
+            // You could trigger a lower-power state, etc.
+        }
 
     }
 
@@ -249,14 +260,26 @@ void sensor_read(void) {
     int16_t by = extract_12bit(raw[1], raw[4]);
     int16_t bz = extract_12bit(raw[2], raw[5]);
 
-    track_rotation_direction(bx, by);
-
+    printf("%.6f\n", sensor_get_strength(bx,by));
     
-    // print sleep_ms 
+    if(sensor_get_strength(bx,by) > 50) {
+        track_rotation_direction(bx, by);
+
+                   // print sleep_ms 
     printk("%d \n", sleep_ms);
 
 
     k_msleep(sleep_ms);
+    
+    }else{
+
+    k_msleep(1000);
+    }
+
+
+
+    
+ 
     
 }
 
