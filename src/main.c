@@ -9,7 +9,7 @@ static float previous_angle = 0.0f;
 static bool first_sample = true;
 
 
-#define DEGREE_THRESHOLD 10.0f
+#define DEGREE_THRESHOLD 5.0f
 #define RAD_THRESHOLD (DEGREE_THRESHOLD * (M_PI / 180.0f))
 
 // Match the node from your devicetree
@@ -103,6 +103,36 @@ static void configure_tlv493_fast_mode_preserve(void) {
         printk("Fast mode configured, MOD1 updated with preserved bits.\n");
     }
 }
+
+static void configure_tlv493_poweroff_mode(void) {
+    uint8_t reg0 = 0, reg1 = 0, reg2 = 0, reg3 = 0;
+
+    if (i2c_reg_read_byte_dt(&dev_i2c, 0x00, &reg0) < 0 ||
+        i2c_reg_read_byte_dt(&dev_i2c, 0x01, &reg1) < 0 ||
+        i2c_reg_read_byte_dt(&dev_i2c, 0x02, &reg2) < 0 ||
+        i2c_reg_read_byte_dt(&dev_i2c, 0x03, &reg3) < 0) {
+        printk("Failed to read configuration registers\n");
+        return;
+    }
+
+    // Clear bits 2:0 (INT, FAST, LOW) to enter power-off mode
+    reg1 &= ~0x07;
+
+    // Recalculate parity
+    uint8_t parity = calculate_parity(reg0, reg1, reg2, reg3);
+
+    // Set parity bit (bit 7)
+    reg1 = (reg1 & 0x7F) | (parity << 7);
+
+    // Write modified MOD1 register
+    int ret = i2c_reg_write_byte_dt(&dev_i2c, 0x01, reg1);
+    if (ret < 0) {
+        printk("Failed to write MOD1 register: %d\n", ret);
+    } else {
+        printk("Power-off mode configured, MOD1 updated.\n");
+    }
+}
+
 
 
 
@@ -201,8 +231,9 @@ static void read_magnetic_data(void) {
         // k_msleep(5);  // Allow time for sensor reset
 
         // Step 2: Reconfigure low-power mode
-        configure_tlv493_low_power_mode_preserve();
-
+        // configure_tlv493_low_power_mode_preserve();
+        configure_tlv493_fast_mode_preserve();
+// configure_tlv493_poweroff_mode();
         // Step 3: Retry reading data
         ret = i2c_burst_read_dt(&dev_i2c, 0x00, raw, sizeof(raw));
         if (ret < 0) {
@@ -241,9 +272,13 @@ void main(void) {
 	read_magnetic_data();         // 🔍 Scan for devices first
     // configure_tlv493_low_power_mode_preserve(); // 💡 Must be called first
     configure_tlv493_fast_mode_preserve(); // 💡 Must be called first
+    // configure_tlv493_poweroff_mode();
+    // configure_tlv493_master_controlled_mode(1);
 
     while (1) {
         read_magnetic_data();
-        // k_msleep(10);
+        k_msleep(10); // Sleep for 100 milliseconds
+        // printk("Reading magnetic data...\n");
+        // read_magnetic_data();
     }
 }
