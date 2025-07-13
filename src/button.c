@@ -50,7 +50,7 @@ void handle_button_event(enum button_event event) {
         break;
     case BUTTON_TRIPLE_CLICK:
         LOG_INF("Triple Click detected!");
-        // remove_bonded_device();
+        remove_bonded_device();
         break;
     case BUTTON_LONG_HOLD:
         // power_status = PWR_OFF;

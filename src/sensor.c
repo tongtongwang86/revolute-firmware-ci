@@ -265,7 +265,7 @@ void sensor_read(void) {
     if(sensor_get_strength(bx,by) > 50) {
         track_rotation_direction(bx, by);
 
-                   // print sleep_ms 
+
     printk("%d \n", sleep_ms);
 
 
@@ -276,9 +276,6 @@ void sensor_read(void) {
     k_msleep(1000);
     }
 
-
-
-    
  
     
 }

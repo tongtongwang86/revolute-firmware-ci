@@ -6,6 +6,7 @@
 #define THREAD_PRIORITY 7
 #define THREAD_SLEEP_TIME_MS 10000
 
+led_state_t target_state = STATE_ADVERTISEMENT;
 
 LOG_MODULE_REGISTER(power, LOG_LEVEL_INF);
 
