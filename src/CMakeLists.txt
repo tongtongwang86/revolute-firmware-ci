@@ -1,2 +1,3 @@
-target_sources(app PRIVATE main.c button.c power.c sensor.c ble.c hog.c revsvc.c settings.c)
+target_sources(app PRIVATE   ble.c  power.c button.c )
 target_include_directories(app PRIVATE .)
+# hog.c revsvc.c settings.c power.c sensor.c main.c button.c 

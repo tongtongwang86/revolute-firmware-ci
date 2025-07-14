@@ -279,11 +279,11 @@ static void connected(struct bt_conn *conn, uint8_t err) {
     struct bt_conn_info info;
 
     LOG_DBG("Connected thread: %p", k_current_get());
-    // bt_conn_get_info(conn, &info);
+    bt_conn_get_info(conn, &info);
 
-    // if (bt_conn_set_security(conn, BT_SECURITY_L2)) {
-	// 	printk("Failed to set security\n");
-	// }
+    if (bt_conn_set_security(conn, BT_SECURITY_L2)) {
+		printk("Failed to set security\n");
+	}
 
     if (info.role != BT_CONN_ROLE_PERIPHERAL) {
         LOG_DBG("SKIPPING FOR ROLE %d", info.role);

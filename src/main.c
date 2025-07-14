@@ -2,21 +2,21 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/gpio.h>
 #include "sensor.h"
-#include "hog.h"
-#include "revsvc.h"
+// #include "hog.h"
+// #include "revsvc.h"
 
 #define LED0_NODE DT_ALIAS(led0)
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
 void on_cw_rotation(void) {
     gpio_pin_toggle_dt(&led);
-    revolute_up_submit();
+    // revolute_up_submit();
     // printk("CW Detected!\n");
 }
 
 void on_ccw_rotation(void) {
     gpio_pin_toggle_dt(&led);
-    revolute_dn_submit();
+    // revolute_dn_submit();
     // printk("CCW Detected!\n");
 }
 
