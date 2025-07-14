@@ -169,6 +169,8 @@ static void track_rotation_direction(int16_t bx, int16_t by) {
 float velocity_metric = tmp_angle_squared / (float)sleep_ms;  // sleep_ms from previous iteration
 
 printf("velocity: %.6f\n", velocity_metric);
+
+
 // Define range for this "velocity" metric
 // float min_velocity = 0.00001f;
 // float max_velocity = 0.0001f;
@@ -260,7 +262,7 @@ void sensor_read(void) {
     int16_t by = extract_12bit(raw[1], raw[4]);
     int16_t bz = extract_12bit(raw[2], raw[5]);
 
-    printf("%.6f\n", sensor_get_strength(bx,by));
+    // printf("%.6f\n", sensor_get_strength(bx,by));
     
     if(sensor_get_strength(bx,by) > 50) {
         track_rotation_direction(bx, by);

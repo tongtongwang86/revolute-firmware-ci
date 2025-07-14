@@ -47,17 +47,13 @@ enum advertising_type advertising_status = ADV_FILTER;
 
 #define CURR_ADV(adv) (adv << 4)
 
-#define ADV_CONN_NAME                                                                          \
-    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME | BT_LE_ADV_OPT_USE_NAME |  \
-                        BT_LE_ADV_OPT_FORCE_NAME_IN_AD,                                            \
+#define ADV_CONN_NAME \
+    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN, \
                     BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
 
 #define ADV_FILTERED_NAME                                                                      \
-    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME | BT_LE_ADV_OPT_USE_NAME |  \
-                        BT_LE_ADV_OPT_FORCE_NAME_IN_AD | BT_LE_ADV_OPT_FILTER_CONN |               \
-                        BT_LE_ADV_OPT_FILTER_SCAN_REQ,                                             \
+    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN | BT_LE_ADV_OPT_FILTER_CONN, \
                     BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
-                
 
 static uint8_t active_profile;
 
@@ -283,11 +279,11 @@ static void connected(struct bt_conn *conn, uint8_t err) {
     struct bt_conn_info info;
 
     LOG_DBG("Connected thread: %p", k_current_get());
-    bt_conn_get_info(conn, &info);
+    // bt_conn_get_info(conn, &info);
 
-    if (bt_conn_set_security(conn, BT_SECURITY_L2)) {
-		printk("Failed to set security\n");
-	}
+    // if (bt_conn_set_security(conn, BT_SECURITY_L2)) {
+	// 	printk("Failed to set security\n");
+	// }
 
     if (info.role != BT_CONN_ROLE_PERIPHERAL) {
         LOG_DBG("SKIPPING FOR ROLE %d", info.role);
@@ -467,4 +463,4 @@ void disable_bluetooth(void) {
     }
 }
 
-SYS_INIT(zmk_ble_init, APPLICATION, 30);
+SYS_INIT(zmk_ble_init, APPLICATION, 50);
