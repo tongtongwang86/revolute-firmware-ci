@@ -19,8 +19,20 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/bluetooth/addr.h>
-#include "power.h"
+// #include "power.h"
 #include <ble.h>
+
+// Power states
+typedef enum {
+    STATE_OFF,
+    STATE_PAIRING,
+    STATE_ADVERTISEMENT,
+    STATE_CONNECTED,
+    STATE_STANDBY,
+    STATE_ONFULL
+} led_state_t;
+
+led_state_t target_state = STATE_ADVERTISEMENT;
 
 #if IS_ENABLED(CONFIG_SETTINGS)
 #include <zephyr/settings/settings.h>

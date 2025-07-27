@@ -168,7 +168,7 @@ static void track_rotation_direction(int16_t bx, int16_t by) {
 // Use angle_squared / time to get rate (pseudo-angular velocity)
 float velocity_metric = tmp_angle_squared / (float)sleep_ms;  // sleep_ms from previous iteration
 
-printf("velocity: %.6f\n", velocity_metric);
+// printf("velocity: %.6f\n", velocity_metric);
 
 
 // Define range for this "velocity" metric
@@ -268,7 +268,7 @@ void sensor_read(void) {
         track_rotation_direction(bx, by);
 
 
-    printk("%d \n", sleep_ms);
+    // printk("%d \n", sleep_ms);
 
 
     k_msleep(sleep_ms);
