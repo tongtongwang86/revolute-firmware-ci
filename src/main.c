@@ -3,6 +3,7 @@
 
 void main(void)
 {
+    sensor_init();
 	hog_init();
 	// hog_button_loop() now runs in its own thread
 }

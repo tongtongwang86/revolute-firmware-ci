@@ -1,4 +1,3 @@
-// sensor.c
 #include "sensor.h"
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
@@ -12,24 +11,16 @@
 #define TLV493_NODE DT_NODELABEL(tlv493)
 static const struct i2c_dt_spec dev_i2c = I2C_DT_SPEC_GET(TLV493_NODE);
 
-static rotation_callback_t cw_callback = NULL;
-static rotation_callback_t ccw_callback = NULL;
-
-
-static int64_t last_max_sleep_time_ms = 0;
-
-
 static float prev_cos = 0.0f;
 static float prev_sin = 0.0f;
-
 static float tmp_prev_cos = 0.0f;
 static float tmp_prev_sin = 0.0f;
 static bool first_vector = true;
 
+static int64_t last_max_sleep_time_ms = 0;
 static int sleep_ms = 10;
-static int min_sleep_ms = 10;
-static int max_sleep_ms = 100;
-
+static const int min_sleep_ms = 10;
+static const int max_sleep_ms = 100;
 
 static int16_t extract_12bit(uint8_t msb, uint8_t lsb_part) {
     int16_t val = ((int16_t)msb << 4) | (lsb_part & 0x0F);
@@ -64,9 +55,8 @@ static void configure_tlv493_fast_mode(void) {
     i2c_reg_write_byte_dt(&dev_i2c, 0x01, reg1);
 }
 
-  void configure_tlv493_poweroff_mode(void) {
+void configure_tlv493_poweroff_mode(void) {
     uint8_t reg0 = 0, reg1 = 0, reg2 = 0, reg3 = 0;
-
     if (i2c_reg_read_byte_dt(&dev_i2c, 0x00, &reg0) < 0 ||
         i2c_reg_read_byte_dt(&dev_i2c, 0x01, &reg1) < 0 ||
         i2c_reg_read_byte_dt(&dev_i2c, 0x02, &reg2) < 0 ||
@@ -75,16 +65,9 @@ static void configure_tlv493_fast_mode(void) {
         return;
     }
 
-    // Clear bits 2:0 (INT, FAST, LOW) to enter power-off mode
     reg1 &= ~0x07;
-
-    // Recalculate parity
     uint8_t parity = calculate_parity(reg0, reg1, reg2, reg3);
-
-    // Set parity bit (bit 7)
     reg1 = (reg1 & 0x7F) | (parity << 7);
-
-    // Write modified MOD1 register
     int ret = i2c_reg_write_byte_dt(&dev_i2c, 0x01, reg1);
     if (ret < 0) {
         printk("Failed to write MOD1 register: %d\n", ret);
@@ -93,10 +76,8 @@ static void configure_tlv493_fast_mode(void) {
     }
 }
 
- void configure_tlv493_low_power_mode(void) {
+void configure_tlv493_low_power_mode(void) {
     uint8_t reg0 = 0, reg1 = 0, reg2 = 0, reg3 = 0;
-
-    // Read registers 0x00 through 0x03
     if (i2c_reg_read_byte_dt(&dev_i2c, 0x00, &reg0) < 0 ||
         i2c_reg_read_byte_dt(&dev_i2c, 0x01, &reg1) < 0 ||
         i2c_reg_read_byte_dt(&dev_i2c, 0x02, &reg2) < 0 ||
@@ -105,19 +86,10 @@ static void configure_tlv493_fast_mode(void) {
         return;
     }
 
-    // Clear bits 2:0 (INT, FAST, LOW)
     reg1 &= ~0x07;
-
-    // Set INT = 0, FAST = 0, LOW = 1
     reg1 |= (1 << 0);  // LOW = 1
-
-    // Calculate new parity over all 4 config bytes
     uint8_t parity = calculate_parity(reg0, reg1, reg2, reg3);
-
-    // Set parity bit (bit 7)
     reg1 = (reg1 & 0x7F) | (parity << 7);
-
-    // Write back only modified register (reg1 at address 0x01)
     int ret = i2c_reg_write_byte_dt(&dev_i2c, 0x01, reg1);
     if (ret < 0) {
         printk("Failed to write MOD1 register: %d\n", ret);
@@ -126,7 +98,7 @@ static void configure_tlv493_fast_mode(void) {
     }
 }
 
- void tlv493_general_reset(void) {
+void tlv493_general_reset(void) {
     struct i2c_msg msg = {
         .buf = NULL,
         .len = 0,
@@ -152,136 +124,38 @@ static void track_rotation_direction(int16_t bx, int16_t by) {
 
     float delta_cos = prev_cos * cos_curr + prev_sin * sin_curr;
     float delta_sin = prev_cos * sin_curr - prev_sin * cos_curr;
-
     float angle_squared = delta_sin * delta_sin + (1.0f - delta_cos) * (1.0f - delta_cos);
 
     float tmp_delta_cos = tmp_prev_cos * cos_curr + tmp_prev_sin * sin_curr;
     float tmp_delta_sin = tmp_prev_cos * sin_curr - tmp_prev_sin * cos_curr;
-
     float tmp_angle_squared = tmp_delta_sin * tmp_delta_sin + (1.0f - tmp_delta_cos) * (1.0f - tmp_delta_cos);
-    // float angle = sqrtf(angle_squared);  // rough angle delta in radians
-    
-        tmp_prev_cos = cos_curr;
-        tmp_prev_sin = sin_curr;
-        
-    
-// Use angle_squared / time to get rate (pseudo-angular velocity)
-float velocity_metric = tmp_angle_squared / (float)sleep_ms;  // sleep_ms from previous iteration
+    tmp_prev_cos = cos_curr;
+    tmp_prev_sin = sin_curr;
 
-// printf("velocity: %.6f\n", velocity_metric);
+    float velocity_metric = tmp_angle_squared / (float)sleep_ms;
 
-
-// Define range for this "velocity" metric
-// float min_velocity = 0.00001f;
-// float max_velocity = 0.0001f;
-
-// // Clamp
-// if (velocity_metric < min_velocity) {
-//     velocity_metric = min_velocity;
-// } else if (velocity_metric > max_velocity) {
-//     velocity_metric = max_velocity;
-// }
-
-// // Normalize
-// float normalized = (velocity_metric - min_velocity) / (max_velocity - min_velocity);
-
-// // Inverse mapping: high velocity → low sleep
-// sleep_ms = (int)((1.0f - normalized) * (max_sleep_ms - min_sleep_ms) + min_sleep_ms);
-
-
-    // Adjust polling delay: larger angle → shorter sleep
     if (velocity_metric > 0.000004f) {
-
-        // float scale = 1.0f / (tmp_angle_squared * 100.0f);  // Tune factor as needed
-        // if (scale < 1.0f) scale = 1.0f;
-        // sleep_ms = (int)(max_sleep_ms / scale);
-        // if (sleep_ms < min_sleep_ms) sleep_ms = min_sleep_ms;
-        // if (sleep_ms > max_sleep_ms) sleep_ms = max_sleep_ms;
-
         sleep_ms = min_sleep_ms;
-        last_max_sleep_time_ms = k_uptime_get();  // 🕒 Record time when sleep is maxed out
-    }else{
+        last_max_sleep_time_ms = k_uptime_get();
+    } else {
         sleep_ms = max_sleep_ms;
         int64_t now = k_uptime_get();
         int64_t idle_duration = now - last_max_sleep_time_ms;
         if (idle_duration > 5000) {
             printk("System idle for over 5 seconds\n");
-            // You could trigger a lower-power state, etc.
         }
-
     }
 
     if (angle_squared > RAD_THRESHOLD * RAD_THRESHOLD) {
-        if (delta_sin > 0.0f && ccw_callback) ccw_callback();
-        else if (delta_sin < 0.0f && cw_callback) cw_callback();
-
+        if (delta_sin > 0.0f) {
+            printk("cw\n");
+        } else if (delta_sin < 0.0f) {
+            printk("ccw\n");
+        }
         prev_cos = cos_curr;
         prev_sin = sin_curr;
     }
 }
-
-static void i2c_scan_bus(const struct i2c_dt_spec *i2c) {
-    printk("Starting I2C scan on bus %s...\n", i2c->bus->name);
-
-    for (uint8_t addr = 0x03; addr <= 0x77; addr++) {
-        struct i2c_msg msgs[1];
-        uint8_t dummy = 0;
-
-        msgs[0].buf = &dummy;
-        msgs[0].len = 1;
-        msgs[0].flags = I2C_MSG_WRITE | I2C_MSG_STOP;
-
-        int ret = i2c_transfer(i2c->bus, msgs, 1, addr);
-        if (ret == 0) {
-            printk("I2C device found at address 0x%02X\n", addr);
-        }
-    }
-
-    printk("I2C scan complete.\n");
-}
-
-
-void sensor_read(void) {
-    uint8_t raw[6];
-    int ret = i2c_burst_read_dt(&dev_i2c, 0x00, raw, sizeof(raw));
-    
-    if (ret < 0) {
-        printk("Failed to read sensor data: %d. Attempting reinitialization...\n", ret);
-        tlv493_general_reset();
-        configure_tlv493_fast_mode();
-        ret = i2c_burst_read_dt(&dev_i2c, 0x00, raw, sizeof(raw));
-        if (ret < 0) {
-            printk("Retry failed: Sensor is still unresponsive.\n");
-            return;
-        } else {
-            printk("Reinitialization succeeded.\n");
-        }
-    }
-
-    int16_t bx = extract_12bit(raw[0], raw[4] >> 4);
-    int16_t by = extract_12bit(raw[1], raw[4]);
-    int16_t bz = extract_12bit(raw[2], raw[5]);
-
-    // printf("%.6f\n", sensor_get_strength(bx,by));
-    
-    if(sensor_get_strength(bx,by) > 50) {
-        track_rotation_direction(bx, by);
-
-
-    // printk("%d \n", sleep_ms);
-
-
-    k_msleep(sleep_ms);
-    
-    }else{
-
-    k_msleep(1000);
-    }
-
- 
-    
-}
-
 
 float sensor_get_strength(int16_t bx, int16_t by) {
     float fx = (float)bx;
@@ -289,22 +163,68 @@ float sensor_get_strength(int16_t bx, int16_t by) {
     return sqrtf(fx * fx + fy * fy);
 }
 
+void sensor_read(void) {
+    uint8_t raw[6];
+    int ret = i2c_burst_read_dt(&dev_i2c, 0x00, raw, sizeof(raw));
+    if (ret < 0) {
+        printk("Failed to read sensor data: %d. Attempting reinit...\n", ret);
+        tlv493_general_reset();
+        configure_tlv493_fast_mode();
+        ret = i2c_burst_read_dt(&dev_i2c, 0x00, raw, sizeof(raw));
+        if (ret < 0) {
+            printk("Retry failed: Sensor still unresponsive.\n");
+            return;
+        }
+    }
+
+    int16_t bx = extract_12bit(raw[0], raw[4] >> 4);
+    int16_t by = extract_12bit(raw[1], raw[4]);
+    int16_t bz = extract_12bit(raw[2], raw[5]);
+
+    if (sensor_get_strength(bx, by) > 50) {
+        track_rotation_direction(bx, by);
+    }
+}
+
+// ======= 100 Hz polling thread setup =======
+
+#define SENSOR_THREAD_STACK_SIZE 1024
+#define SENSOR_THREAD_PRIORITY 5
+#define SENSOR_POLL_PERIOD_MS 10  // 100 Hz
+
+K_THREAD_STACK_DEFINE(sensor_thread_stack, SENSOR_THREAD_STACK_SIZE);
+static struct k_thread sensor_thread_data;
+
+static void sensor_thread_fn(void *arg1, void *arg2, void *arg3) {
+    ARG_UNUSED(arg1); ARG_UNUSED(arg2); ARG_UNUSED(arg3);
+    while (1) {
+        int64_t start = k_uptime_get();
+        sensor_read();
+        int64_t elapsed = k_uptime_get() - start;
+        int64_t sleep_time = SENSOR_POLL_PERIOD_MS - elapsed;
+        if (sleep_time > 0) {
+            k_msleep(sleep_time);
+        } else {
+            printk("Sensor read overrun: %lld ms\n", elapsed);
+        }
+    }
+}
+
+// ======= Initialization =======
+
 void sensor_init(void) {
     if (!device_is_ready(dev_i2c.bus)) {
         printk("Sensor I2C bus not ready\n");
         return;
     }
+
     tlv493_general_reset();
     k_msleep(5);
     configure_tlv493_fast_mode();
-    // configure_tlv493_poweroff_mode();
-    
-}
 
-void register_cw_callback(rotation_callback_t cb) {
-    cw_callback = cb;
-}
-
-void register_ccw_callback(rotation_callback_t cb) {
-    ccw_callback = cb;
+    k_thread_create(&sensor_thread_data, sensor_thread_stack,
+                    K_THREAD_STACK_SIZEOF(sensor_thread_stack),
+                    sensor_thread_fn,
+                    NULL, NULL, NULL,
+                    SENSOR_THREAD_PRIORITY, 0, K_NO_WAIT);
 }
