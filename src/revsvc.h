@@ -37,16 +37,6 @@ extern struct k_sem stats_notification_sem;
     BT_UUID_DECLARE_128(BT_UUID_128_ENCODE(0x00001528, 0x1212, 0xefde, 0x1523, 0x785feabcd133))
 
 
-// Define the config data structure
-typedef struct {
-    uint8_t deadzone;
-    uint8_t up_report[8];
-    uint8_t up_identPerRev;
-    uint8_t up_transport;
-    uint8_t dn_report[8];
-    uint8_t dn_identPerRev;
-    uint8_t dn_transport;
-} rev_config_t;
 
 // Define the stats data structure
 typedef struct {
@@ -54,14 +44,7 @@ typedef struct {
     uint16_t rotation_value;
 } rev_stats_t;
 
-typedef struct {
-    uint32_t autoofftimer; // Quaternion data (floats packed as uint32_t)
-    uint32_t autoFilterOffTimer;
-} rev_timer_t;
-
-extern rev_config_t config;
 extern rev_stats_t stats;
-extern rev_timer_t timer;
 
 
 // Public functions
