@@ -21,18 +21,9 @@
 #include <zephyr/bluetooth/addr.h>
 // #include "power.h"
 #include <ble.h>
+#include "statemanager.h"
 
-// Power states
-typedef enum {
-    STATE_OFF,
-    STATE_PAIRING,
-    STATE_ADVERTISEMENT,
-    STATE_CONNECTED,
-    STATE_STANDBY,
-    STATE_ONFULL
-} led_state_t;
 
-led_state_t target_state = STATE_ADVERTISEMENT;
 
 #if IS_ENABLED(CONFIG_SETTINGS)
 #include <zephyr/settings/settings.h>
@@ -95,6 +86,8 @@ static const struct bt_data zmk_ble_ad[] = {
 
 static const struct bt_data rev_ble_sd[] = {
 	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
+    BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_128_ENCODE(0x00001523, 0x1212, 0xefde, 0x1523, 0x785feabcd133)),
+
 };
 
 static void add_bonded_addr_to_filter_list(const struct bt_bond_info *info, void *data)

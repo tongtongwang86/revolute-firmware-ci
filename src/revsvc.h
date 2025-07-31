@@ -8,6 +8,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/usb/class/usb_hid.h>
 #include <zephyr/settings/settings.h>
+#include "statemanager.h"
 
 // thread stuff
 #define REV_SVC_THREAD_STACK_SIZE 1024  // Adjust based on requirements
@@ -38,17 +39,11 @@ extern struct k_sem stats_notification_sem;
 
 
 
-// Define the stats data structure
-typedef struct {
-    uint32_t quat_data[4]; // Quaternion data (floats packed as uint32_t)
-    uint16_t rotation_value;
-} rev_stats_t;
 
-extern rev_stats_t stats;
 
 
 // Public functions
-void generate_random_stats_data(rev_stats_t *stats);
+// void generate_random_stats_data(rev_stats_t *stats);
 void rev_svc_loop(void);
 
 // int rev_send_gyro(float r, float i, float j, float k);

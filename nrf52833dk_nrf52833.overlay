@@ -20,3 +20,11 @@
  
     };
 };
+
+&egu0 {
+    status = "disabled";
+};
+
+&ccm {
+    status = "disabled";
+};

@@ -1,6 +1,7 @@
 #include "revsvc.h"
 #include "settings.h"
 #include "ble.h"
+#include "statemanager.h"
 
 LOG_MODULE_REGISTER(RevSVC, LOG_LEVEL_DBG);
 
@@ -8,11 +9,6 @@ LOG_MODULE_REGISTER(RevSVC, LOG_LEVEL_DBG);
 static uint8_t stats_notifications_enabled;
 // Initialize the dummy data
 
-
-rev_stats_t stats = {
-    .quat_data = {0x3f800000, 0x00000000, 0x00000000, 0x00000000}, // Quaternion identity (1.0, 0.0, 0.0, 0.0)
-    .rotation_value = 0x0001 // Example rotation value
-};
 
 
 

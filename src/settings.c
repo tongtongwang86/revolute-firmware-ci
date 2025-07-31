@@ -1,27 +1,9 @@
 
 #include "settings.h"
 #include "revsvc.h"
+#include "statemanager.h"
 
 LOG_MODULE_REGISTER(Settings, LOG_LEVEL_DBG);
-
-// initial configuration
-
-rev_config_t config = {
-    .deadzone = 0x00,
-    .up_report = {0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00},
-    .up_identPerRev = 0x1E,
-    .up_transport = 0x0D, // 5 keyboard, 9 consumer, 13 mouse
-    .dn_report = {0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00},
-    .dn_identPerRev = 0x1E,
-    .dn_transport = 0x0D // 5 keyboard, 9 consumer, 13 mouse
-};
-
-
-rev_timer_t timer = {
-    .autoofftimer = 0,
-    .autoFilterOffTimer = 300000
-};
-
 
 
 
