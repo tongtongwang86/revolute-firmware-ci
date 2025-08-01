@@ -135,7 +135,7 @@ static void track_rotation_direction(int16_t bx, int16_t by) {
 
     float velocity_metric = tmp_angle_squared / (float)sleep_ms;
 
-    if (velocity_metric > 0.000004f) {
+    if (velocity_metric > 0.000005f) {
         sleep_ms = min_sleep_ms;
         last_max_sleep_time_ms = k_uptime_get();
     } else {
