@@ -1,4 +1,5 @@
 #include "sensor.h"
+#include "statemanager.h"
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/drivers/i2c.h>
@@ -143,6 +144,10 @@ static void track_rotation_direction(int16_t bx, int16_t by) {
         int64_t idle_duration = now - last_max_sleep_time_ms;
         if (idle_duration > 5000) {
             printk("System idle for over 5 seconds\n");
+            onhold = true;
+        }else{
+            onhold = false;
+
         }
     }
 

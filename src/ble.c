@@ -134,6 +134,7 @@ bool active_profile_connected(void) {
 
 #define CHECKED_ADV_STOP()                                                                         \
     err = bt_le_adv_stop();                                                                        \
+    rev_state = STATE_ON;          \
     advertising_status = ADV_NONE;                                                             \
     LOG_DBG("advertising stopped");                                                                \
     if (err) {                                                                                     \
@@ -144,7 +145,7 @@ bool active_profile_connected(void) {
 #define CHECKED_FILTER_ADV()                                                                      \
     err = bt_le_adv_start(ADV_FILTERED_NAME, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), rev_ble_sd, ARRAY_SIZE(rev_ble_sd)); \
     LOG_DBG("Advertising with filter enabled");                                                  \
-    target_state = STATE_ADVERTISEMENT;                                                          \
+    rev_state = STATE_PAIRING;                                                          \
     if (err) {                                                                                   \
         LOG_ERR("Filtered advertising failed to start (err %d)", err);                           \
         return err;                                                                              \
@@ -155,7 +156,7 @@ bool active_profile_connected(void) {
 #define CHECKED_OPEN_ADV()                                                                         \
     err = bt_le_adv_start(ADV_CONN_NAME, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), rev_ble_sd, ARRAY_SIZE(rev_ble_sd));         \
     LOG_DBG("Advertising open");                                                                   \
-    target_state = STATE_ADVERTISEMENT;                                                            \
+    rev_state = STATE_ADVERTISEMENT;                                                            \
     if (err) {                                                                                     \
         LOG_ERR("Advertising failed to start (err %d)", err);                                      \
         return err;                                                                                \

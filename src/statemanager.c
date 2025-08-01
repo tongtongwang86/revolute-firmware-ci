@@ -1,6 +1,6 @@
 #include "statemanager.h"
 
-ble_state_t target_state = STATE_ADVERTISEMENT;
+state_t rev_state = STATE_ADVERTISEMENT;
 
 // initial configuration
 
@@ -25,4 +25,6 @@ rev_stats_t stats = {
     .rotation_value = 0x0001 // Example rotation value
 };
 
-
+bool onhold = false;
+bool isOff = false;
+// power_state_t power_state = STATE_ON;

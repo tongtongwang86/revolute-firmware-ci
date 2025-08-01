@@ -12,6 +12,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/settings/settings.h>
 #include "power.h"
+#include "statemanager.h"
 
 LOG_MODULE_REGISTER(button, LOG_LEVEL_INF);
 
@@ -55,8 +56,15 @@ void handle_button_event(enum button_event event) {
     case BUTTON_LONG_HOLD:
         // power_status = PWR_OFF;
         LOG_INF("Long Hold detected! Turning off");
-        // k_sleep(K_MSEC(2500));
+        isOff = true;
+        k_msleep(2000);
         power_off();
+
+        
+        // rev_state = STATE_OFF;
+        
+        
+        
         break;
     default:
         LOG_WRN("Unknown button event!");

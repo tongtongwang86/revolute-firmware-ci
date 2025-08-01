@@ -8,7 +8,7 @@
 #include "ble.h"
 
 
-extern led_state_t target_state;
+// extern led_state_t target_state;
 
 
 // Initialize the PWM LED system

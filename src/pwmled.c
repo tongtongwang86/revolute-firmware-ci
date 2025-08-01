@@ -1,4 +1,5 @@
 #include "pwmled.h"
+#include "statemanager.h"
 #include <math.h>
 
 LOG_MODULE_REGISTER(pwmled, LOG_LEVEL_INF);
@@ -7,14 +8,15 @@ LOG_MODULE_REGISTER(pwmled, LOG_LEVEL_INF);
 static const struct pwm_dt_spec pwm_led0 = PWM_DT_SPEC_GET(PWM_LED0);
 
 #define PWMLED_STACK_SIZE 1024
-#define PWMLED_THREAD_PRIORITY K_LOWEST_APPLICATION_THREAD_PRIO
+// #define PWMLED_THREAD_PRIORITY K_LOWEST_APPLICATION_THREAD_PRIO
+#define PWMLED_THREAD_PRIORITY 6
 #define M_PI 3.141592
 
 static struct k_thread pwmled_thread_data;
 static K_THREAD_STACK_DEFINE(pwmled_stack, PWMLED_STACK_SIZE);
 
-extern enum power_type power_status;
-extern enum advertising_type advertising_status;
+// extern enum power_type power_status;
+// extern enum advertising_type advertising_status;
 
 static float brightness = 0;      // Current LED brightness (0 to 1)
 static float velocity = 0;        // Rate of change of brightness
@@ -66,19 +68,33 @@ static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
 
     while (1) {
         // Update physics parameters based on state
-        if (power_status == PWR_OFF) {
+
+         if(isOff){
+
             mass = 1;
             spring_k = 3;
             damping_b = 7;
-            target_brightness = -10;
-        } else if (power_status == PWR_STANDBY) {
+            target_brightness = -5;
+
+         }else{
+
             switch (advertising_status) {
                 case ADV_NONE:
-                    mass = 1;
-                    spring_k = 50;
-                    damping_b = 4;
-                    target_brightness = 0.1;
-                    break;
+                    if(onhold){
+                        mass = 1;
+                        spring_k = 50;
+                        damping_b = 4;
+                        target_brightness = 0.2;
+                        break;
+                    }else{
+                        mass = 1;
+                        spring_k = 10;
+                        damping_b = 2;
+                        target_brightness = 0.5 + 0.33 * sin(k_uptime_get() * 0.002);  // Slow breathing
+                        break;
+                    }
+                
+                    
                 case ADV_FILTER:
                     mass = .4;
                     spring_k = 40;
@@ -91,38 +107,104 @@ static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
                     damping_b = 3;
                     target_brightness =  0.5 + 5 * sin(k_uptime_get() * 0.01); // Fast breathing
                     break;
+             
             }
+
+         }
+
+        
+        
+        // switch (rev_state) {
+        //         case STATE_OFF:
+        //             mass = 1;
+        //             spring_k = 3;
+        //             damping_b = 7;
+        //             target_brightness = -10;
+        //             break;
+        //         case STATE_ON_HOLD:
+        //             mass = 1;
+        //             spring_k = 50;
+        //             damping_b = 4;
+        //             target_brightness = 0.2;
+        //             break;
+        //         case STATE_ON:
+        //             mass = 1;
+        //             spring_k = 40;
+        //             damping_b = 3;
+        //             target_brightness =  0.5 + 5 * sin(k_uptime_get() * 0.01); // Fast breathing
+        //             break;
+        //         case STATE_PAIRING:
+        //             mass = .4;
+        //             spring_k = 40;
+        //             damping_b = 5;
+        //             target_brightness = 0.5 + 0.6 * sin(k_uptime_get() * 0.01); // Fast breathing
+        //             break;
+        //         case STATE_ADVERTISEMENT:
+        //             mass = 1;
+        //             spring_k = 40;
+        //             damping_b = 3;
+        //             target_brightness =  0.5 + 5 * sin(k_uptime_get() * 0.01); // Fast breathing
+        //             break;
+        //     }
+
+
+        // if (rev_state == PWR_OFF) {
+        //     mass = 1;
+        //     spring_k = 3;
+        //     damping_b = 7;
+        //     target_brightness = -10;
+        // } else if (rev_state == PWR_STANDBY) {
+        //     switch (rev_state) {
+        //         case ADV_NONE:
+        //             mass = 1;
+        //             spring_k = 50;
+        //             damping_b = 4;
+        //             target_brightness = 0.1;
+        //             break;
+        //         case ADV_FILTER:
+        //             mass = .4;
+        //             spring_k = 40;
+        //             damping_b = 5;
+        //             target_brightness = 0.5 + 0.6 * sin(k_uptime_get() * 0.01); // Fast breathing
+        //             break;
+        //         case ADV_CONN:
+        //             mass = 1;
+        //             spring_k = 40;
+        //             damping_b = 3;
+        //             target_brightness =  0.5 + 5 * sin(k_uptime_get() * 0.01); // Fast breathing
+        //             break;
+        //     }
             
-        } else if (power_status == PWR_HOLD) {
-            mass = 1;
-            spring_k = 50;
-            damping_b = 4;
-            target_brightness = 0.2;
-        } else if (power_status == PWR_ON) {
-            switch (advertising_status) {
-                case ADV_NONE:
-                    mass = 1;
-                    spring_k = 10;
-                    damping_b = 2;
-                    target_brightness = 0.5 + 0.33 * sin(k_uptime_get() * 0.002);  // Slow breathing
-                    break;
-                case ADV_FILTER:
-                    mass = .4;
-                    spring_k = 40;
-                    damping_b = 5;
-                    target_brightness = 0.5 + 0.6 * sin(k_uptime_get() * 0.01); // Fast breathing
-                    break;
-                case ADV_CONN:
-                    mass = 1;
-                    spring_k = 40;
-                    damping_b = 3;
-                    target_brightness =  0.5 + 5 * sin(k_uptime_get() * 0.01); // Fast breathing
-                    break;
-            }
-        }
+        // } else if (rev_state == PWR_HOLD) {
+        //     mass = 1;
+        //     spring_k = 50;
+        //     damping_b = 4;
+        //     target_brightness = 0.2;
+        // } else if (rev_state == PWR_ON) {
+        //     switch (advertising_status) {
+        //         case ADV_NONE:
+        //             mass = 1;
+        //             spring_k = 10;
+        //             damping_b = 2;
+        //             target_brightness = 0.5 + 0.33 * sin(k_uptime_get() * 0.002);  // Slow breathing
+        //             break;
+        //         case ADV_FILTER:
+        //             mass = .4;
+        //             spring_k = 40;
+        //             damping_b = 5;
+        //             target_brightness = 0.5 + 0.6 * sin(k_uptime_get() * 0.01); // Fast breathing
+        //             break;
+        //         case ADV_CONN:
+        //             mass = 1;
+        //             spring_k = 40;
+        //             damping_b = 3;
+        //             target_brightness =  0.5 + 5 * sin(k_uptime_get() * 0.01); // Fast breathing
+        //             break;
+        //     }
+        // }
 
         // Run the physics simulation step (assuming 10ms per cycle)
-        update_physics(0.01);
+        update_physics(0.05);
         
 
         float normalized_brightness;
@@ -143,6 +225,8 @@ static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
 
         // Sleep for 10ms
         k_sleep(K_MSEC(50));
+        k_yield(); // Yield to allow other threads to run
+
     }
 }
 

@@ -8,14 +8,14 @@
 
 //data types:
 
-typedef enum {
-    STATE_OFF,
-    STATE_PAIRING,
-    STATE_ADVERTISEMENT,
-    STATE_CONNECTED,
-    STATE_STANDBY,
-    STATE_ONFULL
-} ble_state_t;
+// typedef enum {
+//     STATE_OFF,
+//     STATE_PAIRING,
+//     STATE_ADVERTISEMENT,
+//     STATE_CONNECTED,
+//     STATE_STANDBY,
+//     STATE_ONFULL
+// } ble_state_t;
 
 // Define the config data structure
 typedef struct {
@@ -40,11 +40,22 @@ typedef struct {
     uint16_t rotation_value;
 } rev_stats_t;
 
+typedef enum {
+    STATE_ON_HOLD,
+    STATE_ON,
+    STATE_OFF,
+    STATE_PAIRING,
+    STATE_ADVERTISEMENT,
+
+} state_t;
+
+extern bool onhold;
+extern bool isOff;
 extern rev_stats_t stats; // real time rotational data stats
 extern rev_config_t config; // current configuration
-extern ble_state_t target_state; // target state for the BLE service
+// extern ble_state_t target_state; // target state for the BLE service
 extern rev_timer_t timer; // auto off timer
-
+extern state_t rev_state;
 
 
 #endif

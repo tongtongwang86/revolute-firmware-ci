@@ -1,32 +1,50 @@
-#include "power.h"
-// #include "sensor.h"
+
 #include <zephyr/kernel.h>
+#include "power.h"
 
-#define THREAD_STACK_SIZE 1024
-#define THREAD_PRIORITY 7
-#define THREAD_SLEEP_TIME_MS 10000
-
-led_state_t target_state = STATE_ADVERTISEMENT;
 
 LOG_MODULE_REGISTER(power, LOG_LEVEL_INF);
 
-
-#define POWER_STACK_SIZE 1024
-#define POWER_THREAD_PRIORITY K_LOWEST_APPLICATION_THREAD_PRIO
-
 #define SW3_NODE DT_ALIAS(sw0) // button to attach the interrupt to
 static const struct gpio_dt_spec sw3_button = GPIO_DT_SPEC_GET(SW3_NODE, gpios);
+
+static struct k_work_delayable power_off_work;
+
+
+static void power_off_handler(struct k_work *work);
+
+// Static delayed work structure
+static struct k_work_delayable power_off_work;
+
+void power_off_work_init(void)
+{
+    k_work_init_delayable(&power_off_work, power_off_handler);
+}
+
+static void power_off_handler(struct k_work *work)
+{
+    power_off();
+}
+
+
+void schedule_power_off(int delay_ms)
+{
+    LOG_INF("Scheduling power off in %d ms", delay_ms);
+    k_work_schedule(&power_off_work, K_MSEC(delay_ms));
+}
 
 
 void power_off(void) {
     // tlv493_general_reset();
     // Allow time for sensor reset
-    k_msleep(5);
+    // k_msleep(5);
     // configure_tlv493_poweroff_mode();
     //sleep 
-    k_msleep(1000);
-    int rc;
+    
 
+    LOG_INF("aaa");
+    int rc;
+ 
     // Configure SW3 GPIO as input with interrupt
     rc = gpio_pin_configure_dt(&sw3_button, GPIO_INPUT);
     if (rc < 0) {
@@ -48,4 +66,4 @@ void power_off(void) {
 }
 
 
-
+SYS_INIT(power_off_work_init, APPLICATION, 50);

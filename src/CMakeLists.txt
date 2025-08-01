@@ -1,3 +1,3 @@
-target_sources(app PRIVATE ble.c debug.c hog2.c main.c sensor.c settings.c statemanager.c)
+target_sources(app PRIVATE ble.c hog2.c main.c sensor.c settings.c statemanager.c pwmled.c power.c button.c )
 target_include_directories(app PRIVATE .)
 # hog.c revsvc.c settings.c power.c sensor.c main.c button.c 
