@@ -6,8 +6,31 @@
 #include <math.h>
 
 #define M_PI 3.14159265358979323846
-#define DEGREE_THRESHOLD 10.0f
-#define RAD_THRESHOLD (DEGREE_THRESHOLD * (M_PI / 180.0f))
+// #define DEGREE_THRESHOLD 10.0f
+// #define DEADZONE (DEGREE_THRESHOLD * (M_PI / 180.0f))
+
+float degreeThreshold = 10.0f;
+float DEADZONE = 10.0f * (M_PI / 180.0f);
+
+float CW_IDENT = 50.0f * (M_PI / 180.0f);
+float CCW_IDENT = 50.0f * (M_PI / 180.0f);
+
+void sensor_set_degree_threshold(float threshold) {
+    degreeThreshold = threshold;
+    DEADZONE = degreeThreshold * (M_PI / 180.0f);
+}
+
+void set_cw_identsperrev() {
+    degreeThreshold = 360/config.up_identPerRev;
+    CW_IDENT = degreeThreshold * (M_PI / 180.0f);
+}
+
+
+void set_ccw_identsperrev() {
+    
+    degreeThreshold = 360/config.dn_identPerRev;
+    CCW_IDENT = degreeThreshold * (M_PI / 180.0f);
+}
 
 #define TLV493_NODE DT_NODELABEL(tlv493)
 static const struct i2c_dt_spec dev_i2c = I2C_DT_SPEC_GET(TLV493_NODE);
@@ -22,6 +45,22 @@ static int64_t last_max_sleep_time_ms = 0;
 static int sleep_ms = 10;
 static const int min_sleep_ms = 10;
 static const int max_sleep_ms = 100;
+
+
+bool is_discrete(uint8_t transport, uint8_t report[8]) {
+    switch (transport) {
+        case 5: // keyboard
+        case 9: // consumer
+            return true;
+
+        case 13: // mouse
+            // Check if byte 2 or 3 of the report (index 1 or 2 in C) is nonzero
+            return (report[2] == 0 && report[3] == 0 && report[4] == 0);
+
+        default:
+            return true; // If transport type is unknown, assume discrete
+    }
+}
 
 static int16_t extract_12bit(uint8_t msb, uint8_t lsb_part) {
     int16_t val = ((int16_t)msb << 4) | (lsb_part & 0x0F);
@@ -109,6 +148,60 @@ void tlv493_general_reset(void) {
     k_busy_wait(100);
 }
 
+// static void track_rotation_direction(int16_t bx, int16_t by) {
+//     float mag = sqrtf((float)bx * bx + (float)by * by);
+//     if (mag < 1e-3f) return;
+
+//     float cos_curr = bx / mag;
+//     float sin_curr = by / mag;
+
+//     if (first_vector) {
+//         prev_cos = cos_curr;
+//         prev_sin = sin_curr;
+//         first_vector = false;
+//         return;
+//     }
+
+//     float delta_cos = prev_cos * cos_curr + prev_sin * sin_curr;
+//     float delta_sin = prev_cos * sin_curr - prev_sin * cos_curr;
+//     float angle_squared = delta_sin * delta_sin + (1.0f - delta_cos) * (1.0f - delta_cos);
+
+//     float tmp_delta_cos = tmp_prev_cos * cos_curr + tmp_prev_sin * sin_curr;
+//     float tmp_delta_sin = tmp_prev_cos * sin_curr - tmp_prev_sin * cos_curr;
+//     float tmp_angle_squared = tmp_delta_sin * tmp_delta_sin + (1.0f - tmp_delta_cos) * (1.0f - tmp_delta_cos);
+//     tmp_prev_cos = cos_curr;
+//     tmp_prev_sin = sin_curr;
+
+//     float velocity_metric = tmp_angle_squared / (float)sleep_ms;
+
+//     if (velocity_metric > 0.000005f) {
+//         sleep_ms = min_sleep_ms;
+//         last_max_sleep_time_ms = k_uptime_get();
+//     } else {
+//         sleep_ms = max_sleep_ms;
+//         int64_t now = k_uptime_get();
+//         int64_t idle_duration = now - last_max_sleep_time_ms;
+//         if (idle_duration > 5000) {
+//             printk("System idle for over 5 seconds\n");
+//             onhold = true;
+//         }else{
+//             onhold = false;
+
+//         }
+//     }
+
+//     if (angle_squared > DEADZONE * DEADZONE) {
+//         if (delta_sin > 0.0f) {
+//             printk("cw\n");
+//         } else if (delta_sin < 0.0f) {
+//             printk("ccw\n");
+//         }
+//         prev_cos = cos_curr;
+//         prev_sin = sin_curr;
+//     }
+// }
+
+
 static void track_rotation_direction(int16_t bx, int16_t by) {
     float mag = sqrtf((float)bx * bx + (float)by * by);
     if (mag < 1e-3f) return;
@@ -133,14 +226,88 @@ static void track_rotation_direction(int16_t bx, int16_t by) {
     tmp_prev_cos = cos_curr;
     tmp_prev_sin = sin_curr;
 
-    float velocity_metric = tmp_angle_squared / (float)sleep_ms;
+    float velocity_metric = tmp_angle_squared ;
 
-    if (velocity_metric > 0.000005f) {
+    // if (velocity_metric > 0.000005f) {
+    //     sleep_ms = min_sleep_ms;
+    //     last_max_sleep_time_ms = k_uptime_get();
+    // } else {
+    //     sleep_ms = max_sleep_ms;
+    //     int64_t now = k_uptime_get();
+    //     int64_t idle_duration = now - last_max_sleep_time_ms;
+    //     if (idle_duration > 5000) {
+    //         printk("System idle for over 5 seconds\n");
+    //         onhold = true;
+    //     }else{
+    //         onhold = false;
+
+    //     }
+    // }
+
+    if (angle_squared > DEADZONE * DEADZONE) {
+        
         sleep_ms = min_sleep_ms;
-        last_max_sleep_time_ms = k_uptime_get();
-    } else {
+
+        if (delta_sin > 0.0f){
+            if (is_discrete(config.up_transport, config.up_report)){
+                    revolute_up_submit();
+                    printk("cw\n");
+                    prev_cos = cos_curr;
+                    prev_sin = sin_curr;
+                    last_max_sleep_time_ms = k_uptime_get();
+                
+            }else{
+                    
+                    printf(" %f\n", velocity_metric);
+                    prev_cos = cos_curr;
+                    prev_sin = sin_curr;
+                    last_max_sleep_time_ms = k_uptime_get();
+
+            }
+
+
+        }else if (delta_sin < 0.0f) {
+            if (is_discrete(config.dn_transport, config.dn_report)){
+                if(angle_squared > CCW_IDENT * CCW_IDENT){
+                    revolute_dn_submit();
+                    printk("ccw\n");
+                    prev_cos = cos_curr;
+                    prev_sin = sin_curr;
+                    last_max_sleep_time_ms = k_uptime_get();
+
+                }
+                
+            }else{
+                    printf("%f\n", velocity_metric);
+                    prev_cos = cos_curr;
+                    prev_sin = sin_curr;
+                    last_max_sleep_time_ms = k_uptime_get();
+
+            }
+
+
+        }
+
+
+        // if (delta_sin > 0.0f && (angle_squared > CW_IDENT * CW_IDENT)) {
+
+
+        //     printk("cw\n");
+        //       prev_cos = cos_curr;
+        // prev_sin = sin_curr;
+        //     last_max_sleep_time_ms = k_uptime_get();
+        // } else if (delta_sin < 0.0f && (angle_squared > CCW_IDENT * CCW_IDENT)) {
+
+        //     printk("ccw\n");
+        //       prev_cos = cos_curr;
+        // prev_sin = sin_curr;
+        //     last_max_sleep_time_ms = k_uptime_get();
+        // } 
+      
+    }
+
         sleep_ms = max_sleep_ms;
-        int64_t now = k_uptime_get();
+         int64_t now = k_uptime_get();
         int64_t idle_duration = now - last_max_sleep_time_ms;
         if (idle_duration > 5000) {
             printk("System idle for over 5 seconds\n");
@@ -149,17 +316,9 @@ static void track_rotation_direction(int16_t bx, int16_t by) {
             onhold = false;
 
         }
-    }
 
-    if (angle_squared > RAD_THRESHOLD * RAD_THRESHOLD) {
-        if (delta_sin > 0.0f) {
-            printk("cw\n");
-        } else if (delta_sin < 0.0f) {
-            printk("ccw\n");
-        }
-        prev_cos = cos_curr;
-        prev_sin = sin_curr;
-    }
+
+    
 }
 
 float sensor_get_strength(int16_t bx, int16_t by) {
@@ -205,6 +364,9 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3) {
     while (1) {
         int64_t start = k_uptime_get();
         sensor_read();
+        // printk("sleep_ms: %d\n", sleep_ms);
+
+
         int64_t elapsed = k_uptime_get() - start;
         int64_t sleep_time = SENSOR_POLL_PERIOD_MS - elapsed;
         if (sleep_time > 0) {
@@ -226,6 +388,9 @@ void sensor_init(void) {
     tlv493_general_reset();
     k_msleep(5);
     configure_tlv493_fast_mode();
+
+    set_cw_identsperrev();
+    set_ccw_identsperrev();
 
     k_thread_create(&sensor_thread_data, sensor_thread_stack,
                     K_THREAD_STACK_SIZEOF(sensor_thread_stack),

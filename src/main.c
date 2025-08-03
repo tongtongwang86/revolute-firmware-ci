@@ -8,19 +8,19 @@
 #define WDT_TIMEOUT_MS 3000        // Timeout: 3 seconds
 
 
-#include "hog2.h"
+// #include "hog2.h"
 
 void main(void)
 {
 
 
     sensor_init();
-	hog_init();
+	// hog_init();
 	 const struct device *wdt_dev;
     int wdt_channel_id;
     struct wdt_timeout_cfg wdt_config;
 
-    printk("nRF52 Watchdog Demo Start\n");
+    // printk("nRF52 Watchdog Demo Start\n");
 
     wdt_dev = DEVICE_DT_GET(DT_ALIAS(watchdog0));
     if (!device_is_ready(wdt_dev)) {
@@ -45,7 +45,7 @@ void main(void)
     }
 
     while (1) {
-        printk("Feeding watchdog...\n");
+        // printk("Feeding watchdog...\n");
         wdt_feed(wdt_dev, wdt_channel_id);
         k_msleep(WDT_FEED_INTERVAL_MS);
     }

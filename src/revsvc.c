@@ -64,7 +64,10 @@ static ssize_t write_callback_config(struct bt_conn *conn,
     LOG_INF("dn_identPerRev: %u", config.dn_identPerRev);
     LOG_INF("dn_transport: %u", config.dn_transport);
     save_config();
-    return to_copy;
+    // sensor_set_degree_threshold(config.up_identPerRev);
+    set_ccw_identsperrev();
+    set_cw_identsperrev();
+    return to_copy; 
 }
 
 // Define the GATT service and characteristic

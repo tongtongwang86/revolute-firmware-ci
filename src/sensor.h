@@ -18,5 +18,8 @@ void register_cw_callback(rotation_callback_t cb);
 void register_ccw_callback(rotation_callback_t cb);
 
 float sensor_get_strength(int16_t bx, int16_t by);
+void sensor_set_degree_threshold(float threshold);
+void set_cw_identsperrev();
+void set_ccw_identsperrev();
 
 #endif // SENSOR_H
