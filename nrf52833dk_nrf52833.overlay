@@ -11,6 +11,22 @@
 // For more help, browse the DeviceTree documentation at https://docs.zephyrproject.org/latest/guides/dts/index.html
 // You can also visit the nRF DeviceTree extension documentation at https://docs.nordicsemi.com/bundle/nrf-connect-vscode/page/guides/ncs_configure_app.html#devicetree-support-in-the-extension
 
+
+/ {
+    aliases {
+        led4 = &my_led4;
+    };
+
+    leds {
+        compatible = "gpio-leds";
+        my_led4: led_4 {
+            gpios = <&gpio0 5 GPIO_ACTIVE_LOW>; /* P0.05 */
+            label = "User LED 4";
+        };
+    };
+};
+
+
 &i2c0 {
     TLV493: TLV493@1f {
         compatible = "i2c-device";
@@ -20,6 +36,7 @@
  
     };
 };
+
 
 &egu0 {
     status = "disabled";

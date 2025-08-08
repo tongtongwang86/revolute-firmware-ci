@@ -4,6 +4,7 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/drivers/i2c.h>
 #include <math.h>
+#include "haptic.h"
 
 #define M_PI 3.14159265358979323846
 // #define DEGREE_THRESHOLD 10.0f
@@ -251,6 +252,7 @@ static void track_rotation_direction(int16_t bx, int16_t by) {
         if (delta_sin > 0.0f){
             if (is_discrete(config.up_transport, config.up_report)){
                     revolute_up_submit();
+                    led4_pulse_submit();
                     printk("cw\n");
                     prev_cos = cos_curr;
                     prev_sin = sin_curr;
@@ -270,6 +272,7 @@ static void track_rotation_direction(int16_t bx, int16_t by) {
             if (is_discrete(config.dn_transport, config.dn_report)){
                 if(angle_squared > CCW_IDENT * CCW_IDENT){
                     revolute_dn_submit();
+                    led4_pulse_submit();
                     printk("ccw\n");
                     prev_cos = cos_curr;
                     prev_sin = sin_curr;

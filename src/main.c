@@ -3,16 +3,36 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/watchdog.h>
 #include <zephyr/sys/printk.h>
+#include <zephyr/drivers/gpio.h>
 
 #define WDT_FEED_INTERVAL_MS 1000  // Feed every second
 #define WDT_TIMEOUT_MS 3000        // Timeout: 3 seconds
+
+#define SLEEP_TIME_MS 500
+
+// #define LED4_NODE DT_ALIAS(led2)
+
+// #if !DT_NODE_HAS_STATUS(LED4_NODE, okay)
+// #error "Unsupported board: led4 devicetree alias is not defined"
+// #endif
+
+// static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED4_NODE, gpios);
 
 
 // #include "hog2.h"
 
 void main(void)
 {
+    // int ret;
 
+	//    if (!device_is_ready(led.port)) {
+    //     return;
+    // }
+
+    // ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
+    // if (ret < 0) {
+    //     return;
+    // }
 
     sensor_init();
 	// hog_init();
@@ -48,6 +68,9 @@ void main(void)
         // printk("Feeding watchdog...\n");
         wdt_feed(wdt_dev, wdt_channel_id);
         k_msleep(WDT_FEED_INTERVAL_MS);
+		        // gpio_pin_toggle_dt(&led);
+        // k_msleep(SLEEP_TIME_MS);
+
     }
 	
 	// hog_button_loop() now runs in its own thread
