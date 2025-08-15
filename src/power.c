@@ -1,7 +1,7 @@
 
 #include <zephyr/kernel.h>
 #include "power.h"
-
+#include "sensor.h"
 
 LOG_MODULE_REGISTER(power, LOG_LEVEL_INF);
 
@@ -40,7 +40,8 @@ void power_off(void) {
     // k_msleep(5);
     // configure_tlv493_poweroff_mode();
     //sleep 
-    
+    configure_tlv493_poweroff_mode();
+
 
     LOG_INF("aaa");
     int rc;
@@ -59,6 +60,7 @@ void power_off(void) {
         return;
     }
     
+    k_msleep(2000);
 
     printk("shuttingoff\n");
    sys_poweroff();

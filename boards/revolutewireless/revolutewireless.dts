@@ -198,9 +198,9 @@
 	// 	status = "okay";
 	// };
 
-	TLV493: TLV493@1f {
+	TLV493: TLV493@5e {
 		compatible = "i2c-device";
-		reg = <0x1f>;
+		reg = <0x5e>;
 		label = "TLV493D";
 		status = "okay";
 
@@ -253,11 +253,11 @@ zephyr_udc0: &usbd {
 	
 };
 
-// &uart1 {
-// 	pinctrl-0 = <&uart1_default>;
-// 	pinctrl-1 = <&uart1_sleep>;
-// 	pinctrl-names = "default", "sleep";
-// 	status = "okay";
-// 	current-speed = <115200>;
-// };
+&uart1 {
+	pinctrl-0 = <&uart1_default>;
+	pinctrl-1 = <&uart1_sleep>;
+	pinctrl-names = "default", "sleep";
+	status = "okay";
+	current-speed = <115200>;
+};
 

@@ -219,32 +219,32 @@ static uint8_t report_map[] = {
     0xc0,               // END_COLLECTION
 
 
-    // Game Controller
-    0x05, 0x01,  // USAGE_PAGE (Generic Desktop)
-    0x09, 0x05,  // USAGE (Game Pad)
-    0xA1, 0x01,  // COLLECTION (Application)
-    0x85, 0x04,  // REPORT_ID (4)
-    0x09, 0x30,  // USAGE (X)
-    0x09, 0x31,  // USAGE (Y)
-    0x09, 0x32,  // USAGE (Z)
-    0x09, 0x33,  // USAGE (Rx)
-    0x15, 0x81,  // LOGICAL_MINIMUM (-127)
-    0x25, 0x7F,  // LOGICAL_MAXIMUM (127)
-    0x75, 0x08,  // REPORT_SIZE (8)
-    0x95, 0x04,  // REPORT_COUNT (4)
-    0x81, 0x02,  // INPUT (Data,Var,Abs)
-    0x05, 0x09,  // USAGE_PAGE (Button)
-    0x19, 0x01,  // USAGE_MINIMUM (1)
-    0x29, 0x10,  // USAGE_MAXIMUM (16)
-    0x15, 0x00,  // LOGICAL_MINIMUM (0)
-    0x25, 0x01,  // LOGICAL_MAXIMUM (1)
-    0x75, 0x01,  // REPORT_SIZE (1)
-    0x95, 0x10,  // REPORT_COUNT (16)
-    0x81, 0x02,  // INPUT (Data,Var,Abs)
-    0x75, 0x08,  // REPORT_SIZE (8)
-    0x95, 0x01,  // REPORT_COUNT (1)
-    0x81, 0x03,  // INPUT (Cnst,Var,Abs)
-    0xC0         // END_COLLECTION
+    // // Game Controller
+    // 0x05, 0x01,  // USAGE_PAGE (Generic Desktop)
+    // 0x09, 0x05,  // USAGE (Game Pad)
+    // 0xA1, 0x01,  // COLLECTION (Application)
+    // 0x85, 0x04,  // REPORT_ID (4)
+    // 0x09, 0x30,  // USAGE (X)
+    // 0x09, 0x31,  // USAGE (Y)
+    // 0x09, 0x32,  // USAGE (Z)
+    // 0x09, 0x33,  // USAGE (Rx)
+    // 0x15, 0x81,  // LOGICAL_MINIMUM (-127)
+    // 0x25, 0x7F,  // LOGICAL_MAXIMUM (127)
+    // 0x75, 0x08,  // REPORT_SIZE (8)
+    // 0x95, 0x04,  // REPORT_COUNT (4)
+    // 0x81, 0x02,  // INPUT (Data,Var,Abs)
+    // 0x05, 0x09,  // USAGE_PAGE (Button)
+    // 0x19, 0x01,  // USAGE_MINIMUM (1)
+    // 0x29, 0x10,  // USAGE_MAXIMUM (16)
+    // 0x15, 0x00,  // LOGICAL_MINIMUM (0)
+    // 0x25, 0x01,  // LOGICAL_MAXIMUM (1)
+    // 0x75, 0x01,  // REPORT_SIZE (1)
+    // 0x95, 0x10,  // REPORT_COUNT (16)
+    // 0x81, 0x02,  // INPUT (Data,Var,Abs)
+    // 0x75, 0x08,  // REPORT_SIZE (8)
+    // 0x95, 0x01,  // REPORT_COUNT (1)
+    // 0x81, 0x03,  // INPUT (Cnst,Var,Abs)
+    // 0xC0         // END_COLLECTION
 };
 
 static ssize_t read_hids_info(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset) {

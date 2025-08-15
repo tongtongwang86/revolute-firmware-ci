@@ -78,6 +78,26 @@ static uint8_t calculate_parity(uint8_t reg0, uint8_t reg1, uint8_t reg2, uint8_
     return (bit_sum % 2 == 0) ? 1 : 0;
 }
 
+static void i2c_scan_bus(const struct i2c_dt_spec *i2c) {
+    printk("Starting I2C scan on bus %s...\n", i2c->bus->name);
+
+    for (uint8_t addr = 0x03; addr <= 0x77; addr++) {
+        struct i2c_msg msgs[1];
+        uint8_t dummy = 0;
+
+        msgs[0].buf = &dummy;
+        msgs[0].len = 1;
+        msgs[0].flags = I2C_MSG_WRITE | I2C_MSG_STOP;
+
+        int ret = i2c_transfer(i2c->bus, msgs, 1, addr);
+        if (ret == 0) {
+            printk("I2C device found at address 0x%02X\n", addr);
+        }
+    }
+
+    printk("I2C scan complete.\n");
+}
+
 static void configure_tlv493_fast_mode(void) {
     uint8_t reg0, reg1, reg2, reg3;
     if (i2c_reg_read_byte_dt(&dev_i2c, 0x00, &reg0) < 0 ||
@@ -335,6 +355,7 @@ void sensor_read(void) {
     int ret = i2c_burst_read_dt(&dev_i2c, 0x00, raw, sizeof(raw));
     if (ret < 0) {
         printk("Failed to read sensor data: %d. Attempting reinit...\n", ret);
+        i2c_scan_bus(&dev_i2c);
         tlv493_general_reset();
         configure_tlv493_fast_mode();
         ret = i2c_burst_read_dt(&dev_i2c, 0x00, raw, sizeof(raw));
@@ -387,6 +408,8 @@ void sensor_init(void) {
         printk("Sensor I2C bus not ready\n");
         return;
     }
+
+    
 
     tlv493_general_reset();
     k_msleep(5);

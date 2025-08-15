@@ -33,13 +33,13 @@ enum button_event {
 // enum power_type power_status = PWR_ON;
 
 
-void cause_crash(void)
-{
-    printk("Causing deliberate crash (NULL pointer)...\n");
+// void cause_crash(void)
+// {
+//     printk("Causing deliberate crash (NULL pointer)...\n");
 
-    volatile int *ptr = NULL;
-    *ptr = 42;  // Boom: hard fault
-}
+//     volatile int *ptr = NULL;
+//     *ptr = 42;  // Boom: hard fault
+// }
 
 
 static struct k_work_delayable button_work;
@@ -54,7 +54,7 @@ void handle_button_event(enum button_event event) {
     switch (event) {
     case BUTTON_SINGLE_CLICK:
         LOG_INF("Single Click detected!");
-        cause_crash();
+        // cause_crash();
         break;
     case BUTTON_DOUBLE_CLICK:
         LOG_INF("Double Click detected!");
@@ -67,7 +67,7 @@ void handle_button_event(enum button_event event) {
         // power_status = PWR_OFF;
         LOG_INF("Long Hold detected! Turning off");
         isOff = true;
-        k_msleep(2000);
+        
         power_off();
 
         
