@@ -59,7 +59,7 @@
 		design-voltage = <3700>;
 		design-capacity = <70>;
 		taper-current = <2>;
-		terminate-voltage = <2750>;
+		terminate-voltage = <3300>;
 		int-gpios = <&gpio0 2 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 		status = "okay";
 

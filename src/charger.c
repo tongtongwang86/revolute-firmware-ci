@@ -88,3 +88,17 @@ static int charger_sysinit(const struct device *dev)
 
 // Init after charger driver
 SYS_INIT(charger_sysinit, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
+
+void charger_stop(void) {
+    if (charger_dev != NULL && device_is_ready(charger_dev)) {
+        int ret = charger_charge_enable(charger_dev, false);
+        if (ret < 0) {
+            LOG_ERR("Failed to disable charger (err %d)", ret);
+        } else {
+            LOG_INF("Charger disabled");
+        }
+    }
+
+    /* Stop the charger status thread */
+    k_thread_abort(charger_status_tid);
+}

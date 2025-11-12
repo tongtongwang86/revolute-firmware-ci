@@ -2,6 +2,9 @@
 #include <zephyr/kernel.h>
 #include "power.h"
 #include "sensor.h"
+#include "batterylvl.h"
+#include "charger.h"
+#include <zephyr/sys/poweroff.h>
 
 LOG_MODULE_REGISTER(power, LOG_LEVEL_INF);
 
@@ -16,9 +19,11 @@ static void power_off_handler(struct k_work *work);
 // Static delayed work structure
 static struct k_work_delayable power_off_work;
 
-void power_off_work_init(void)
+static int power_off_work_init(const struct device *dev)
 {
+    ARG_UNUSED(dev);
     k_work_init_delayable(&power_off_work, power_off_handler);
+    return 0;
 }
 
 static void power_off_handler(struct k_work *work)
@@ -35,15 +40,19 @@ void schedule_power_off(int delay_ms)
 
 
 void power_off(void) {
-    // tlv493_general_reset();
-    // Allow time for sensor reset
-    // k_msleep(5);
-    // configure_tlv493_poweroff_mode();
-    //sleep 
+    /* Stop periodic activity (charger, battery updates, sensor polling)
+     * to reduce I2C/charger activity before power off. */
+    charger_stop();
+    sensor_stop();
+    battery_stop();
+
+    /* Allow some time for the drivers to finish transactions */
+    k_msleep(50);
+
+    /* Put the TLV493 into poweroff mode */
     configure_tlv493_poweroff_mode();
 
-
-    LOG_INF("aaa");
+    LOG_INF("Preparing to power off");
     int rc;
  
     // Configure SW3 GPIO as input with interrupt

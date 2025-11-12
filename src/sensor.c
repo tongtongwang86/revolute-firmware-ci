@@ -272,7 +272,7 @@ static void track_rotation_direction(int16_t bx, int16_t by) {
         if (delta_sin > 0.0f){
             if (is_discrete(config.up_transport, config.up_report)){
                     revolute_up_submit();
-                    led4_pulse_submit();
+                    // led4_pulse_submit();
                     printk("cw\n");
                     prev_cos = cos_curr;
                     prev_sin = sin_curr;
@@ -292,7 +292,7 @@ static void track_rotation_direction(int16_t bx, int16_t by) {
             if (is_discrete(config.dn_transport, config.dn_report)){
                 if(angle_squared > CCW_IDENT * CCW_IDENT){
                     revolute_dn_submit();
-                    led4_pulse_submit();
+                    // led4_pulse_submit();
                     printk("ccw\n");
                     prev_cos = cos_curr;
                     prev_sin = sin_curr;
@@ -423,4 +423,9 @@ void sensor_init(void) {
                     sensor_thread_fn,
                     NULL, NULL, NULL,
                     SENSOR_THREAD_PRIORITY, 0, K_NO_WAIT);
+}
+
+void sensor_stop(void) {
+    /* Abort the sensor polling thread to ensure it releases I2C and stops activity */
+    k_thread_abort(&sensor_thread_data);
 }
