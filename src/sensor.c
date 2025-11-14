@@ -69,6 +69,22 @@ static int16_t extract_12bit(uint8_t msb, uint8_t lsb_part) {
     return val;
 }
 
+static void dump_tlv493_registers(void)
+{
+    uint8_t regs[10];
+    for (int i = 0; i < 10; i++) {
+        if (i2c_reg_read_byte_dt(&dev_i2c, i, &regs[i]) < 0) {
+            printk("Reg 0x%02X read failed\n", i);
+            return;
+        }
+    }
+    printk("TLV493D registers:\n");
+    for (int i = 0; i < 10; i++) {
+        printk("  Reg%02X = 0x%02X\n", i, regs[i]);
+    }
+}
+
+
 static uint8_t calculate_parity(uint8_t reg0, uint8_t reg1, uint8_t reg2, uint8_t reg3) {
     uint8_t bits[4] = {reg0, reg1, reg2, reg3};
     uint8_t bit_sum = 0;
@@ -114,10 +130,51 @@ static void configure_tlv493_fast_mode(void) {
     reg1 = (reg1 & 0x7F) | (parity << 7);
 
     i2c_reg_write_byte_dt(&dev_i2c, 0x01, reg1);
+    
 }
 
+static void configure_tlv493_master_controlled_mode(void)
+{
+    uint8_t reg0, reg1, reg2, reg3;
+    
+    // Read current configuration registers
+    if (i2c_reg_read_byte_dt(&dev_i2c, 0x00, &reg0) < 0 ||
+        i2c_reg_read_byte_dt(&dev_i2c, 0x01, &reg1) < 0 ||
+        i2c_reg_read_byte_dt(&dev_i2c, 0x02, &reg2) < 0 ||
+        i2c_reg_read_byte_dt(&dev_i2c, 0x03, &reg3) < 0) {
+        printk("Failed to read config regs\n");
+        return;
+    }
+
+    // --- Configure MOD1 register (0x01) ---
+    reg1 &= ~0x07;     // Clear bits 2:0 -> (LOW, FAST, INT)
+    reg1 |= (1 << 1);  // FAST = 1
+    // INT = 0 (default) — or set to (1 << 2) if you want interrupt output
+    // LOW = 0
+    // -> So bits [2:0] = b010 or b110 depending on INT usage
+
+    // --- Configure MOD2 register (0x03) ---
+    reg3 |= (1 << 5);  // LP = 1 (bit 5)
+    // T/PT bits left unchanged (T bit6, PT bit4) — keep defaults
+
+    // --- Calculate parity bit ---
+    uint8_t parity = calculate_parity(reg0, reg1, reg2, reg3);
+    reg1 = (reg1 & 0x7F) | (parity << 7);
+
+    // --- Write updated configuration ---
+    if (i2c_reg_write_byte_dt(&dev_i2c, 0x01, reg1) < 0 ||
+        i2c_reg_write_byte_dt(&dev_i2c, 0x03, reg3) < 0) {
+        printk("Failed to write config regs\n");
+        return;
+    }
+
+    printk("TLV493 configured for Master Controlled Mode\n");
+}
+
+
 void configure_tlv493_poweroff_mode(void) {
-    uint8_t reg0 = 0, reg1 = 0, reg2 = 0, reg3 = 0;
+    uint8_t reg0, reg1, reg2, reg3;
+
     if (i2c_reg_read_byte_dt(&dev_i2c, 0x00, &reg0) < 0 ||
         i2c_reg_read_byte_dt(&dev_i2c, 0x01, &reg1) < 0 ||
         i2c_reg_read_byte_dt(&dev_i2c, 0x02, &reg2) < 0 ||
@@ -126,16 +183,24 @@ void configure_tlv493_poweroff_mode(void) {
         return;
     }
 
-    reg1 &= ~0x07;
+    // Clear FAST (bit1) and LOW (bit0) only
+    reg1 &= ~0x03;
+
+    // Recalculate parity across bytes 0–3
     uint8_t parity = calculate_parity(reg0, reg1, reg2, reg3);
+
+    // Update parity bit (bit7)
     reg1 = (reg1 & 0x7F) | (parity << 7);
+
+    // Write back updated MOD1 register
     int ret = i2c_reg_write_byte_dt(&dev_i2c, 0x01, reg1);
     if (ret < 0) {
         printk("Failed to write MOD1 register: %d\n", ret);
     } else {
-        printk("Power-off mode configured, MOD1 updated.\n");
+        printk("Sensor set to Power-down mode.\n");
     }
 }
+
 
 void configure_tlv493_low_power_mode(void) {
     uint8_t reg0 = 0, reg1 = 0, reg2 = 0, reg3 = 0;
@@ -369,6 +434,9 @@ void sensor_read(void) {
     int16_t by = extract_12bit(raw[1], raw[4]);
     int16_t bz = extract_12bit(raw[2], raw[5]);
 
+    /* Log raw sensor values to console */
+    printk("bx=%d by=%d bz=%d\n", bx, by, bz);
+    dump_tlv493_registers();
     if (sensor_get_strength(bx, by) > 50) {
         track_rotation_direction(bx, by);
     }
@@ -414,6 +482,7 @@ void sensor_init(void) {
     tlv493_general_reset();
     k_msleep(5);
     configure_tlv493_fast_mode();
+    // configure_tlv493_master_controlled_mode();
 
     set_cw_identsperrev();
     set_ccw_identsperrev();
@@ -427,5 +496,6 @@ void sensor_init(void) {
 
 void sensor_stop(void) {
     /* Abort the sensor polling thread to ensure it releases I2C and stops activity */
+    configure_tlv493_poweroff_mode();
     k_thread_abort(&sensor_thread_data);
 }

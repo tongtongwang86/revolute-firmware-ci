@@ -42,9 +42,9 @@ void schedule_power_off(int delay_ms)
 void power_off(void) {
     /* Stop periodic activity (charger, battery updates, sensor polling)
      * to reduce I2C/charger activity before power off. */
-    charger_stop();
-    sensor_stop();
-    battery_stop();
+    // charger_stop();
+    // sensor_stop();
+    // battery_stop();
 
     /* Allow some time for the drivers to finish transactions */
     k_msleep(50);
