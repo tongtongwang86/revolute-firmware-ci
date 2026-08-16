@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - master
+      - suite-ota
   workflow_dispatch:
 
 jobs:
@@ -129,8 +130,9 @@ jobs:
 
   release:
     needs: build
-    # Only publish from the default branch, not from pull requests.
-    if: github.event_name != 'pull_request'
+    # Only publish from the default branch — not from pull requests or
+    # feature branches, which just produce artifacts.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
