@@ -3,6 +3,7 @@
 /dts-v1/;
 #include <nordic/nrf52833_qiaa.dtsi>
 #include "revolutewireless-pinctrl.dtsi"
+#include <zephyr/dt-bindings/regulator/nrf5x.h>
 
 / {
 	model = "revolutewireless";
@@ -31,7 +32,22 @@
 				/* LED 0 on P0.03, LED on when pin is high */
 				gpios = < &gpio0 11 GPIO_ACTIVE_HIGH >;
 				label = "Mosfet";
-		};
+			};
+			haptics: haptics_0 {
+				/* LED 0 on P0.03, LED on when pin is high */
+				gpios = < &gpio0 28 GPIO_ACTIVE_HIGH >;
+				label = "Hapticmotor";
+			};
+			txen: tx_en {
+				/* LED 0 on P0.03, LED on when pin is high */
+				gpios = < &gpio0 30 GPIO_ACTIVE_HIGH >;
+				label = "enable pin for tx";
+			};
+			loaden: load_en {
+				/* LED 0 on P0.03, LED on when pin is high */
+				gpios = < &gpio0 4 GPIO_ACTIVE_HIGH >;
+				label = "enable pin for loadswitch";
+			};
 
 			
 
@@ -56,27 +72,27 @@
 			button_right: button_0 {
 					/* Button 0 on P0.11. Enable internal SoC pull-up
 						* resistor and treat low level as pressed button. */
-				gpios = <&gpio0 28 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+				gpios = <&gpio0 31 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 				label = "Button 0";
 			};
-			button_left: button_1 {
-					/* Button 1 on P0.12. Enable internal pull-down resistor.
-						* Treat high level as pressed button. */
-				gpios = <&gpio0 29 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
-				label = "Button 1";
-			};
-			button_up: button_2 {
-					/* Button 2 on P1.12, enable internal pull-up,
-						* low level is pressed. */
-				gpios = <&gpio0 30 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
-				label = "Button 2";
-			};
-			button_down: button_3 {
-					/* Button 3 on P1.15, no internal pull resistor,
-						* low is pressed. */
-				gpios = <&gpio0 31 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
-				label = "Button 3";
-			};
+			// button_left: button_1 {
+			// 		/* Button 1 on P0.12. Enable internal pull-down resistor.
+			// 			* Treat high level as pressed button. */
+			// 	gpios = <&gpio0 29 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			// 	label = "Button 1";
+			// };
+			// button_up: button_2 {
+			// 		/* Button 2 on P1.12, enable internal pull-up,
+			// 			* low level is pressed. */
+			// 	gpios = <&gpio0 30 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			// 	label = "Button 2";
+			// };
+			// button_down: button_3 {
+			// 		/* Button 3 on P1.15, no internal pull resistor,
+			// 			* low is pressed. */
+			// 	gpios = <&gpio0 28 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			// 	label = "Button 3";
+			// };
 		
 	};
 
@@ -90,13 +106,24 @@
 		pwm-led0 = &pwm_led0;
 		led0 = &blueled;
 		sw0 = &button_right;
-		sw1 = &button_left;
-		sw2 = &button_up;
-		sw3 = &button_down;
+		hap0 = &haptics;
+		txen = &txen;
+		loaden = &loaden;
+		// sw1 = &button_left;
+		// sw2 = &button_up;
+		// sw3 = &button_down;
 		// asdir = &AS5600_DIR;
 		// asout = &AS5600_OUT;
+		watchdog0 = &wdt0;
+		bq25180 = &bq25180;
 
 	};
+};
+
+/* Run REG1 as a buck converter rather than an LDO. The DC/DC inductor (L1) is
+ * populated on the Revolute PCB, and buck mode roughly halves active current. */
+&reg1 {
+	regulator-initial-mode = <NRF5X_REG_MODE_DCDC>;
 };
 
 &gpiote {
@@ -172,23 +199,52 @@
 	pinctrl-1 = <&i2c0_sleep>;
 	pinctrl-names = "default", "sleep";
 	
-	as5600: as5600@36 {
-		compatible = "ams,as5600";
-		reg = <0x36>;
+	// as5600: as5600@36 {
+	// 	compatible = "ams,as5600";
+	// 	reg = <0x36>;
+	// 	status = "okay";
+	// };
+
+	TLV493: TLV493@5e {
+		compatible = "i2c-device";
+		reg = <0x5e>;
+		label = "TLV493D";
 		status = "okay";
-	};
+
+    };
 
 	bq27427: bq27427@55 {
 		compatible = "ti,bq274xx";
 		reg = <0x55>;
 		design-voltage = <3700>;
 		design-capacity = <70>;
-		taper-current = <90>;
-		terminate-voltage = <3000>;
-		int-gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+		taper-current = <2>;
+		terminate-voltage = <2750>;
+		int-gpios = <&gpio0 2 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 		status = "okay";
 
 	};
+	
+	// bq25180: bq25180@6a {  // Update the I2C address if different
+    //     compatible = "ti,bq25180";
+    //     reg = <0x6a>;  // I2C address of BQ25180
+    //     constant-charge-current-max-microamp = <100000>; // 100mA
+    //     constant-charge-voltage-max-microvolt = <4200000>; // 4.2V
+    //     precharge-voltage-threshold-microvolt = <3000000>; // 3.0V
+    //     re-charge-voltage-microvolt = <4100000>; // 4.1V
+	// 	// int-gpios = <&gpio0 20 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	// };
+
+	bq25180: bq25180@6a {
+        compatible = "ti,bq25180";
+        reg = <0x6a>;
+        label = "BQ25180";
+        constant-charge-current-max-microamp = <40000>; // 40 mA
+        constant-charge-voltage-max-microvolt = <4200000>; // 4.2 V
+        re-charge-voltage-microvolt = <4100000>; // Optional
+        precharge-voltage-threshold-microvolt = <2800000>; // Optional
+    };
+
 
 };
 
@@ -204,4 +260,11 @@ zephyr_udc0: &usbd {
 	
 };
 
+&uart1 {
+	pinctrl-0 = <&uart1_default>;
+	pinctrl-1 = <&uart1_sleep>;
+	pinctrl-names = "default", "sleep";
+	status = "okay";
+	current-speed = <115200>;
+};
 

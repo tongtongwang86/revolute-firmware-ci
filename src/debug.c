@@ -1,141 +1,146 @@
-
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
-#include <zephyr/drivers/uart.h>
-#include <zephyr/usb/usb_device.h>
+#include <zephyr/drivers/i2c.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/devicetree.h>
+#include <math.h>
+#include <zephyr/kernel.h>
+#include <stdio.h>
+#include <zephyr/sys/printk.h>
+// #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/logging/log.h>
-#include <string.h>
-#include <stdlib.h>  // For atoi()
-#include <ble.h>
-#include <power.h>
-#include <pwmled.h>
-#include <batterylvl.h>
-#include <magnetic.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/settings/settings.h>
+#include "ble.h"
 
-#define THREAD_STACK_SIZE 1024
-#define THREAD_PRIORITY 5
-#define BUFFER_SIZE 64
+LOG_MODULE_REGISTER(button, LOG_LEVEL_INF);
 
-#if IS_ENABLED(CONFIG_LOG) //only include debug console if console is enabled
+#define SW3_NODE DT_ALIAS(sw0)
+static const struct gpio_dt_spec sw3 = GPIO_DT_SPEC_GET_OR(SW3_NODE, gpios, {0});
 
-LOG_MODULE_REGISTER(cdc_acm_read, LOG_LEVEL_DBG);
+#define SINGLE_CLICK_TIMEOUT K_MSEC(400)
+#define LONG_HOLD_THRESHOLD K_MSEC(700)
+#define DEBOUNCE_TIME K_MSEC(50)
 
-K_THREAD_STACK_DEFINE(console_thread_stack, THREAD_STACK_SIZE);
-static const struct device *cdc_acm_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
+enum button_event {
+    BUTTON_SINGLE_CLICK,
+    BUTTON_DOUBLE_CLICK,
+    BUTTON_TRIPLE_CLICK,
+    BUTTON_LONG_HOLD,
+};
 
-struct k_thread console_thread_data;
+// enum power_type power_status = PWR_ON;
 
-// Function to convert enum value to string
-const char* advertising_status_to_string(enum advertising_type status) {
-    switch (status) {
-        case ADV_NONE:   return "ADV_NONE";
-        case ADV_FILTER: return "ADV_FILTER";
-        case ADV_CONN:   return "ADV_CONN";
-        default:         return "UNKNOWN";
-    }
-}
 
-void process_command(const char *cmd) {
-    char *open_paren = strchr(cmd, '(');
-    char *close_paren = strchr(cmd, ')');
+static struct k_work_delayable button_work;
+static struct k_work_delayable long_hold_work;
+static struct k_work_delayable debounce_work;
+static int click_count = 0;
+static bool long_hold_detected = false;
+static int64_t press_start_time = 0;
+static int64_t last_press_time = 0;
 
-    if (open_paren && close_paren && close_paren > open_paren) {
-        *open_paren = '\0';  // Split command name
-        open_paren++;  // Move to argument
-        *close_paren = '\0';  // Null-terminate argument
-
-        int arg = atoi(open_paren);  // Convert argument to integer
-
-        if (strcmp(cmd, "CW_IDENT_OFFSET") == 0) {
-            CW_IDENT_OFFSET = arg;
-            LOG_INF("cw: %d", arg);
-        } else if (strcmp(cmd, "CCW_IDENT_OFFSET") == 0) {
-            CCW_IDENT_OFFSET = arg;
-            LOG_INF("ccw: %d", arg);
-        } else if (strcmp(cmd, "autoFilterOffTimer") == 0) {
-            LOG_INF("filteroff: %d", timer.autoFilterOffTimer);
-            timer.autoFilterOffTimer = arg;
-            save_config();
-            LOG_INF("filteroff: %d", arg);
-        } else if (strcmp(cmd, "autoofftimer") == 0) {
-            LOG_INF("autoofftimer: %d", timer.autoofftimer);
-            timer.autoofftimer = arg;
-            save_config();
-            LOG_INF("autooff: %d", arg);
-        } else {
-            LOG_INF("Unknown command: %s", cmd);
-        }
-    } else 
-    if (strcmp(cmd, "remove_bonded_device") == 0) {
+void handle_button_event(enum button_event event) {
+    switch (event) {
+    case BUTTON_SINGLE_CLICK:
+        LOG_INF("Single Click detected!");
+        break;
+    case BUTTON_DOUBLE_CLICK:
+        LOG_INF("Double Click detected!");
+        break;
+    case BUTTON_TRIPLE_CLICK:
+        LOG_INF("Triple Click detected!");
         remove_bonded_device();
-    } else if (strcmp(cmd, "active_profile_bonded") == 0) {
-        if (active_profile_bonded()) {
-            printf("device IS bonded\n");
-        } else {
-            printf("device is NOT bonded\n");
-        }
-    } else if (strcmp(cmd, "active_profile_connected") == 0) {
-        if (active_profile_connected()) {
-            printf("device IS connected\n");
-        } else {
-            printf("device is NOT connected\n");
-        }
-    } else if (strcmp(cmd, "hi") == 0) {
-        LOG_INF(":>");
-    } else if (strcmp(cmd, "magnet_strength") == 0) {
-        LOG_INF("strength: %d", get_magnet_strength());
-    } else if (strcmp(cmd, "adv_status") == 0) {
-        LOG_INF("Advertising Status: %s", advertising_status_to_string(advertising_status));
-    } else if (strcmp(cmd, "poweroff") == 0) {
-        power_off();
-    } else if (strcmp(cmd, "update_advertising") == 0) {
-        update_advertising();
-    } else {
-        LOG_INF("Unknown command: %s", cmd);
+        break;
+    case BUTTON_LONG_HOLD:
+        // power_status = PWR_OFF;
+        LOG_INF("Long Hold detected! Turning off");
+        // k_sleep(K_MSEC(2500));
+
+        break;
+    default:
+        LOG_WRN("Unknown button event!");
+        break;
     }
 }
 
-void console_reader_thread(void *p1, void *p2, void *p3) {
-    int ret;
-    uint8_t buffer[BUFFER_SIZE];
-    int buf_pos = 0;
+void button_work_handler(struct k_work *work) {
+    if (long_hold_detected) {
+        long_hold_detected = false;
+    } else {
+        if (click_count == 1) {
+            handle_button_event(BUTTON_SINGLE_CLICK);
+        } else if (click_count == 2) {
+            handle_button_event(BUTTON_DOUBLE_CLICK);
+        } else if (click_count == 3) {
+            handle_button_event(BUTTON_TRIPLE_CLICK);
+        }
+    }
+    click_count = 0;
+}
 
-    if (!device_is_ready(cdc_acm_dev)) {
-        LOG_ERR("CDC ACM device not ready");
+void long_hold_handler(struct k_work *work) {
+    long_hold_detected = true;
+    handle_button_event(BUTTON_LONG_HOLD);
+}
+
+void debounce_handler(struct k_work *work) {
+    int64_t now = k_uptime_get();
+    if (gpio_pin_get_dt(&sw3)) {
+        press_start_time = now;
+        long_hold_detected = false;
+        k_work_reschedule(&long_hold_work, LONG_HOLD_THRESHOLD);
+    } else {
+        int64_t press_duration = now - press_start_time;
+        k_work_cancel_delayable(&long_hold_work);
+        if (!long_hold_detected) {
+            click_count++;
+            k_work_reschedule(&button_work, SINGLE_CLICK_TIMEOUT);
+        }
+    }
+}
+
+void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins) {
+    int64_t now = k_uptime_get();
+    if (now - last_press_time > k_ticks_to_ms_floor64(DEBOUNCE_TIME.ticks)) {
+        last_press_time = now;
+        k_work_reschedule(&debounce_work, DEBOUNCE_TIME);
+    }
+}
+
+static struct gpio_callback button_cb_data;
+
+void button_uninit(void) {
+    k_work_cancel_delayable(&button_work);
+    k_work_cancel_delayable(&long_hold_work);
+    k_work_cancel_delayable(&debounce_work);
+    gpio_remove_callback(sw3.port, &button_cb_data);
+    gpio_pin_interrupt_configure_dt(&sw3, GPIO_INT_DISABLE);
+    LOG_INF("Button uninitialized.");
+}
+
+void button_init(void) {
+    if (!device_is_ready(sw3.port)) {
+        LOG_ERR("Button device %s not ready", sw3.port->name);
         return;
     }
-
-
-    while (true) {
-        uint8_t c;
-        int bytes_read = uart_fifo_read(cdc_acm_dev, &c, 1);
-
-        if (bytes_read > 0) {
-            if (c == '\r' || c == '\n') {  // Enter key pressed
-                if (buf_pos > 0) {
-                    buffer[buf_pos] = '\0';  // Null-terminate string
-                    LOG_INF("Received command: %s", buffer);
-                    process_command((char *)buffer);
-                    buf_pos = 0;  // Reset buffer
-                }
-            } else if (buf_pos < BUFFER_SIZE - 1) {
-                buffer[buf_pos++] = c;  // Store character in buffer
-            }
-        }
-
-        k_sleep(K_MSEC(10));
+    button_uninit();
+    int ret = gpio_pin_configure_dt(&sw3, GPIO_INPUT);
+    if (ret < 0) {
+        LOG_ERR("Failed to configure button GPIO (err %d)", ret);
+        return;
     }
-
-
+    ret = gpio_pin_interrupt_configure_dt(&sw3, GPIO_INT_EDGE_BOTH);
+    if (ret < 0) {
+        LOG_ERR("Failed to configure button interrupt (err %d)", ret);
+        return;
+    }
+    gpio_init_callback(&button_cb_data, button_pressed, BIT(sw3.pin));
+    gpio_add_callback(sw3.port, &button_cb_data);
+    k_work_init_delayable(&button_work, button_work_handler);
+    k_work_init_delayable(&long_hold_work, long_hold_handler);
+    k_work_init_delayable(&debounce_work, debounce_handler);
+    LOG_INF("Button initialized.");
 }
 
-static int debug_init(void) {
-    k_thread_create(&console_thread_data, console_thread_stack, THREAD_STACK_SIZE,
-                    console_reader_thread, NULL, NULL, NULL,
-                    THREAD_PRIORITY, 0, K_NO_WAIT);
-    return 0;
-}
-
-SYS_INIT(debug_init, APPLICATION, 50);
-
-#endif
+SYS_INIT(button_init, APPLICATION, 50);

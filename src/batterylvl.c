@@ -1,272 +1,60 @@
+// #include "batterylvl.h"
+#include <errno.h>
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/sensor.h>
+#include <zephyr/bluetooth/services/bas.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/pm/device.h>
 #include "batterylvl.h"
+#include <errno.h>
+
+#define STACKSIZE 1024
+#define PRIORITY 7
+
+/* State of charge at or below which the device shuts itself down. */
+#define BATTERY_EMPTY_PERCENT 2
+
 
 
 LOG_MODULE_REGISTER(BatteryLevel, LOG_LEVEL_INF);
-// K_THREAD_STACK_DEFINE(batteryUpdateThread_stack_area, STACKSIZE);
-// static struct k_thread batteryUpdateThread_data;
+K_THREAD_STACK_DEFINE(batteryUpdateThread_stack_area, STACKSIZE);
+static struct k_thread batteryUpdateThread_data;
 const struct device *const bq = DEVICE_DT_GET_ONE(ti_bq274xx);
 
-
-// void batteryUpdateThread(void) {
-//     struct sensor_value voltage, current, state_of_charge,
-//         full_charge_capacity, remaining_charge_capacity, avg_power,
-//         int_temp, current_standby, current_max_load, state_of_health;
+/* Forward declarations */
+int getbatterylevel(const struct device *dev);
+void batteryUpdateThread(void *p1, void *p2, void *p3);
 
 
-//     if (!device_is_ready(bq)) {
-//         printk("Device %s is not ready\n", bq->name);
-//         return;
-//     }
+/* The gauge is read from the sensor thread, which is the thread that owns the
+ * I2C bus and knows when it is powered. This thread only brings the gauge back
+ * out of shutdown at boot and then exits. */
+void batteryUpdateThread(void *p1, void *p2, void *p3) {
 
-//     printk("Device is %p, name is %s\n", bq, bq->name);
-
-//     uint8_t level;
-
-//     while (1) {
-//         level = getbatterylevel(bq);
-
-//         LOG_INF("State of charge: %d%%\n", level);
-
-//         int err = bt_bas_set_battery_level(level);
-//         if (err) {
-//             LOG_INF("Can't send battery report, err: %d\n", err);
-//             return;
-//         }
-
-//         k_sleep(K_MSEC(5000));
-//     }
-// }
-
-void sendbattery(void) {
-  uint8_t level;
-  level = getbatterylevel(bq);
-  LOG_INF("State of charge: %d%%\n", level);
-
-  int err = bt_bas_set_battery_level(level);
-  if (err) {
-      LOG_INF("Can't send battery report, err: %d\n", err);
-      return;
-  }
-}
-
-bool is_battery_empty(void) {
+    if (bq == NULL) {
+        printk("Battery device not found (bq is NULL)\n");
+        return;
+    }
 
     if (!device_is_ready(bq)) {
-        printk("Device %s is not ready\n", bq->name);
-        return false;
+        /* Avoid dereferencing bq->name when device isn't ready */
+        printk("Battery device is not ready\n");
+        return;
     }
 
-    int level = getbatterylevel(bq);
-    if (level < 0) {
-        return true;
+    printk("Device is %p, name is %s\n", bq, bq->name);
+
+    /* The gauge may have been left in shutdown mode by the previous power_off().
+     * Shutdown is only exited by pulsing GPOUT, which is what RESUME does. */
+    int pm_ret = pm_device_action_run(bq, PM_DEVICE_ACTION_RESUME);
+
+    if (pm_ret && pm_ret != -EALREADY && pm_ret != -ENOTSUP) {
+        LOG_WRN("Failed to wake fuel gauge (err %d)", pm_ret);
     }
-    return false;
+
+    LOG_INF("Fuel gauge ready");
 }
-
-// static void bq274xx_show_values(const char *type, struct sensor_value value)
-// {
-// 	if ((value.val2 < 0) && (value.val1 >= 0)) {
-// 		value.val2 = -(value.val2);
-// 		printk("%s: -%d.%06d\n", type, value.val1, value.val2);
-// 	} else if ((value.val2 > 0) && (value.val1 < 0)) {
-// 		printk("%s: %d.%06d\n", type, value.val1, value.val2);
-// 	} else if ((value.val2 < 0) && (value.val1 < 0)) {
-// 		value.val2 = -(value.val2);
-// 		printk("%s: %d.%06d\n", type, value.val1, value.val2);
-// 	} else {
-// 		printk("%s: %d.%06d\n", type, value.val1, value.val2);
-// 	}
-// }
-
-// void printbatterystats(void){
-    
-//     int status = 0;
-
-//     struct sensor_value voltage, current, state_of_charge,
-//     full_charge_capacity, remaining_charge_capacity, avg_power,
-//     int_temp, current_standby, current_max_load, state_of_health;
-
-
-
-//     if (!device_is_ready(bq)) {
-//         printk("Device %s is not ready\n", bq->name);
-//         return;
-//     }
-
-//     status = sensor_sample_fetch_chan(bq,
-//         SENSOR_CHAN_GAUGE_VOLTAGE);
-// if (status < 0) {
-// printk("Unable to fetch the voltage\n");
-// return;
-// }
-
-// status = sensor_channel_get(bq, SENSOR_CHAN_GAUGE_VOLTAGE,
-//       &voltage);
-// if (status < 0) {
-// printk("Unable to get the voltage value\n");
-// return;
-// }
-
-// printk("Voltage: %d.%06dV\n", voltage.val1, voltage.val2);
-
-// status = sensor_sample_fetch_chan(bq,
-//          SENSOR_CHAN_GAUGE_AVG_CURRENT);
-// if (status < 0) {
-// printk("Unable to fetch the Average current\n");
-// return;
-// }
-
-// status = sensor_channel_get(bq, SENSOR_CHAN_GAUGE_AVG_CURRENT,
-//       &current);
-// if (status < 0) {
-// printk("Unable to get the current value\n");
-// return;
-// }
-
-// bq274xx_show_values("Avg Current in Amps", current);
-
-// status = sensor_sample_fetch_chan(bq,
-//   SENSOR_CHAN_GAUGE_STDBY_CURRENT);
-// if (status < 0) {
-// printk("Unable to fetch Standby Current\n");
-// return;
-// }
-
-// status = sensor_channel_get(bq,
-//   SENSOR_CHAN_GAUGE_STDBY_CURRENT,
-//   &current_standby);
-// if (status < 0) {
-// printk("Unable to get the current value\n");
-// return;
-// }
-
-// bq274xx_show_values("Standby Current in Amps", current_standby);
-
-// status = sensor_sample_fetch_chan(bq,
-//   SENSOR_CHAN_GAUGE_MAX_LOAD_CURRENT);
-// if (status < 0) {
-// printk("Unable to fetch Max Load Current\n");
-// return;
-// }
-
-// status = sensor_channel_get(bq,
-//   SENSOR_CHAN_GAUGE_MAX_LOAD_CURRENT,
-//   &current_max_load);
-// if (status < 0) {
-// printk("Unable to get the current value\n");
-// return;
-// }
-
-// bq274xx_show_values("Max Load Current in Amps",
-//   current_max_load);
-
-// status = sensor_sample_fetch_chan(bq,
-//   SENSOR_CHAN_GAUGE_STATE_OF_CHARGE);
-// if (status < 0) {
-// printk("Unable to fetch State of Charge\n");
-// return;
-// }
-
-// status = sensor_channel_get(bq,
-//       SENSOR_CHAN_GAUGE_STATE_OF_CHARGE,
-//       &state_of_charge);
-// if (status < 0) {
-// printk("Unable to get state of charge\n");
-// return;
-// }
-
-// printk("State of charge: %d%%\n", state_of_charge.val1);
-
-// status = sensor_sample_fetch_chan(bq,
-//   SENSOR_CHAN_GAUGE_STATE_OF_HEALTH);
-// if (status < 0) {
-// printk("Failed to fetch State of Health\n");
-// return;
-// }
-
-// status = sensor_channel_get(bq,
-//       SENSOR_CHAN_GAUGE_STATE_OF_HEALTH,
-//       &state_of_health);
-// if (status < 0) {
-// printk("Unable to get state of charge\n");
-// return;
-// }
-
-// printk("State of health: %d%%\n", state_of_health.val1);
-
-// status = sensor_sample_fetch_chan(bq,
-//   SENSOR_CHAN_GAUGE_AVG_POWER);
-// if (status < 0) {
-// printk("Unable to fetch Avg Power\n");
-// return;
-// }
-
-// status = sensor_channel_get(bq, SENSOR_CHAN_GAUGE_AVG_POWER,
-//       &avg_power);
-// if (status < 0) {
-// printk("Unable to get avg power\n");
-// return;
-// }
-
-// bq274xx_show_values("Avg Power in Watt", avg_power);
-
-// status = sensor_sample_fetch_chan(bq,
-// SENSOR_CHAN_GAUGE_FULL_CHARGE_CAPACITY);
-// if (status < 0) {
-// printk("Failed to fetch Full Charge Capacity\n");
-// return;
-// }
-
-// status = sensor_channel_get(bq,
-// SENSOR_CHAN_GAUGE_FULL_CHARGE_CAPACITY,
-// &full_charge_capacity);
-// if (status < 0) {
-// printk("Unable to get full charge capacity\n");
-// return;
-// }
-
-// printk("Full charge capacity: %d.%06dAh\n",
-// full_charge_capacity.val1, full_charge_capacity.val2);
-
-// status = sensor_sample_fetch_chan(bq,
-// SENSOR_CHAN_GAUGE_REMAINING_CHARGE_CAPACITY);
-// if (status < 0) {
-// printk("Unable to fetch Remaining Charge Capacity\n");
-// return;
-// }
-
-// status = sensor_channel_get(bq,
-// SENSOR_CHAN_GAUGE_REMAINING_CHARGE_CAPACITY,
-// &remaining_charge_capacity);
-// if (status < 0) {
-// printk("Unable to get remaining charge capacity\n");
-// return;
-// }
-
-// printk("Remaining charge capacity: %d.%06dAh\n",
-// remaining_charge_capacity.val1,
-// remaining_charge_capacity.val2);
-
-// status = sensor_sample_fetch_chan(bq, SENSOR_CHAN_GAUGE_TEMP);
-// if (status < 0) {
-// printk("Failed to fetch Gauge Temp\n");
-// return;
-// }
-
-// status = sensor_channel_get(bq, SENSOR_CHAN_GAUGE_TEMP,
-//       &int_temp);
-// if (status < 0) {
-// printk("Unable to read internal temperature\n");
-// return;
-// }
-
-// printk("Gauge Temperature: %d.%06d C\n", int_temp.val1,
-// int_temp.val2);
-    
-
-
-// }
-
 
 int getbatterylevel(const struct device *dev) {
     int status;
@@ -287,12 +75,91 @@ int getbatterylevel(const struct device *dev) {
     return state_of_charge.val1;
 }
 
-// void batteryThreadinit(void) {
-//     k_thread_create(&batteryUpdateThread_data, batteryUpdateThread_stack_area,
-//                     K_THREAD_STACK_SIZEOF(batteryUpdateThread_stack_area),
-//                     batteryUpdateThread, NULL, NULL, NULL,
-//                     PRIORITY, 0, K_NO_WAIT);
+int battery_read_percent(void) {
+    if (bq == NULL || !device_is_ready(bq)) {
+        return -ENODEV;
+    }
 
-// }
+    int level = getbatterylevel(bq);
 
-// SYS_INIT(batteryThreadinit, APPLICATION, 50);
+    /* getbatterylevel() reports 0 on a failed read, which must not be confused
+     * with a genuinely flat cell. */
+    return (level <= 0) ? -EIO : level;
+}
+
+void battery_publish(int percent) {
+    if (percent < 0) {
+        return;
+    }
+
+    int err = bt_bas_set_battery_level((uint8_t)percent);
+
+    if (err) {
+        LOG_INF("Can't send battery report, err: %d", err);
+    }
+}
+
+bool battery_level_is_empty(int percent) {
+    return (percent > 0) && (percent <= BATTERY_EMPTY_PERCENT);
+}
+
+void sendbattery(void) {
+  uint8_t level;
+  level = getbatterylevel(bq);
+  LOG_INF("State of charge: %d%%\n", level);
+
+  int err = bt_bas_set_battery_level(level);
+  if (err) {
+      LOG_INF("Can't send battery report, err: %d\n", err);
+      return;
+  }
+}
+
+bool is_battery_empty(void) {
+
+    if (!device_is_ready(bq)) {
+        return false;
+    }
+
+    int level = getbatterylevel(bq);
+
+    /* getbatterylevel() reports 0 when the read itself failed, so a failed read
+     * must not be mistaken for a flat cell and trigger a shutdown. */
+    if (level <= 0) {
+        return false;
+    }
+
+    return level <= BATTERY_EMPTY_PERCENT;
+}
+
+void batteryThreadinit(void) {
+    k_thread_create(&batteryUpdateThread_data, batteryUpdateThread_stack_area,
+                    K_THREAD_STACK_SIZEOF(batteryUpdateThread_stack_area),
+                    batteryUpdateThread, NULL, NULL, NULL,
+                    PRIORITY, 0, K_NO_WAIT);
+
+}
+
+void battery_stop(void) {
+    /* Abort the battery update thread to stop periodic fuel-gauge reads */
+    k_thread_abort(&batteryUpdateThread_data);
+}
+
+void battery_shutdown(void) {
+    if (bq == NULL || !device_is_ready(bq)) {
+        return;
+    }
+
+    /* TURN_OFF maps to the driver's shutdown-mode sequence. Left in its normal
+     * operating mode the BQ27427 draws ~100uA from the cell forever, which on
+     * its own is ~100x the System OFF budget for the whole board. */
+    int ret = pm_device_action_run(bq, PM_DEVICE_ACTION_TURN_OFF);
+
+    if (ret && ret != -EALREADY) {
+        LOG_WRN("Failed to shut down fuel gauge (err %d)", ret);
+    } else {
+        LOG_INF("Fuel gauge in shutdown mode");
+    }
+}
+
+SYS_INIT(batteryThreadinit, APPLICATION, 50);

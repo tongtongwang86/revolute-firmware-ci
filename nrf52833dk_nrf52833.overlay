@@ -1,0 +1,105 @@
+// To get started, press Ctrl+Space (or Option+Esc) to bring up the completion menu and view the available nodes.
+
+// You can also use the buttons in the sidebar to perform actions on nodes.
+// Actions currently available include:
+
+// * Enabling / disabling the node
+// * Adding the bus to a bus
+// * Removing the node
+// * Connecting ADC channels
+
+// For more help, browse the DeviceTree documentation at https://docs.zephyrproject.org/latest/guides/dts/index.html
+// You can also visit the nRF DeviceTree extension documentation at https://docs.nordicsemi.com/bundle/nrf-connect-vscode/page/guides/ncs_configure_app.html#devicetree-support-in-the-extension
+
+
+/ {
+    aliases {
+        led4 = &my_led4;
+        hap0 = &haptics;
+        txen = &txen;
+        loaden = &loaden;
+    };
+
+    leds {
+        compatible = "gpio-leds";
+        my_led4: led_4 {
+            gpios = <&gpio0 5 GPIO_ACTIVE_LOW>; /* P0.05 */
+            label = "User LED 4";
+        };
+
+        haptics: haptics_0 {
+            gpios = <&gpio0 28 GPIO_ACTIVE_HIGH>;
+            label = "Hapticmotor";
+        };
+
+        txen: tx_en {
+            gpios = <&gpio0 30 GPIO_ACTIVE_HIGH>;
+            label = "enable pin for tx";
+        };
+
+        loaden: load_en {
+            gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+            label = "enable pin for loadswitch";
+        };
+    };
+};
+
+&i2c0 {
+
+    TLV493: TLV493@1f {
+        compatible = "i2c-device";
+        reg = <0x1f>;
+        label = "TLV493D";
+        status = "okay";
+ 
+    };
+
+    bq27427: bq27427@55 {
+		compatible = "ti,bq274xx";
+		reg = <0x55>;
+		design-voltage = <3700>;
+		design-capacity = <70>;
+		taper-current = <2>;
+		terminate-voltage = <3300>;
+		int-gpios = <&gpio0 2 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		status = "okay";
+
+	};
+	
+	// bq25180: bq25180@6a {  // Update the I2C address if different
+    //     compatible = "ti,bq25180";
+    //     reg = <0x6a>;  // I2C address of BQ25180
+    //     constant-charge-current-max-microamp = <100000>; // 100mA
+    //     constant-charge-voltage-max-microvolt = <4200000>; // 4.2V
+    //     precharge-voltage-threshold-microvolt = <3000000>; // 3.0V
+    //     re-charge-voltage-microvolt = <4100000>; // 4.1V
+	// 	// int-gpios = <&gpio0 20 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	// };
+
+	bq25180: bq25180@6a {
+        compatible = "ti,bq25180";
+        reg = <0x6a>;
+        label = "BQ25180";
+        constant-charge-current-max-microamp = <40000>; // 40 mA
+        constant-charge-voltage-max-microvolt = <4200000>; // 4.2 V
+        re-charge-voltage-microvolt = <4100000>; // Optional
+        precharge-voltage-threshold-microvolt = <2800000>; // Optional
+    };
+};
+
+
+&egu0 {
+    status = "disabled";
+};
+
+&ccm {
+    status = "disabled";
+};
+
+&uart1 {
+	pinctrl-0 = <&uart1_default>;
+	pinctrl-1 = <&uart1_sleep>;
+	pinctrl-names = "default", "sleep";
+	status = "okay";
+	current-speed = <115200>;
+};

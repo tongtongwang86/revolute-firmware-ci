@@ -1,29 +1,15 @@
 #include "revsvc.h"
 #include "settings.h"
 #include "ble.h"
-#include "magnetic.h"
+#include "statemanager.h"
+#include "sensor.h"
 
 LOG_MODULE_REGISTER(RevSVC, LOG_LEVEL_DBG);
-
-rev_config_t config = {
-    .deadzone = 0x00,
-    .up_report = {0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00},
-    .up_identPerRev = 0x1E,
-    .up_transport = 0x0D, // 5 keyboard, 9 consumer, 13 mouse
-    .dn_report = {0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00},
-    .dn_identPerRev = 0x1E,
-    .dn_transport = 0x0D // 5 keyboard, 9 consumer, 13 mouse
-};
 
 
 static uint8_t stats_notifications_enabled;
 // Initialize the dummy data
 
-
-rev_stats_t stats = {
-    .quat_data = {0x3f800000, 0x00000000, 0x00000000, 0x00000000}, // Quaternion identity (1.0, 0.0, 0.0, 0.0)
-    .rotation_value = 0x0001 // Example rotation value
-};
 
 
 
@@ -79,11 +65,14 @@ static ssize_t write_callback_config(struct bt_conn *conn,
     LOG_INF("dn_identPerRev: %u", config.dn_identPerRev);
     LOG_INF("dn_transport: %u", config.dn_transport);
     save_config();
-    return to_copy;
+    // sensor_set_degree_threshold(config.up_identPerRev);
+    set_ccw_identsperrev();
+    set_cw_identsperrev();
+    return to_copy; 
 }
 
 // Define the GATT service and characteristic
-
+int angle = 0;
 
 void generate_clock_based_stats_data(rev_stats_t *stats) {
     // Use system uptime as a source of data

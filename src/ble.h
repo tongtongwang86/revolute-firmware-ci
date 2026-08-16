@@ -20,6 +20,9 @@ int remove_bonded_device(void);
 
 int zmk_ble_set_device_name(char *name);
 
+/* Stop advertising and shut the controller down (used on the way to System OFF). */
+void disable_bluetooth(void);
+
 
 
 #endif // BLE_H

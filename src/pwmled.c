@@ -1,4 +1,5 @@
 #include "pwmled.h"
+#include "statemanager.h"
 #include <math.h>
 
 LOG_MODULE_REGISTER(pwmled, LOG_LEVEL_INF);
@@ -7,14 +8,20 @@ LOG_MODULE_REGISTER(pwmled, LOG_LEVEL_INF);
 static const struct pwm_dt_spec pwm_led0 = PWM_DT_SPEC_GET(PWM_LED0);
 
 #define PWMLED_STACK_SIZE 1024
-#define PWMLED_THREAD_PRIORITY K_LOWEST_APPLICATION_THREAD_PRIO
+// #define PWMLED_THREAD_PRIORITY K_LOWEST_APPLICATION_THREAD_PRIO
+#define PWMLED_THREAD_PRIORITY 6
 #define M_PI 3.141592
 
 static struct k_thread pwmled_thread_data;
 static K_THREAD_STACK_DEFINE(pwmled_stack, PWMLED_STACK_SIZE);
+static bool pwmled_thread_started;
 
-extern enum power_type power_status;
-extern enum advertising_type advertising_status;
+/* Idle tick when the animation has settled on a constant target. A breathing
+ * pattern needs the fast tick; a steady level does not, and the PWM peripheral
+ * plus a 20 Hz wakeup is not free. */
+#define PWMLED_TICK_MS      50
+#define PWMLED_IDLE_TICK_MS 250
+#define PWMLED_SETTLED_EPS  0.005f
 
 static float brightness = 0;      // Current LED brightness (0 to 1)
 static float velocity = 0;        // Rate of change of brightness
@@ -65,84 +72,107 @@ static void pwmled_thread(void *unused1, void *unused2, void *unused3) {
     fade_in();
 
     while (1) {
-        // Update physics parameters based on state
-        if (power_status == PWR_OFF) {
+        bool breathing = false;
+
+        /* The LED reports the run state first and the link state second, so a
+         * device that is asleep or holding looks different from one that is
+         * hunting for a host. */
+        if (power_status == PWR_OFF || isOff) {
             mass = 1;
             spring_k = 3;
             damping_b = 7;
-            target_brightness = -10;
-        } else if (power_status == PWR_STANDBY) {
-            switch (advertising_status) {
-                case ADV_NONE:
-                    mass = 1;
-                    spring_k = 50;
-                    damping_b = 4;
-                    target_brightness = 0.1;
-                    break;
-                case ADV_FILTER:
-                    mass = .4;
-                    spring_k = 40;
-                    damping_b = 5;
-                    target_brightness = 0.5 + 0.6 * sin(k_uptime_get() * 0.01); // Fast breathing
-                    break;
-                case ADV_CONN:
-                    mass = 1;
-                    spring_k = 40;
-                    damping_b = 3;
-                    target_brightness =  0.5 + 5 * sin(k_uptime_get() * 0.01); // Fast breathing
-                    break;
-            }
-            
-        } else if (power_status == PWR_HOLD) {
+            target_brightness = -5;
+        } else if (power_status == PWR_HOLD || onhold) {
             mass = 1;
             spring_k = 50;
             damping_b = 4;
-            target_brightness = 0.2;
-        } else if (power_status == PWR_ON) {
+            target_brightness = 0.2f;
+        } else {
             switch (advertising_status) {
-                case ADV_NONE:
+            case ADV_NONE:
+                if (power_status == PWR_STANDBY) {
+                    mass = 1;
+                    spring_k = 50;
+                    damping_b = 4;
+                    target_brightness = 0.1f;
+                } else {
                     mass = 1;
                     spring_k = 10;
                     damping_b = 2;
-                    target_brightness = 0.5 + 0.33 * sin(k_uptime_get() * 0.002);  // Slow breathing
-                    break;
-                case ADV_FILTER:
-                    mass = .4;
-                    spring_k = 40;
-                    damping_b = 5;
-                    target_brightness = 0.5 + 0.6 * sin(k_uptime_get() * 0.01); // Fast breathing
-                    break;
-                case ADV_CONN:
-                    mass = 1;
-                    spring_k = 40;
-                    damping_b = 3;
-                    target_brightness =  0.5 + 5 * sin(k_uptime_get() * 0.01); // Fast breathing
-                    break;
+                    /* Slow breathing: connected and awake. */
+                    target_brightness = 0.5f + 0.33f * sinf(k_uptime_get() * 0.002f);
+                    breathing = true;
+                }
+                break;
+            case ADV_FILTER:
+                mass = .4;
+                spring_k = 40;
+                damping_b = 5;
+                /* Fast breathing: advertising to a known host. */
+                target_brightness = 0.5f + 0.6f * sinf(k_uptime_get() * 0.01f);
+                breathing = true;
+                break;
+            case ADV_CONN:
+                mass = 1;
+                spring_k = 40;
+                damping_b = 3;
+                /* Fast, hard breathing: open for pairing. */
+                target_brightness = 0.5f + 5.0f * sinf(k_uptime_get() * 0.01f);
+                breathing = true;
+                break;
             }
         }
 
-        // Run the physics simulation step (assuming 10ms per cycle)
-        update_physics(0.01);
-        
+        update_physics(0.05f);
 
         float normalized_brightness;
-        // LOG_INF("brightness: %f", brightness);
+
         if (brightness < 0) {
             normalized_brightness = 0;
             velocity = 0;  // Stop movement when hitting the lower bound
-        }else if (brightness > 1) {
+        } else if (brightness > 1) {
             normalized_brightness = 1;
             velocity = 0;  // Stop movement when hitting the upper bound
         } else {
             normalized_brightness = brightness;
         }
 
-        // Apply LED brightness
         set_led_pulse(normalized_brightness);
 
+        bool settled = !breathing &&
+                       (fabsf(velocity) < PWMLED_SETTLED_EPS) &&
+                       (fabsf(brightness - target_brightness) < PWMLED_SETTLED_EPS);
 
-        // Sleep for 10ms
-        k_sleep(K_MSEC(10));
+        k_sleep(K_MSEC(settled ? PWMLED_IDLE_TICK_MS : PWMLED_TICK_MS));
+    }
+}
+
+void pwmled_shutdown(void) {
+    /* Stop the animation thread before touching the duty cycle. Otherwise the
+     * thread and this call race for the PWM, and whichever writes last is the
+     * value the pin latches into System OFF. */
+    if (pwmled_thread_started) {
+        k_thread_abort(&pwmled_thread_data);
+        pwmled_thread_started = false;
+    }
+
+    /* Ramp down from wherever the animation actually was. */
+    for (float level = brightness; level > 0.0f; level -= 0.05f) {
+        set_led_pulse(level);
+        k_sleep(K_MSEC(20));
+    }
+
+    brightness = 0.0f;
+    velocity = 0.0f;
+    target_brightness = 0.0f;
+    set_led_pulse(0.0f);
+
+    /* Hand the pin back to pinctrl's low-power state so a retained GPIO level
+     * cannot keep the LED lit through System OFF. */
+    int ret = pm_device_action_run(pwm_led0.dev, PM_DEVICE_ACTION_SUSPEND);
+
+    if (ret && ret != -EALREADY && ret != -ENOTSUP) {
+        printk("Failed to suspend PWM (err %d)\n", ret);
     }
 }
 
@@ -158,6 +188,7 @@ int pwmled_init(void) {
     k_thread_create(&pwmled_thread_data, pwmled_stack, K_THREAD_STACK_SIZEOF(pwmled_stack),
                     pwmled_thread, NULL, NULL, NULL,
                     PWMLED_THREAD_PRIORITY, 0, K_NO_WAIT);
+    pwmled_thread_started = true;
 
     return 0;
 }

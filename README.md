@@ -1,6 +1,6 @@
 # Revolute Wireless Firmware Continuous Integration using GitHub Actions
 
-## Core functions:
+## New Firmware Roadmap
 
 - [x] Get GitHub Action to build firmware
 - [x] Bluetooth Peripheral sample app
@@ -19,34 +19,78 @@
 - [x] Implement configurations
 - [x] Done
 
-## Currently working on:
+## Issues:
 
+- [ ] revolute keys not working on ipad and vision pro
+- [ ] bluetooth not working after extended time even though revolute is still on
 - [ ] fix bluetooth autoconnect after disconnect
-- [ ] fix revolute not working on iphone, ipad, vision pro
-- [ ] add new magnetic sensor implementation
-- [ ] optimize off power consumption
-- [ ] new power saving implementations
-- [ ] user configurable button
-- [ ] controller support
+
+
+## Documentation
+
+- [docs/architecture.md](docs/architecture.md) — modules, threads, rotation tracking
+- [docs/power.md](docs/power.md) — run states, auto-off, shutdown sequence
+- [docs/bluetooth.md](docs/bluetooth.md) — HID reports, the send pipeline, configuration service
 
 ## Build Locally
 
-Clone to device
+Requirements:
 
-Zephyr SDK: 0.17.0  
-Zephyr: V4.0.99
+- Zephyr SDK 0.17.0
+- Zephyr 4.1.99 (upstream `main`)
 
-Specify board root as this repository: `-DBOARD_ROOT=/revolute-firmware-ci`
+Two board targets are supported:
 
-Enable sysbuild  
+```sh
+# The product board
+west build -b revolutewireless --sysbuild -- -DBOARD_ROOT=$PWD
 
-Use prj.conf  
+# Nordic devkit; picks up nrf52833dk_nrf52833.overlay automatically
+west build -b nrf52833dk/nrf52833
+```
 
-Build for the board 'revolutewireless'
+`BOARD_ROOT` must point at this repository so the `boards/revolutewireless`
+definition is found.
 
-## Build development (No OTA)
+### Gotchas
 
-Build board without sysbuild using the development.conf
+- **No spaces in the checkout path.** Zephyr's Kconfig step splits the
+  application path on whitespace and will fail with a truncated
+  "File not found" error. If your working copy lives somewhere with a space in
+  the name, build through a symlink:
+
+  ```sh
+  ln -s "/path/with a space/revolute-firmware-ci" /tmp/revolute
+  west build -b revolutewireless -d /tmp/build /tmp/revolute -- -DBOARD_ROOT=/tmp/revolute
+  ```
+
+- If `west` fails with `ModuleNotFoundError`, its Python environment is missing
+  Zephyr's build dependencies (`pykwalify`, `packaging`, `pyelftools`). Install
+  `zephyr/scripts/requirements-base.txt` into whichever interpreter west uses.
+
+- The build **is** a sysbuild + MCUboot build (`sysbuild.conf`,
+  `sysbuild/mcuboot.conf`), so `west build` needs `--sysbuild` and the
+  workspace needs `bootloader/mcuboot` checked out.
+
+- The app image is a tight fit in slot0: 203 KB of the 220 KB usable. That is
+  why `prj.conf` selects picolibc — newlib costs ~22 KB more and overflows the
+  slot. Watch this number when adding features.
+
+- MCUboot is built with the console off (see the comment in
+  `sysbuild/mcuboot.conf`); the board's `zephyr,console` is a USB CDC ACM node
+  that the bootloader never instantiates.
+
+### Logging
+
+`prj.conf` builds with logging disabled (`CONFIG_LOG=n`, `CONFIG_PRINTK=y`).
+For bench work, enable a backend:
+
+```sh
+west build -b revolutewireless -- -DBOARD_ROOT=$PWD \
+    -DCONFIG_LOG=y -DCONFIG_LOG_BACKEND_UART=y -DCONFIG_SERIAL=y
+```
+
+Unlike `main`, this branch has no `development.conf`.
 
 ## Download Build from GitHub Actions
  

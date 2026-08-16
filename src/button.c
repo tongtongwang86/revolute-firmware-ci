@@ -1,12 +1,24 @@
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/i2c.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/devicetree.h>
+#include <math.h>
+#include <zephyr/kernel.h>
+#include <stdio.h>
+#include <zephyr/sys/printk.h>
+// #include <zephyr/bluetooth/gatt.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/settings/settings.h>
+#include "power.h"
+#include "statemanager.h"
 #include "button.h"
 #include "ble.h"
-#include "hog.h"
-#include "led.h"
-#include "pwmled.h"
 
 LOG_MODULE_REGISTER(button, LOG_LEVEL_INF);
 
-#define SW3_NODE DT_ALIAS(sw3)
+#define SW3_NODE DT_ALIAS(sw0)
 static const struct gpio_dt_spec sw3 = GPIO_DT_SPEC_GET_OR(SW3_NODE, gpios, {0});
 
 #define SINGLE_CLICK_TIMEOUT K_MSEC(400)
@@ -20,7 +32,16 @@ enum button_event {
     BUTTON_LONG_HOLD,
 };
 
-enum power_type power_status = PWR_ON;
+// enum power_type power_status = PWR_ON;
+
+
+// void cause_crash(void)
+// {
+//     printk("Causing deliberate crash (NULL pointer)...\n");
+
+//     volatile int *ptr = NULL;
+//     *ptr = 42;  // Boom: hard fault
+// }
 
 
 static struct k_work_delayable button_work;
@@ -35,6 +56,7 @@ void handle_button_event(enum button_event event) {
     switch (event) {
     case BUTTON_SINGLE_CLICK:
         LOG_INF("Single Click detected!");
+        // cause_crash();
         break;
     case BUTTON_DOUBLE_CLICK:
         LOG_INF("Double Click detected!");
@@ -44,10 +66,17 @@ void handle_button_event(enum button_event event) {
         remove_bonded_device();
         break;
     case BUTTON_LONG_HOLD:
-        power_status = PWR_OFF;
+        // power_status = PWR_OFF;
         LOG_INF("Long Hold detected! Turning off");
-        k_sleep(K_MSEC(2500));
+        isOff = true;
+        
         power_off();
+
+        
+        // rev_state = STATE_OFF;
+        
+        
+        
         break;
     default:
         LOG_WRN("Unknown button event!");

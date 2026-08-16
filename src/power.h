@@ -9,40 +9,40 @@
 #include <zephyr/pm/state.h>
 #include <zephyr/pm/device_runtime.h>
 #include <zephyr/drivers/gpio.h>
-#include "ble.h"
-#include "hog.h"
-#include "revsvc.h"
-#include "batterylvl.h"
-#include "button.h"
-#include "settings.h"
-#include "led.h"
-#include "magnetic.h"
 
-
-// Power states
-typedef enum {
-    STATE_OFF,
-    STATE_PAIRING,
-    STATE_ADVERTISEMENT,
-    STATE_CONNECTED,
-    STATE_STANDBY,
-    STATE_ONFULL
-} led_state_t;
-
+/* Run states, in increasing order of activity.
+ *
+ * PWR_ON      - sensor rail up, polling at the fast rate.
+ * PWR_HOLD    - the wheel has not moved for a while; sensor rail cycled at a
+ *               slow rate so a nudge still wakes the device.
+ * PWR_STANDBY - no magnet present, or the link is down; deepest state that
+ *               still keeps Bluetooth alive.
+ * PWR_OFF     - System OFF, wake on button only.
+ */
 enum power_type {
     PWR_OFF,
     PWR_STANDBY,
     PWR_HOLD,
     PWR_ON,
 };
+
 extern enum power_type power_status;
 
-extern led_state_t target_state;
-
-
+/* Full shutdown: parks every peripheral that can leak, then enters System OFF. */
 void power_off(void);
-void power_on(void);
+
+/* Drop/restore the switched sensor rail and the I2C bus around it. */
+void power_standby(void);
+void power_resume(void);
+
+/* Serialises use of i2c0 against power_standby()/power_resume(), which suspend
+ * and resume the bus underneath any thread that happens to be using it. Threads
+ * other than the sensor thread must hold this while talking to the bus. */
+int i2c_bus_lock(k_timeout_t timeout);
+void i2c_bus_unlock(void);
+
+/* Inactivity shutdown. Reschedule from anywhere that counts as user activity. */
+void power_off_timer_reschedule(void);
+void schedule_power_off(int delay_ms);
 
 #endif // POWER_H
-
-

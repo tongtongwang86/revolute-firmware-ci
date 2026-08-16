@@ -19,8 +19,11 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/bluetooth/addr.h>
-#include "power.h"
+// #include "power.h"
 #include <ble.h>
+#include "statemanager.h"
+
+
 
 #if IS_ENABLED(CONFIG_SETTINGS)
 #include <zephyr/settings/settings.h>
@@ -39,20 +42,6 @@ bt_addr_le_t *zmk_ble_active_profile_addr(void) {
 }
 
 
-// Function to remove a bond
-int remove_bonded_device(void) {
-
-    // Try to unpair the device
-    int err= bt_unpair(BT_ID_DEFAULT,BT_ADDR_LE_ANY);
-    if (err) {
-        LOG_ERR("Failed to unpair device %s (err %d)", err);
-        return err;
-    }
-
-    update_advertising();
-
-    return 0;
-}
 
 
 static int bond_count;
@@ -61,17 +50,13 @@ enum advertising_type advertising_status = ADV_FILTER;
 
 #define CURR_ADV(adv) (adv << 4)
 
-#define ADV_CONN_NAME                                                                          \
-    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME | BT_LE_ADV_OPT_USE_NAME |  \
-                        BT_LE_ADV_OPT_FORCE_NAME_IN_AD,                                            \
+#define ADV_CONN_NAME \
+    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN, \
                     BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
 
 #define ADV_FILTERED_NAME                                                                      \
-    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME | BT_LE_ADV_OPT_USE_NAME |  \
-                        BT_LE_ADV_OPT_FORCE_NAME_IN_AD | BT_LE_ADV_OPT_FILTER_CONN |               \
-                        BT_LE_ADV_OPT_FILTER_SCAN_REQ,                                             \
+    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN | BT_LE_ADV_OPT_FILTER_CONN, \
                     BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
-                
 
 static uint8_t active_profile;
 
@@ -80,16 +65,29 @@ static uint8_t active_profile;
 
 BUILD_ASSERT(DEVICE_NAME_LEN <= 16, "ERROR: BLE device name is too long. Max length: 16");
 
-static struct bt_data zmk_ble_ad[] = {
-    BT_DATA_BYTES(BT_DATA_GAP_APPEARANCE, 0xCD, 0x04),
-    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-    BT_DATA_BYTES(BT_DATA_UUID16_SOME, 0x12, 0x18, /* HID Service */
-                  0x0f, 0x18                       /* Battery Service */
-                  ),
+// static struct bt_data zmk_ble_ad[] = {
+//     BT_DATA_BYTES(BT_DATA_GAP_APPEARANCE, 0xCD, 0x04),
+//     BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+//     BT_DATA_BYTES(BT_DATA_UUID16_SOME, 0x12, 0x18, /* HID Service */
+//                   0x0f, 0x18                       /* Battery Service */
+//                   ),
+// };
+
+// static const struct bt_data rev_ble_sd[] = {
+// 	BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_128_ENCODE(0x00001523, 0x1212, 0xefde, 0x1523, 0x785feabcd133)),
+// };
+
+static const struct bt_data zmk_ble_ad[] = {
+	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+	BT_DATA_BYTES(BT_DATA_UUID16_ALL,
+		      BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),
+		      BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)),
 };
 
 static const struct bt_data rev_ble_sd[] = {
-	BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_128_ENCODE(0x00001523, 0x1212, 0xefde, 0x1523, 0x785feabcd133)),
+	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
+    BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_128_ENCODE(0x00001523, 0x1212, 0xefde, 0x1523, 0x785feabcd133)),
+
 };
 
 static void add_bonded_addr_to_filter_list(const struct bt_bond_info *info, void *data)
@@ -136,6 +134,7 @@ bool active_profile_connected(void) {
 
 #define CHECKED_ADV_STOP()                                                                         \
     err = bt_le_adv_stop();                                                                        \
+    rev_state = STATE_ON;          \
     advertising_status = ADV_NONE;                                                             \
     LOG_DBG("advertising stopped");                                                                \
     if (err) {                                                                                     \
@@ -146,7 +145,7 @@ bool active_profile_connected(void) {
 #define CHECKED_FILTER_ADV()                                                                      \
     err = bt_le_adv_start(ADV_FILTERED_NAME, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), rev_ble_sd, ARRAY_SIZE(rev_ble_sd)); \
     LOG_DBG("Advertising with filter enabled");                                                  \
-    target_state = STATE_ADVERTISEMENT;                                                          \
+    rev_state = STATE_PAIRING;                                                          \
     if (err) {                                                                                   \
         LOG_ERR("Filtered advertising failed to start (err %d)", err);                           \
         return err;                                                                              \
@@ -157,7 +156,7 @@ bool active_profile_connected(void) {
 #define CHECKED_OPEN_ADV()                                                                         \
     err = bt_le_adv_start(ADV_CONN_NAME, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), rev_ble_sd, ARRAY_SIZE(rev_ble_sd));         \
     LOG_DBG("Advertising open");                                                                   \
-    target_state = STATE_ADVERTISEMENT;                                                            \
+    rev_state = STATE_ADVERTISEMENT;                                                            \
     if (err) {                                                                                     \
         LOG_ERR("Advertising failed to start (err %d)", err);                                      \
         return err;                                                                                \
@@ -226,6 +225,24 @@ bool active_profile_connected(void) {
 K_WORK_DEFINE(update_advertising_work, update_advertising_callback);
 
 
+// Function to remove a bond
+int remove_bonded_device(void) {
+
+    // Try to unpair the device
+    int err= bt_unpair(BT_ID_DEFAULT,BT_ADDR_LE_ANY);
+    if (err) {
+        LOG_ERR("Failed to unpair device %s (err %d)", err);
+        return err;
+    }
+
+    // update_advertising();
+         k_work_submit(&update_advertising_work);
+
+
+    return 0;
+}
+
+
 int zmk_ble_set_device_name(char *name) {
     // Copy new name to advertising parameters
     int err = bt_set_name(name);
@@ -256,18 +273,70 @@ static void zmk_ble_ready(int err) {
         return;
     }
 
-    update_advertising();
+    // update_advertising();
+     k_work_submit(&update_advertising_work);
 }
 
 
 
 
+/* Each detent sends a press and a release, so the notification rate is twice the
+ * detent rate. At 30 detents/rev a brisk spin needs several hundred notifications
+ * per second, and the link can only carry a few packets per connection event --
+ * so the connection interval directly caps how fast the wheel can be turned
+ * before reports start queueing. Centrals (macOS in particular) routinely ignore
+ * the peripheral's preferred parameters for HID and hand back 15 ms or worse, so
+ * ask again explicitly once the link is up. */
+#define REVOLUTE_CONN_INT_MIN   6   /* 7.5 ms */
+#define REVOLUTE_CONN_INT_MAX   12  /* 15 ms */
+#define REVOLUTE_CONN_LATENCY   0
+#define REVOLUTE_CONN_TIMEOUT   400 /* 4 s */
+#define REVOLUTE_PARAM_ATTEMPTS 2
+
+static uint8_t conn_param_attempts;
+
+static void request_fast_conn_params(struct bt_conn *conn)
+{
+    const struct bt_le_conn_param param = BT_LE_CONN_PARAM_INIT(
+        REVOLUTE_CONN_INT_MIN, REVOLUTE_CONN_INT_MAX, REVOLUTE_CONN_LATENCY,
+        REVOLUTE_CONN_TIMEOUT);
+
+    int err = bt_conn_le_param_update(conn, &param);
+
+    if (err && err != -EALREADY) {
+        LOG_WRN("Connection parameter update request failed (err %d)", err);
+    }
+}
+
+static void conn_param_apply(struct bt_conn *conn, void *data)
+{
+    struct bt_conn_info info;
+
+    if (bt_conn_get_info(conn, &info) != 0 || info.state != BT_CONN_STATE_CONNECTED ||
+        info.role != BT_CONN_ROLE_PERIPHERAL) {
+        return;
+    }
+
+    request_fast_conn_params(conn);
+}
+
+static void conn_param_work_handler(struct k_work *work)
+{
+    bt_conn_foreach(BT_CONN_TYPE_LE, conn_param_apply, NULL);
+}
+
+static K_WORK_DELAYABLE_DEFINE(conn_param_work, conn_param_work_handler);
+
 static void connected(struct bt_conn *conn, uint8_t err) {
     char addr[BT_ADDR_LE_STR_LEN];
     struct bt_conn_info info;
-    LOG_DBG("Connected thread: %p", k_current_get());
 
+    LOG_DBG("Connected thread: %p", k_current_get());
     bt_conn_get_info(conn, &info);
+
+    if (bt_conn_set_security(conn, BT_SECURITY_L2)) {
+		printk("Failed to set security\n");
+	}
 
     if (info.role != BT_CONN_ROLE_PERIPHERAL) {
         LOG_DBG("SKIPPING FOR ROLE %d", info.role);
@@ -276,21 +345,28 @@ static void connected(struct bt_conn *conn, uint8_t err) {
 
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
     advertising_status = ADV_NONE;
-    
 
     if (err) {
         LOG_WRN("Failed to connect to %s (%u)", addr, err);
-        update_advertising();
+        // update_advertising();
+             k_work_submit(&update_advertising_work);
+
         return;
     }
 
     LOG_DBG("Connected %s", addr);
 
+    /* Ask for a HID-appropriate connection interval. Deferred slightly: some
+     * centrals reject a parameter update sent immediately after connection. */
+    conn_param_attempts = 0;
+    k_work_reschedule(&conn_param_work, K_MSEC(500));
 
-    update_advertising();
-
+    // update_advertising();
+         k_work_submit(&update_advertising_work);
 
 }
+
+
 
 static void disconnected(struct bt_conn *conn, uint8_t reason) {
     char addr[BT_ADDR_LE_STR_LEN];
@@ -300,6 +376,9 @@ static void disconnected(struct bt_conn *conn, uint8_t reason) {
 
     LOG_DBG("Disconnected from %s (reason 0x%02x)", addr, reason);
     bt_conn_get_info(conn, &info);
+
+    k_work_cancel_delayable(&conn_param_work);
+    conn_param_attempts = 0;
 
     if (info.role != BT_CONN_ROLE_PERIPHERAL) {
         LOG_DBG("SKIPPING FOR ROLE %d", info.role);
@@ -325,6 +404,7 @@ static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_
 
 }
 
+
 static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t latency,
                              uint16_t timeout) {
     char addr[BT_ADDR_LE_STR_LEN];
@@ -333,6 +413,14 @@ static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t l
 
     LOG_DBG("%s: interval %d latency %d timeout %d", addr, interval, latency, timeout);
 
+    /* Only nag a bounded number of times: some centrals will never grant a
+     * shorter interval and repeatedly asking just burns airtime. */
+    if (interval > REVOLUTE_CONN_INT_MAX && conn_param_attempts < REVOLUTE_PARAM_ATTEMPTS) {
+        conn_param_attempts++;
+        LOG_INF("Interval %d too slow for HID, re-requesting (attempt %d)", interval,
+                conn_param_attempts);
+        k_work_reschedule(&conn_param_work, K_SECONDS(1));
+    }
 }
 
 static struct bt_conn_cb conn_callbacks = {
@@ -378,10 +466,14 @@ static void auth_pairing_complete(struct bt_conn *conn, bool bonded) {
         LOG_DBG("SKIPPING FOR ROLE %d", info.role);
         return;
     }
-    update_advertising();
+    // update_advertising();
+         k_work_submit(&update_advertising_work);
+
 };
 
 static struct bt_conn_auth_cb zmk_ble_auth_cb_display = {
+    .passkey_display = NULL,
+	.passkey_entry = NULL,
     .cancel = auth_cancel,
 };
 
@@ -403,7 +495,7 @@ static int zmk_ble_complete_startup(void) {
 
 
 
-static int ble_init(void) {
+static int zmk_ble_init(void) {
 
     LOG_INF("Bluetooth init");
 
@@ -439,4 +531,4 @@ void disable_bluetooth(void) {
     }
 }
 
-SYS_INIT(ble_init, APPLICATION, 50);
+SYS_INIT(zmk_ble_init, APPLICATION, 50);

@@ -19,15 +19,21 @@
 
 /* Function to initialize the HoG service */
 void hog_init(void);
+
+/* Queue one detent in each direction. Both the press and its release are queued
+ * as a single unit, so a release can never be lost on its own. */
 void revolute_up_submit(void);
 void revolute_dn_submit(void);
-void revolute_up_cont_submit(void);
-void revolute_dn_cont_submit(void);
+
+/* Queue one continuous (relative) report carrying a signed magnitude. */
+void revolute_up_cont_submit(int8_t delta);
+void revolute_dn_cont_submit(int8_t delta);
+
+/* Number of ticks discarded because the send queue overflowed. */
+uint32_t revolute_dropped_tick_count(void);
 
 
 /* Function to send a mouse button 1 press via GATT notification */
 // void hog_send_mouse_button_1(void);
 
 #endif /* HOG_H */
-
-

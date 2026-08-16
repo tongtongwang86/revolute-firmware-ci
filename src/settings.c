@@ -1,9 +1,11 @@
+
 #include "settings.h"
 #include "revsvc.h"
+#include "statemanager.h"
 
 LOG_MODULE_REGISTER(Settings, LOG_LEVEL_DBG);
 
-// initial configuration
+
 
 static int settings_set(const char *name, size_t len, settings_read_cb read_cb, void *cb_arg)
 {
